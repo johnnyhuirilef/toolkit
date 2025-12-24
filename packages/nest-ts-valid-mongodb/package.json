@@ -1,0 +1,67 @@
+{
+  "name": "@ioni/nest-ts-valid-mongodb",
+  "version": "0.0.1",
+  "description": "High-performance MongoDB Native Driver wrapper for NestJS with Zod schema validation. Lightweight, type-safe, and robust.",
+  "main": "./index.cjs.js",
+  "module": "./index.esm.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.esm.js",
+      "require": "./index.cjs.js",
+      "default": "./index.cjs.js"
+    }
+  },
+  "files": [
+    "*.js",
+    "*.d.ts",
+    "*.map",
+    "src",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": false,
+  "keywords": [
+    "nestjs",
+    "mongodb",
+    "zod",
+    "validation",
+    "native-driver",
+    "typescript",
+    "schema",
+    "odm",
+    "orm",
+    "database",
+    "nosql"
+  ],
+  "author": "Ioni",
+  "license": "MIT",
+  "homepage": "https://github.com/johnnyhuirilef/toolkit/tree/main/packages/nest-ts-valid-mongodb#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnnyhuirilef/toolkit.git",
+    "directory": "packages/nest-ts-valid-mongodb"
+  },
+  "bugs": {
+    "url": "https://github.com/johnnyhuirilef/toolkit/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^10.0.0 || ^11.0.0",
+    "@nestjs/core": "^10.0.0 || ^11.0.0",
+    "mongodb": "^5.0.0 || ^6.0.0",
+    "ts-valid-mongodb": "^1.0.0",
+    "zod": "^3.0.0"
+  },
+  "peerDependenciesMeta": {},
+  "dependencies": {}
+}
