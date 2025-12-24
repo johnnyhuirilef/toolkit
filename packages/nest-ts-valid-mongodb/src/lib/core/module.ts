@@ -301,7 +301,7 @@ export class TsValidMongoModule implements OnModuleDestroy {
         },
       };
     } catch (error) {
-      const errorMessage = `Failed to connect to MongoDB database "${options.databaseName}"`;
+      const errorMessage = `Failed to connect to MongoDB database: "${options.databaseName}"`;
       Logger.error(`❌ ${errorMessage}`, 'TsValidMongoModule');
       throw new TsValidMongoConnectionError(errorMessage, { cause: error });
     }
