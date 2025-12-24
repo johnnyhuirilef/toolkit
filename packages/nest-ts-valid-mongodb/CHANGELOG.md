@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.0...nest-ts-valid-mongodb-v0.1.1) (2025-12-24)
+
+
+### Bug Fixes
+
+* update author name in package.json ([54b1293](https://github.com/johnnyhuirilef/toolkit/commit/54b129323cc4498775320094d1374c549e7aacf0))
+
 ## [0.1.0](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.0.1...nest-ts-valid-mongodb-v0.1.0) (2025-12-24)
 
 
