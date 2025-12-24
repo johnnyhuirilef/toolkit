@@ -42,8 +42,13 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get project info
         id: package-info
@@ -56,11 +61,11 @@ jobs:
       - name: Build package
         # Assumes the package name matches the Nx project name or folder name
         # If not, we might need a mapping or build all
-        run: npx nx build nest-ts-valid-mongodb
+        run: pnpm nx build nest-ts-valid-mongodb
 
       - name: Publish to NPM
         working-directory: ${{ matrix.path }}
-        run: npm publish --provenance --access public
+        run: pnpm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
