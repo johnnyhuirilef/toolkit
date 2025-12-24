@@ -1,4 +1,5 @@
 {
+  "separate-pull-requests": true,
   "packages": {
     "packages/nest-ts-valid-mongodb": {
       "release-type": "node",
