@@ -1,14 +1,22 @@
 {
-  "name": "@org/source",
+  "name": "@ioni/toolkit",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "build:all": "nx run-many --target=build --all",
+    "test:all": "nx run-many --target=test --all",
+    "lint:all": "nx run-many --target=lint --all",
+    "release": "nx release"
+  },
   "private": true,
   "devDependencies": {
     "@cspell/dict-es-es": "^3.0.8",
     "@cspell/eslint-plugin": "^9.2.0",
     "@eslint-community/eslint-plugin-eslint-comments": "^4.5.0",
     "@eslint/js": "^9.8.0",
+    "@nestjs/common": "^11.1.10",
+    "@nestjs/core": "^11.1.10",
+    "@nestjs/platform-express": "^11.1.10",
     "@nestjs/testing": "^11.1.10",
     "@nx/eslint": "22.3.3",
     "@nx/eslint-plugin": "22.3.3",
@@ -35,28 +43,24 @@
     "jiti": "2.4.2",
     "jsonc-eslint-parser": "^2.1.0",
     "lint-staged": "^16.1.6",
+    "mongodb": "^5.9.2",
     "nx": "22.3.3",
     "prettier": "3.6.2",
     "rollup": "^4.14.0",
     "swc-loader": "0.1.15",
+    "ts-valid-mongodb": "^1.0.0",
     "tslib": "^2.3.0",
     "tsx": "^4.21.0",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.40.0",
     "vite": "^6.0.0",
-    "vitest": "^3.0.0"
+    "vitest": "^3.0.0",
+    "zod": "^3.25.76"
   },
   "workspaces": [
     "packages/*"
   ],
-  "dependencies": {
-    "@nestjs/common": "^11.1.10",
-    "@nestjs/core": "^11.1.10",
-    "@nestjs/platform-express": "^11.1.10",
-    "mongodb": "^5.9.2",
-    "ts-valid-mongodb": "^1.0.0",
-    "zod": "^3.25.76"
-  },
+  "dependencies": {},
   "nx": {
     "includedScripts": []
   }
