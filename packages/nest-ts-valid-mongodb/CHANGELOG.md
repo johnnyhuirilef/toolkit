@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.1...nest-ts-valid-mongodb-v0.1.2) (2025-12-24)
+
+
+### Bug Fixes
+
+* Fix error message formatting for MongoDB connection ([341643b](https://github.com/johnnyhuirilef/toolkit/commit/341643b00e9a97aaf1d5fcdf6d25befa87bbb647))
+
 ## [0.1.1](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.0...nest-ts-valid-mongodb-v0.1.1) (2025-12-24)
 
 
