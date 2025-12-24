@@ -6,8 +6,8 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-10%20%7C%2011-red.svg)](https://nestjs.com/)
 
-> **Architect's Choice:** The performance of the native MongoDB driver meets the safety of Zod
-> validation, wrapped in the elegance of NestJS.
+> **Architect's Choice:** High-performance MongoDB Native Driver wrapper for NestJS with Zod schema
+> validation. Lightweight, type-safe, and robust.
 
 ## 🧠 Motivation
 
