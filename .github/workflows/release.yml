@@ -1,0 +1,156 @@
+name: Release Please - Release Management
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+  packages: write
+  id-token: write # Required for npm provenance
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      paths_released: ${{ steps.release.outputs.paths_released }}
+    steps:
+      - name: Run release-please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    needs: release-please
+    if: needs.release-please.outputs.releases_created == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        path: ${{ fromJSON(needs.release-please.outputs.paths_released) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Get project info
+        id: package-info
+        run: |
+          # Read project name directly from package.json in the path
+          package_name=$(cd "${{ matrix.path }}" && node -p "require('./package.json').name")
+          echo "project_name=$package_name" >> $GITHUB_OUTPUT
+          echo "Package name: $package_name"
+
+      - name: Build package
+        # Assumes the package name matches the Nx project name or folder name
+        # If not, we might need a mapping or build all
+        run: npx nx build nest-ts-valid-mongodb
+
+      - name: Publish to NPM
+        working-directory: ${{ matrix.path }}
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  discord-notification:
+    needs: [release-please, publish]
+    if: needs.release-please.outputs.releases_created == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        path: ${{ fromJSON(needs.release-please.outputs.paths_released) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get package info
+        id: package-info
+        working-directory: ${{ matrix.path }}
+        run: |
+          package_name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          description=$(node -p "require('./package.json').description || 'No description'")
+          # Clean description for JSON (escape quotes)
+          description=$(echo "$description" | sed 's/"/\\"/g')
+          echo "package_name=$package_name" >> $GITHUB_OUTPUT
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "description=$description" >> $GITHUB_OUTPUT
+
+      - name: Get latest release info
+        id: release-info
+        run: |
+          release_url="https://github.com/${{ github.repository }}/releases/tag/${{ steps.package-info.outputs.package_name }}-v${{ steps.package-info.outputs.version }}"
+          npm_url="https://www.npmjs.com/package/${{ steps.package-info.outputs.package_name }}"
+
+          # Get commit info
+          commit_author="${{ github.actor }}"
+          echo "release_url=$release_url" >> $GITHUB_OUTPUT
+          echo "npm_url=$npm_url" >> $GITHUB_OUTPUT
+          echo "commit_author=$commit_author" >> $GITHUB_OUTPUT
+
+      - name: Send Discord notification
+        if: env.DISCORD_WEBHOOK != ''
+        run: |
+          curl -H "Content-Type: application/json" \
+          -d "{
+            \"embeds\": [{
+              \"title\": \"🚀 New Release Published!\",
+              \"description\": \"A new version of **${{ steps.package-info.outputs.package_name }}** has been published to NPM.\",
+              \"color\": 15418782,
+              \"thumbnail\": {
+                \"url\": \"https://raw.githubusercontent.com/npm/logos/master/npm%20square/n-64.png\"
+              },
+              \"fields\": [
+                {
+                  \"name\": \"📦 Package\",
+                  \"value\": \"${{ steps.package-info.outputs.package_name }}\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"🏷️ Version\", 
+                  \"value\": \"v${{ steps.package-info.outputs.version }}\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"📝 Description\",
+                  \"value\": \"${{ steps.package-info.outputs.description }}\",
+                  \"inline\": false
+                },
+                {
+                  \"name\": \"💾 Install Command\",
+                  \"value\": \"\`\`\`bash\\nnpm install ${{ steps.package-info.outputs.package_name }}@latest\\n\`\`\`\",
+                  \"inline\": false
+                },
+                {
+                  \"name\": \"👤 Released by\",
+                  \"value\": \"${{ steps.release-info.outputs.commit_author }}\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"🔗 Links\",
+                  \"value\": \"[📋 Release Notes](${{ steps.release-info.outputs.release_url }}) • [📦 NPM Page](${{ steps.release-info.outputs.npm_url }})\",
+                  \"inline\": false
+                }
+              ],
+              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)\",
+              \"footer\": {
+                \"text\": \"${{ github.repository }}\",
+                \"icon_url\": \"https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png\"
+              }
+            }]
+          }" \
+          "$DISCORD_WEBHOOK"
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}

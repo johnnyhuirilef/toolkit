@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: nest-ts-valid-mongodb-example-mongodb
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: advanced_example
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - app-network
+
+  mongodb-analytics:
+    image: mongo:7
+    container_name: nest-ts-valid-mongodb-analytics-mongodb
+    restart: unless-stopped
+    ports:
+      - '27018:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: analytics_db
+    volumes:
+      - mongodb_analytics_data:/data/db
+    networks:
+      - app-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nest-ts-valid-mongodb-example-app
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGO_URI: mongodb://admin:password@mongodb:27017/advanced_example?authSource=admin
+      MONGO_DB_NAME: advanced_example
+      ANALYTICS_MONGO_URI: mongodb://admin:password@mongodb-analytics:27017/analytics_db?authSource=admin
+      ANALYTICS_DB_NAME: analytics_db
+    depends_on:
+      - mongodb
+      - mongodb-analytics
+    networks:
+      - app-network
+
+volumes:
+  mongodb_data:
+  mongodb_analytics_data:
+
+networks:
+  app-network:
+    driver: bridge

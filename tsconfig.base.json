@@ -3,6 +3,7 @@
     "composite": true,
     "declarationMap": true,
     "emitDeclarationOnly": true,
+    "experimentalDecorators": true,
     "importHelpers": true,
     "isolatedModules": true,
     "lib": ["es2022"],
@@ -16,6 +17,13 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
-    "customConditions": ["@org/source"]
+    "customConditions": ["@org/source"],
+    "paths": {
+      "@ioni/nest-ts-valid-mongodb": ["packages/nest-ts-valid-mongodb/src/index.ts"]
+    },
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "useUnknownInCatchVariables": true,
+    "noUncheckedIndexedAccess": true
   }
 }

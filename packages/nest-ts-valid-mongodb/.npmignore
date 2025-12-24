@@ -1,0 +1,85 @@
+# Source files (only publish dist/)
+src/
+*.ts
+!*.d.ts
+
+# Tests
+*.spec.ts
+*.test.ts
+tests/
+test/
+coverage/
+.nyc_output/
+
+# Examples (not needed in npm package)
+examples/
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build tools
+tsconfig.json
+tsconfig.*.json
+rollup.config.cjs
+rollup.config.js
+vite.config.ts
+vitest.config.mts
+vitest.config.ts
+.swcrc
+nest-cli.json
+project.json
+
+# Linting and formatting
+.eslintrc
+.eslintrc.js
+.eslintrc.json
+eslint.config.mjs
+.prettierrc
+.prettierrc.js
+.prettierrc.json
+.prettierignore
+.editorconfig
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+azure-pipelines.yml
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Nx
+.nx/
+
+# Misc
+*.tgz
+.verdaccio/
