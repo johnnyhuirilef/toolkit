@@ -40,6 +40,10 @@ pnpm add @ioni/nest-ts-valid-mongodb mongodb zod @nestjs/common @nestjs/core
 npm install @ioni/nest-ts-valid-mongodb mongodb zod @nestjs/common @nestjs/core
 ```
 
+> **Note for Local Development:** If you are using a local MongoDB instance (especially with Docker
+> or ReplSets), you might need to append `?directConnection=true` to your connection string to avoid
+> connection timeouts.
+
 ### Requirements
 
 - **Node.js**: >= 16.0.0
