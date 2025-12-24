@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.3...nest-ts-valid-mongodb-v0.1.4) (2025-12-24)
+
+
+### Bug Fixes
+
+* **nest-ts-valid-mongodb:** add troubleshooting note about directConnection ([1cf7338](https://github.com/johnnyhuirilef/toolkit/commit/1cf7338769039b1ee105d73f22d85ba37a7675ff))
+
 ## [0.1.3](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.2...nest-ts-valid-mongodb-v0.1.3) (2025-12-24)
 
 
