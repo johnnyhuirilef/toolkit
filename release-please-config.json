@@ -6,8 +6,6 @@
       "package-name": "@ioni/nest-ts-valid-mongodb"
     }
   },
-  "bootstrap-sha": "HEAD",
-  "include-component-in-tag": false,
   "changelog-sections": [
     { "type": "feat", "section": "Features", "hidden": false },
     { "type": "fix", "section": "Bug Fixes", "hidden": false },
