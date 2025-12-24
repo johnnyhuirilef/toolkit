@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.2...nest-ts-valid-mongodb-v0.1.3) (2025-12-24)
+
+
+### Bug Fixes
+
+* **nest-ts-valid-mongodb:** update documentation to align with package description ([1c6db06](https://github.com/johnnyhuirilef/toolkit/commit/1c6db066f68592e22bf4607bc9d3c0f8e6ca9126))
+
 ## [0.1.2](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.1...nest-ts-valid-mongodb-v0.1.2) (2025-12-24)
 
 
