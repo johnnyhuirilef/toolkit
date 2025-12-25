@@ -7,7 +7,11 @@ module.exports = withNx(
     tsConfig: './tsconfig.lib.json',
     compiler: 'tsc',
     format: ['cjs', 'esm'],
-    assets: [{ input: '{projectRoot}', output: '.', glob: '*.md' }],
+    assets: [
+      { input: './packages/nest-ts-valid-mongodb', output: '.', glob: '*.md' },
+      { input: './packages/nest-ts-valid-mongodb', output: '.', glob: 'LICENSE' },
+      { input: './packages/nest-ts-valid-mongodb', output: '.', glob: 'package.json' },
+    ],
   },
   {
     // Provide additional rollup configuration here. See: https://rollupjs.org/configuration-options
