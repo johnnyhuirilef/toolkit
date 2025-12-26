@@ -4,6 +4,10 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Enable graceful shutdown hooks
+  // This ensures MongoDB connections are properly closed on SIGTERM/SIGINT
+  app.enableShutdownHooks();
+
   // Enable CORS for development
   app.enableCors();
 

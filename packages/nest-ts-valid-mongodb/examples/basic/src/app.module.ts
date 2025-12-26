@@ -9,6 +9,9 @@ import { UsersModule } from './users/users.module';
     TsValidMongoModule.forRoot({
       uri: process.env.MONGO_URI || 'mongodb://localhost:27017?directConnection=true',
       databaseName: process.env.MONGO_DB_NAME || 'basic_example',
+      // Optional: Configure graceful shutdown behavior
+      // shutdownTimeout: 10000,  // Default: 10 seconds
+      // forceShutdown: false,    // Default: false (graceful close)
     }),
     UsersModule,
   ],
