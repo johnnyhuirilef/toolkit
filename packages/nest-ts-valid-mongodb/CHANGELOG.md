@@ -8,6 +8,25 @@
 * **nest-ts-valid-mongodb:** ensure package assets are copied to dist correctly ([04ea613](https://github.com/johnnyhuirilef/toolkit/commit/04ea613556cd4c0e95aee1d3aacc8691c9a60623))
 
 
+### Miscellaneous
+
+* **main:** release nest-ts-valid-mongodb 0.1.5 ([61a4733](https://github.com/johnnyhuirilef/toolkit/commit/61a47332dd7ac02ae78b2c771d12b8b0ffbef8de))
+* **main:** release nest-ts-valid-mongodb 0.1.5 ([24f9990](https://github.com/johnnyhuirilef/toolkit/commit/24f9990324e5c8e7e41bbde9f5fb3370fcd20433))
+* revert version bump to re-trigger release ([5343858](https://github.com/johnnyhuirilef/toolkit/commit/5343858ba1a5da8423816f46614b5cb99c5425db))
+
+
+### Documentation
+
+* **nest-ts-valid-mongodb:** add acknowledgments to ts-valid-mongodb ([96efd7c](https://github.com/johnnyhuirilef/toolkit/commit/96efd7c75ea0607446456a0aadcddf0942a2bc77))
+
+## [0.1.5](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.4...nest-ts-valid-mongodb-v0.1.5) (2025-12-26)
+
+
+### Bug Fixes
+
+* **nest-ts-valid-mongodb:** ensure package assets are copied to dist correctly ([04ea613](https://github.com/johnnyhuirilef/toolkit/commit/04ea613556cd4c0e95aee1d3aacc8691c9a60623))
+
+
 ### Documentation
 
 * **nest-ts-valid-mongodb:** add acknowledgments to ts-valid-mongodb ([96efd7c](https://github.com/johnnyhuirilef/toolkit/commit/96efd7c75ea0607446456a0aadcddf0942a2bc77))
