@@ -63,9 +63,7 @@ jobs:
           echo "NX Project: $project_name"
 
       - name: Build package
-        # Assumes the package name matches the Nx project name or folder name
-        # If not, we might need a mapping or build all
-        run: pnpm nx build nest-ts-valid-mongodb
+        run: pnpm nx build ${{ steps.package-info.outputs.project_name }}
 
       - name: Publish to NPM
         working-directory: ${{ matrix.path }}
