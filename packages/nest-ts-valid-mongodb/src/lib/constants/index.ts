@@ -17,3 +17,8 @@ export const DEFAULT_CONNECTION_NAME = Symbol('TS_VALID_MONGO_DEFAULT_CONNECTION
  * @internal
  */
 export const TS_VALID_MONGO_CONNECTION_TOKENS = 'TS_VALID_MONGO_CONNECTION_TOKENS';
+
+/**
+ * Re-export shutdown constants for convenient access.
+ */
+export { SHUTDOWN_DEFAULTS, SHUTDOWN_EVENTS } from './shutdown';
