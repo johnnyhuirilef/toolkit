@@ -450,23 +450,34 @@ TsValidMongoModule.forRoot({
   databaseName: 'my_database',
 
   // Optional: Graceful shutdown configuration
-  shutdownTimeout: 10000,  // Timeout in milliseconds (default: 10000)
-  forceShutdown: false,    // Force close connections (default: false)
+  shutdownTimeout: 10000,  // Max time for shutdown process (default: 10000ms)
+  forceShutdown: false,    // Wait for operations vs force close (default: false)
+})
+
+// Example: Faster shutdown with force close (use with caution)
+TsValidMongoModule.forRoot({
+  uri: 'mongodb://localhost:27017',
+  databaseName: 'my_database',
+  shutdownTimeout: 5000,   // Shorter timeout for dev/test environments
+  forceShutdown: true,     // Force immediate close (may interrupt operations)
 })
 ```
 
 #### Configuration Parameters
 
 - **`shutdownTimeout`** (number, optional)
-  - Maximum time to wait for connections to close gracefully
+  - Maximum time to wait for the shutdown process to complete
+  - Applies to each connection close operation independently
   - Default: `10000` ms (10 seconds)
   - Must be a positive finite number
   - Set to `0` for no timeout (not recommended in production)
 
 - **`forceShutdown`** (boolean, optional)
-  - Whether to force-close connections after timeout
-  - Default: `false` (graceful close)
-  - Set to `true` for aggressive shutdown (use with caution)
+  - Whether to force-close MongoDB connections (drops pending operations immediately)
+  - Default: `false` (graceful close - waits for in-flight operations to complete)
+  - When `true`: Immediately closes connections, may interrupt active operations
+  - When `false`: Waits for pending operations before closing
+  - Use `true` only when you need immediate termination regardless of data integrity
 
 ### Kubernetes Integration
 
@@ -518,13 +529,24 @@ The shutdown process emits structured JSON logs compatible with observability pl
 }
 ```
 
+### Shutdown Behavior
+
+The shutdown process includes built-in resilience features:
+
+- **Automatic retries**: Failed connection closes are retried up to 2 times with exponential backoff
+- **Parallel execution**: All connections close concurrently for faster shutdown
+- **Timeout enforcement**: Each connection has an independent timeout to prevent hanging
+- **Graceful degradation**: Individual connection failures don't block the shutdown process
+
 ### Best Practices
 
-1. **Always enable shutdown hooks** in production environments
-2. **Set appropriate timeout** based on your application's workload (typically 5-30 seconds)
-3. **Monitor shutdown logs** to detect slow or failing connection closures
-4. **Test shutdown behavior** in your integration tests
-5. **Coordinate with Kubernetes** `terminationGracePeriodSeconds` (k8s timeout should be higher)
+1. **Always enable shutdown hooks** (`app.enableShutdownHooks()`) in production environments
+2. **Use graceful close by default**: Keep `forceShutdown: false` unless you have specific requirements
+3. **Set appropriate timeout** based on your application's workload (typically 5-30 seconds)
+4. **Monitor shutdown logs** to detect slow or failing connection closures using structured JSON output
+5. **Test shutdown behavior** in your integration tests to ensure connections close cleanly
+6. **Avoid force shutdown** unless absolutely necessary - it may cause data inconsistencies
+7. **Coordinate with Kubernetes** `terminationGracePeriodSeconds` (k8s timeout should be higher than `shutdownTimeout`)
 
 ## 🤝 Contributing
 
