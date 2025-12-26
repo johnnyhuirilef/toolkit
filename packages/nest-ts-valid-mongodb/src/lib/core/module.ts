@@ -300,11 +300,13 @@ export class TsValidMongoModule implements OnModuleDestroy {
       const nativeClient = await dbInstance.connect();
       Logger.log(`✅ MongoDB Connected to ${options.databaseName}`, 'TsValidMongoModule');
 
+      const forceClose = options.forceShutdown ?? false;
+
       // Return the wrapper with the instance and the close method using the native client we just got
       return {
         client: dbInstance,
         close: async () => {
-          await nativeClient.close();
+          await nativeClient.close(forceClose);
         },
       };
     } catch (error) {
