@@ -21,6 +21,8 @@ import {
   TsValidMongoModuleAsyncOptions,
 } from '../interfaces';
 import { TsValidMongoConnectionError, TsValidMongoConfigurationError } from '../errors';
+import { executeShutdown } from './shutdown/service';
+import { resolveShutdownConfig } from './shutdown/config';
 
 /**
  * Main module for integrating MongoDB with NestJS using the native driver and Zod validation.
@@ -63,28 +65,13 @@ export class TsValidMongoModule implements OnModuleDestroy {
     if (!this.connectionTokens) {
       return;
     }
-    await Promise.all(
-      this.connectionTokens.map(async (token) => {
-        try {
-          // We retrieve the Wrapper object (which contains .close()), not just the internal client
-          const dbWrapper = this.moduleRef.get<ReturnType<typeof createTsValidMongoDb>>(token);
 
-          if (dbWrapper && typeof dbWrapper.close === 'function') {
-            Logger.log(
-              `🔌 Closing MongoDB connection for token: ${String(token)}`,
-              'TsValidMongoModule',
-            );
-            await dbWrapper.close();
-          }
-        } catch {
-          Logger.warn(
-            `⚠️ Could not close MongoDB connection for token: ${String(token)}`,
-            'TsValidMongoModule',
-          );
-          // Provider might not exist or already closed, safe to ignore during shutdown
-        }
-      }),
-    );
+    const shutdownConfig = resolveShutdownConfig();
+    await executeShutdown({
+      tokens: this.connectionTokens,
+      moduleRef: this.moduleRef,
+      shutdownConfig,
+    });
   }
 
   /**
