@@ -93,8 +93,14 @@ jobs:
           pnpm dlx publint "$dist_path"
 
       - name: Publish to NPM
-        working-directory: dist/${{ matrix.path }}
-        run: pnpm publish --provenance --access public --no-git-checks
+        uses: nick-fields/retry-action@v3
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            cd dist/${{ matrix.path }}
+            pnpm publish --provenance --access public --no-git-checks
 
   discord-notification:
     needs: [release-please, publish]
