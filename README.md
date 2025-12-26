@@ -16,7 +16,7 @@ This repository uses [Nx](https://nx.dev) for build system and monorepo manageme
 
 ### Prerequisites
 
-- Node.js >= 20
+- Node.js >= 24 (LTS)
 - pnpm >= 9
 
 ### Common Tasks
