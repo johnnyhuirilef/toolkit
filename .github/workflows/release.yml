@@ -90,7 +90,12 @@ jobs:
             exit 1
           fi
           echo "✅ Build output found at $dist_path"
+
+          echo "📦 Running publint..."
           pnpm dlx publint "$dist_path"
+
+          echo "🔍 Checking TypeScript types..."
+          pnpm dlx @arethetypeswrong/cli --pack "$dist_path"
 
       - name: Publish to NPM
         uses: nick-fields/retry-action@v3
