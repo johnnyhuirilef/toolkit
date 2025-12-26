@@ -14,6 +14,8 @@ module.exports = withNx(
     ],
   },
   {
-    output: { sourcemap: true },
+    // Provide additional rollup configuration here. See: https://rollupjs.org/configuration-options
+    // e.g.
+    // output: { sourcemap: true },
   },
 );
