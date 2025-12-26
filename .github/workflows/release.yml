@@ -53,10 +53,14 @@ jobs:
       - name: Get project info
         id: package-info
         run: |
-          # Read project name directly from package.json in the path
+          # Read package name from package.json
           package_name=$(cd "${{ matrix.path }}" && node -p "require('./package.json').name")
-          echo "project_name=$package_name" >> $GITHUB_OUTPUT
+          # Extract NX project name from path (e.g., packages/nest-ts-valid-mongodb -> nest-ts-valid-mongodb)
+          project_name=$(basename "${{ matrix.path }}")
+          echo "package_name=$package_name" >> $GITHUB_OUTPUT
+          echo "project_name=$project_name" >> $GITHUB_OUTPUT
           echo "Package name: $package_name"
+          echo "NX Project: $project_name"
 
       - name: Build package
         # Assumes the package name matches the Nx project name or folder name
