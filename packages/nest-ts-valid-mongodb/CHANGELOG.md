@@ -1,70 +1,39 @@
 # Changelog
 
-## [0.1.5](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.4...nest-ts-valid-mongodb-v0.1.5) (2025-12-26)
-
-
-### Bug Fixes
-
-* **nest-ts-valid-mongodb:** ensure package assets are copied to dist correctly ([04ea613](https://github.com/johnnyhuirilef/toolkit/commit/04ea613556cd4c0e95aee1d3aacc8691c9a60623))
-
-
-### Miscellaneous
-
-* **main:** release nest-ts-valid-mongodb 0.1.5 ([61a4733](https://github.com/johnnyhuirilef/toolkit/commit/61a47332dd7ac02ae78b2c771d12b8b0ffbef8de))
-* **main:** release nest-ts-valid-mongodb 0.1.5 ([24f9990](https://github.com/johnnyhuirilef/toolkit/commit/24f9990324e5c8e7e41bbde9f5fb3370fcd20433))
-* revert version bump to re-trigger release ([5343858](https://github.com/johnnyhuirilef/toolkit/commit/5343858ba1a5da8423816f46614b5cb99c5425db))
-
-
-### Documentation
-
-* **nest-ts-valid-mongodb:** add acknowledgments to ts-valid-mongodb ([96efd7c](https://github.com/johnnyhuirilef/toolkit/commit/96efd7c75ea0607446456a0aadcddf0942a2bc77))
-
-## [0.1.5](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.4...nest-ts-valid-mongodb-v0.1.5) (2025-12-26)
-
-
-### Bug Fixes
-
-* **nest-ts-valid-mongodb:** ensure package assets are copied to dist correctly ([04ea613](https://github.com/johnnyhuirilef/toolkit/commit/04ea613556cd4c0e95aee1d3aacc8691c9a60623))
-
-
-### Documentation
-
-* **nest-ts-valid-mongodb:** add acknowledgments to ts-valid-mongodb ([96efd7c](https://github.com/johnnyhuirilef/toolkit/commit/96efd7c75ea0607446456a0aadcddf0942a2bc77))
-
 ## [0.1.4](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.3...nest-ts-valid-mongodb-v0.1.4) (2025-12-24)
 
-
 ### Bug Fixes
 
-* **nest-ts-valid-mongodb:** add troubleshooting note about directConnection ([1cf7338](https://github.com/johnnyhuirilef/toolkit/commit/1cf7338769039b1ee105d73f22d85ba37a7675ff))
+- **nest-ts-valid-mongodb:** add troubleshooting note about directConnection
+  ([1cf7338](https://github.com/johnnyhuirilef/toolkit/commit/1cf7338769039b1ee105d73f22d85ba37a7675ff))
 
 ## [0.1.3](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.2...nest-ts-valid-mongodb-v0.1.3) (2025-12-24)
 
-
 ### Bug Fixes
 
-* **nest-ts-valid-mongodb:** update documentation to align with package description ([1c6db06](https://github.com/johnnyhuirilef/toolkit/commit/1c6db066f68592e22bf4607bc9d3c0f8e6ca9126))
+- **nest-ts-valid-mongodb:** update documentation to align with package description
+  ([1c6db06](https://github.com/johnnyhuirilef/toolkit/commit/1c6db066f68592e22bf4607bc9d3c0f8e6ca9126))
 
 ## [0.1.2](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.1...nest-ts-valid-mongodb-v0.1.2) (2025-12-24)
 
-
 ### Bug Fixes
 
-* Fix error message formatting for MongoDB connection ([341643b](https://github.com/johnnyhuirilef/toolkit/commit/341643b00e9a97aaf1d5fcdf6d25befa87bbb647))
+- Fix error message formatting for MongoDB connection
+  ([341643b](https://github.com/johnnyhuirilef/toolkit/commit/341643b00e9a97aaf1d5fcdf6d25befa87bbb647))
 
 ## [0.1.1](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.0...nest-ts-valid-mongodb-v0.1.1) (2025-12-24)
 
-
 ### Bug Fixes
 
-* update author name in package.json ([54b1293](https://github.com/johnnyhuirilef/toolkit/commit/54b129323cc4498775320094d1374c549e7aacf0))
+- update author name in package.json
+  ([54b1293](https://github.com/johnnyhuirilef/toolkit/commit/54b129323cc4498775320094d1374c549e7aacf0))
 
 ## [0.1.0](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.0.1...nest-ts-valid-mongodb-v0.1.0) (2025-12-24)
 
-
 ### Features
 
-* **nest-ts-valid-mongodb:** initial release ready for production ([2258968](https://github.com/johnnyhuirilef/toolkit/commit/2258968adaaad721ed001e0dd997f47fe9ceea78))
+- **nest-ts-valid-mongodb:** initial release ready for production
+  ([2258968](https://github.com/johnnyhuirilef/toolkit/commit/2258968adaaad721ed001e0dd997f47fe9ceea78))
 
 ## Changelog
 
