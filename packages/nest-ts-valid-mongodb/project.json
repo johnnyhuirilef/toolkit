@@ -5,7 +5,6 @@
   "projectType": "library",
   "release": {
     "version": {
-      "manifestRootsToUpdate": ["dist/{projectRoot}"],
       "currentVersionResolver": "git-tag",
       "fallbackCurrentVersionResolver": "disk"
     }
@@ -15,6 +14,37 @@
     "nx-release-publish": {
       "options": {
         "packageRoot": "dist/{projectRoot}"
+      }
+    },
+    "build": {
+      "executor": "@nx/rollup:rollup",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/packages/nest-ts-valid-mongodb",
+        "tsConfig": "packages/nest-ts-valid-mongodb/tsconfig.lib.json",
+        "project": "packages/nest-ts-valid-mongodb/package.json",
+        "entryFile": "packages/nest-ts-valid-mongodb/src/index.ts",
+        "external": ["ts-valid-mongodb"],
+        "rollupConfig": "packages/nest-ts-valid-mongodb/rollup.config.cjs",
+        "compiler": "swc",
+        "format": ["cjs", "esm"],
+        "assets": [
+          {
+            "glob": "*.md",
+            "input": "packages/nest-ts-valid-mongodb",
+            "output": "."
+          },
+          {
+            "glob": "LICENSE",
+            "input": "packages/nest-ts-valid-mongodb",
+            "output": "."
+          },
+          {
+            "glob": "package.json",
+            "input": "packages/nest-ts-valid-mongodb",
+            "output": "."
+          }
+        ]
       }
     },
     "test": {

@@ -3,15 +3,12 @@
   "compilerOptions": {
     "baseUrl": ".",
     "moduleResolution": "bundler",
-    "outDir": "../../dist/out-tsc",
+    "outDir": "../../dist/packages/nest-ts-valid-mongodb",
     "declaration": true,
-    "types": [
-      "node"
-    ]
+    "emitDeclarationOnly": true,
+    "types": ["node"]
   },
-  "include": [
-    "src/**/*.ts"
-  ],
+  "include": ["src/**/*.ts"],
   "exclude": [
     "vite.config.ts",
     "vite.config.mts",
