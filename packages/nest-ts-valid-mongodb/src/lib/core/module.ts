@@ -14,7 +14,11 @@ import TsValidMongoDb, { Schema } from 'ts-valid-mongodb';
 import { createTsValidMongoDb, MongoDbClientWrapper } from './client';
 import { getTsValidMongoDbFactory } from './utils';
 import { getModelToken } from './tokens';
-import { DEFAULT_CONNECTION_NAME, TS_VALID_MONGO_CONNECTION_TOKENS } from '../constants';
+import {
+  DEFAULT_CONNECTION_NAME,
+  TS_VALID_MONGO_CONNECTION_TOKENS,
+  TS_VALID_MONGO_MODULE_OPTIONS,
+} from '../constants';
 import {
   TsValidMongoCollectionDefinition,
   TsValidMongoConnectionOptions,
@@ -55,6 +59,9 @@ export class TsValidMongoModule implements OnModuleDestroy {
     @Optional()
     @Inject(TS_VALID_MONGO_CONNECTION_TOKENS)
     private readonly connectionTokens: (string | symbol)[],
+    @Optional()
+    @Inject(TS_VALID_MONGO_MODULE_OPTIONS)
+    private readonly moduleOptions?: TsValidMongoConnectionOptions,
   ) {}
 
   /**
@@ -66,7 +73,7 @@ export class TsValidMongoModule implements OnModuleDestroy {
       return;
     }
 
-    const shutdownConfig = resolveShutdownConfig();
+    const shutdownConfig = resolveShutdownConfig(this.moduleOptions);
     await executeShutdown({
       tokens: this.connectionTokens,
       moduleRef: this.moduleRef,
@@ -117,6 +124,10 @@ export class TsValidMongoModule implements OnModuleDestroy {
           provide: TS_VALID_MONGO_CONNECTION_TOKENS,
           useValue: [connectionToken],
         },
+        {
+          provide: TS_VALID_MONGO_MODULE_OPTIONS,
+          useValue: options,
+        },
       ],
       exports: [connectionProvider],
     };
@@ -156,11 +167,20 @@ export class TsValidMongoModule implements OnModuleDestroy {
       inject: options.inject ?? [],
     };
 
+    const optionsProvider: Provider = {
+      provide: TS_VALID_MONGO_MODULE_OPTIONS,
+      useFactory: async (...args: unknown[]) => {
+        return await options.useFactory(...args);
+      },
+      inject: options.inject ?? [],
+    };
+
     return {
       module: TsValidMongoModule,
       imports: options.imports ?? [],
       providers: [
         connectionProvider,
+        optionsProvider,
         {
           provide: TS_VALID_MONGO_CONNECTION_TOKENS,
           useValue: [connectionToken],
