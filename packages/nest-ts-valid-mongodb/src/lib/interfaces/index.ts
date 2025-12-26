@@ -40,6 +40,37 @@ export type MongoIndexDefinition = IndexDescription & {
 };
 
 /**
+ * Configuration options for graceful shutdown behavior.
+ *
+ * Controls how the module closes MongoDB connections when the application shuts down.
+ *
+ * @example
+ * ```typescript
+ * const shutdownOptions: ShutdownOptions = {
+ *   timeout: 10000,    // Wait max 10 seconds
+ *   forceClose: false, // Allow graceful close
+ * };
+ * ```
+ */
+export type ShutdownOptions = {
+  /**
+   * Maximum time in milliseconds to wait for all connections to close gracefully.
+   * After this timeout, the shutdown process will complete regardless of connection state.
+   *
+   * @default 10000 (10 seconds)
+   */
+  readonly timeout: number;
+
+  /**
+   * Whether to force close connections immediately without waiting.
+   * When true, skips graceful shutdown and closes connections forcefully.
+   *
+   * @default false
+   */
+  readonly forceClose: boolean;
+};
+
+/**
  * Base options for the MongoDB Connection.
  * @internal
  */
@@ -64,6 +95,40 @@ type TsValidMongoConnectionOptionsBase = {
    * The name of the database to connect to.
    */
   databaseName: string;
+
+  /**
+   * Maximum time in milliseconds to wait for graceful shutdown.
+   * After this timeout, connections will be forcefully closed.
+   *
+   * @default 10000 (10 seconds)
+   *
+   * @example
+   * ```typescript
+   * TsValidMongoModule.forRoot({
+   *   uri: 'mongodb://localhost:27017',
+   *   databaseName: 'my_db',
+   *   shutdownTimeout: 15000, // Wait 15 seconds max
+   * })
+   * ```
+   */
+  readonly shutdownTimeout?: number;
+
+  /**
+   * Whether to force immediate shutdown without waiting for graceful close.
+   * Use with caution - may interrupt in-flight operations.
+   *
+   * @default false
+   *
+   * @example
+   * ```typescript
+   * TsValidMongoModule.forRoot({
+   *   uri: 'mongodb://localhost:27017',
+   *   databaseName: 'my_db',
+   *   forceShutdown: true, // For serverless/lambda
+   * })
+   * ```
+   */
+  readonly forceShutdown?: boolean;
 };
 
 /**
