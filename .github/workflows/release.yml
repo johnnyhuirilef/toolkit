@@ -81,8 +81,6 @@ jobs:
       - name: Publish to NPM
         working-directory: dist/${{ matrix.path }}
         run: pnpm publish --provenance --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   discord-notification:
     needs: [release-please, publish]
