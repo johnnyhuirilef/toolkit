@@ -109,7 +109,7 @@ jobs:
 
   discord-notification:
     needs: [release-please, publish]
-    if: needs.release-please.outputs.releases_created == 'true'
+    if: always() && needs.release-please.outputs.releases_created == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -146,12 +146,22 @@ jobs:
       - name: Send Discord notification
         if: env.DISCORD_WEBHOOK != ''
         run: |
+          if [ "${{ needs.publish.result }}" == "success" ]; then
+            title="🚀 New Release Published!"
+            description="A new version of **${{ steps.package-info.outputs.package_name }}** has been published to NPM."
+            color=15418782
+          else
+            title="❌ Release Failed!"
+            description="Failed to publish **${{ steps.package-info.outputs.package_name }}**. Check the workflow logs."
+            color=15548997
+          fi
+
           curl -H "Content-Type: application/json" \
           -d "{
             \"embeds\": [{
-              \"title\": \"🚀 New Release Published!\",
-              \"description\": \"A new version of **${{ steps.package-info.outputs.package_name }}** has been published to NPM.\",
-              \"color\": 15418782,
+              \"title\": \"$title\",
+              \"description\": \"$description\",
+              \"color\": $color,
               \"thumbnail\": {
                 \"url\": \"https://raw.githubusercontent.com/npm/logos/master/npm%20square/n-64.png\"
               },
