@@ -62,6 +62,9 @@ jobs:
           echo "Package name: $package_name"
           echo "NX Project: $project_name"
 
+      - name: Run tests
+        run: pnpm nx test ${{ steps.package-info.outputs.project_name }}
+
       - name: Build package
         run: pnpm nx build ${{ steps.package-info.outputs.project_name }}
 
