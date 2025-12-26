@@ -1,6 +1,6 @@
 {
   "name": "@ioni/nest-ts-valid-mongodb",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "High-performance MongoDB Native Driver wrapper for NestJS with Zod schema validation. Lightweight, type-safe, and robust",
   "main": "./index.cjs.js",
   "module": "./index.esm.js",
