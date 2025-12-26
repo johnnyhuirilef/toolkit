@@ -75,8 +75,8 @@ jobs:
             echo "❌ Error: Build output not found at $dist_path"
             exit 1
           fi
-          echo "✅ Build output verified at $dist_path"
-          ls -la "$dist_path"
+          echo "✅ Build output found at $dist_path"
+          pnpm dlx publint "$dist_path"
 
       - name: Publish to NPM
         working-directory: dist/${{ matrix.path }}
