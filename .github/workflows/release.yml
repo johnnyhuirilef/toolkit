@@ -31,6 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
+      fail-fast: true
       matrix:
         path: ${{ fromJSON(needs.release-please.outputs.paths_released) }}
     steps:
