@@ -442,6 +442,13 @@ This is an actively maintained project. We welcome feedback, bug reports, and fe
 - [Zod](https://github.com/colinhacks/zod) - TypeScript-first schema validation
 - [NestJS](https://nestjs.com/) - Progressive Node.js framework
 
+## 🙏 Acknowledgments
+
+This library is a robust NestJS wrapper for
+[ts-valid-mongodb](https://www.npmjs.com/package/ts-valid-mongodb). We stand on the shoulders of
+giants—special thanks to the original authors for creating such a lightweight and type-safe
+foundation for MongoDB interactions.
+
 ## 📄 License
 
 MIT © Ioni
