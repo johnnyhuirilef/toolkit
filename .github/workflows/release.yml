@@ -68,6 +68,16 @@ jobs:
       - name: Build package
         run: pnpm nx build ${{ steps.package-info.outputs.project_name }}
 
+      - name: Verify build output
+        run: |
+          dist_path="dist/${{ matrix.path }}"
+          if [ ! -d "$dist_path" ]; then
+            echo "❌ Error: Build output not found at $dist_path"
+            exit 1
+          fi
+          echo "✅ Build output verified at $dist_path"
+          ls -la "$dist_path"
+
       - name: Publish to NPM
         working-directory: ${{ matrix.path }}
         run: pnpm publish --provenance --access public
