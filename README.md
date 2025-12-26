@@ -41,6 +41,7 @@ pnpm lint:all
 - **Zod Validation:** Runtime type safety is non-negotiable.
 - **Dependency Injection:** Leveraging NestJS architecture for modularity.
 - **Automated CI/CD:** GitHub Actions + Release Please for semantic versioning and publishing.
+- **Secure Publishing:** npm Trusted Publishers with OIDC (no long-lived tokens).
 
 ## 📄 License
 
