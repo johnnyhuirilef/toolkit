@@ -4,7 +4,7 @@ import {
   Inject,
   Logger,
   Module,
-  OnModuleDestroy,
+  OnApplicationShutdown,
   Provider,
   Optional,
 } from '@nestjs/common';
@@ -53,7 +53,7 @@ import { resolveShutdownConfig } from './shutdown/config';
  */
 @Global()
 @Module({})
-export class TsValidMongoModule implements OnModuleDestroy {
+export class TsValidMongoModule implements OnApplicationShutdown {
   constructor(
     private readonly moduleRef: ModuleRef,
     @Optional()
@@ -66,9 +66,14 @@ export class TsValidMongoModule implements OnModuleDestroy {
 
   /**
    * Lifecycle hook: Closes all open MongoDB connections when the application shuts down.
-   * This prevents memory leaks and zombie connections in testing/serverless environments.
+   *
+   * This hook is called during application shutdown, after all modules have been destroyed.
+   * Using OnApplicationShutdown instead of OnModuleDestroy ensures that database connections
+   * remain available for other modules during their cleanup phase.
+   *
+   * @param signal - Optional shutdown signal (SIGTERM, SIGINT, etc.)
    */
-  async onModuleDestroy() {
+  async onApplicationShutdown(signal?: string) {
     if (!this.connectionTokens) {
       return;
     }
