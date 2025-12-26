@@ -305,13 +305,13 @@ export class TsValidMongoModule implements OnApplicationShutdown {
       const nativeClient = await dbInstance.connect();
       Logger.log(`✅ MongoDB Connected to ${options.databaseName}`, 'TsValidMongoModule');
 
-      const forceClose = options.forceShutdown ?? false;
-
       // Return the wrapper with the instance and the close method using the native client we just got
       return {
         client: dbInstance,
-        close: async () => {
-          await nativeClient.close(forceClose);
+        close: async (force?: boolean) => {
+          // Use provided force parameter, fallback to options, then default to false
+          const shouldForce = force ?? (options.forceShutdown ?? false);
+          await nativeClient.close(shouldForce);
         },
       };
     } catch (error) {

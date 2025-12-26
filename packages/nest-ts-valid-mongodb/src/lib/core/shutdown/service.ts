@@ -104,7 +104,8 @@ export const executeShutdown = async (
       tokens,
       moduleRef,
       shutdownConfig.timeoutMs,
-      shutdownConfig.retryAttempts
+      shutdownConfig.retryAttempts,
+      shutdownConfig.forceClose
     );
 
     const results = await withTimeout(closeOperation, {

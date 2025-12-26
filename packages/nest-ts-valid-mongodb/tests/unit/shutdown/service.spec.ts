@@ -233,7 +233,8 @@ describe('Shutdown Service', () => {
         ['token1'],
         moduleRef,
         config.timeoutMs,
-        config.retryAttempts
+        config.retryAttempts,
+        config.forceClose
       );
     });
 

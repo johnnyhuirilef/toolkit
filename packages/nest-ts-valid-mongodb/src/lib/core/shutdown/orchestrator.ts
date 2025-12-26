@@ -13,6 +13,7 @@ type CloseConnectionConfig = {
   readonly moduleRef: ModuleRef;
   readonly timeoutMs: number;
   readonly retryAttempts: number;
+  readonly forceClose: boolean;
 };
 
 /**
@@ -60,13 +61,15 @@ const getWrapper = (
  *
  * @param wrapper - Connection wrapper to close
  * @param retryAttempts - Maximum retry attempts
+ * @param forceClose - Whether to force close the connection
  * @returns Result indicating success or failure
  */
 const closeWithRetry = async (
   wrapper: MongoDbClientWrapper,
-  retryAttempts: number
+  retryAttempts: number,
+  forceClose: boolean
 ): Promise<{ success: boolean; error?: Error }> => {
-  const result = await withRetry(() => wrapper.close(), {
+  const result = await withRetry(() => wrapper.close(forceClose), {
     maxAttempts: retryAttempts,
     delayMs: 100,
     operation: 'connection.close',
@@ -110,7 +113,7 @@ const closeWithRetry = async (
 export const closeConnection = async (
   config: CloseConnectionConfig
 ): Promise<CloseResult> => {
-  const { token, moduleRef, timeoutMs, retryAttempts } = config;
+  const { token, moduleRef, timeoutMs, retryAttempts, forceClose } = config;
   const startTime = Date.now();
   const tokenString = String(token);
 
@@ -126,7 +129,7 @@ export const closeConnection = async (
   }
 
   try {
-    const closeOperation = closeWithRetry(wrapper, retryAttempts);
+    const closeOperation = closeWithRetry(wrapper, retryAttempts, forceClose);
     const result = await withTimeout(closeOperation, {
       timeoutMs,
       operation: `close connection ${tokenString}`,
@@ -181,6 +184,7 @@ export const closeConnection = async (
  * @param moduleRef - NestJS module reference
  * @param timeoutMs - Timeout for each connection close
  * @param retryAttempts - Retry attempts for each connection
+ * @param forceClose - Whether to force close connections
  * @returns Array of close results in same order as tokens
  *
  * @example
@@ -189,7 +193,8 @@ export const closeConnection = async (
  *   ['db1', 'db2', 'db3'],
  *   moduleRef,
  *   10000,
- *   2
+ *   2,
+ *   false
  * );
  *
  * const successCount = results.filter(r => r.success).length;
@@ -199,7 +204,8 @@ export const closeAllConnections = async (
   tokens: (string | symbol)[],
   moduleRef: ModuleRef,
   timeoutMs: number,
-  retryAttempts: number
+  retryAttempts: number,
+  forceClose: boolean
 ): Promise<CloseResult[]> => {
   const closePromises = tokens.map((token) =>
     closeConnection({
@@ -207,6 +213,7 @@ export const closeAllConnections = async (
       moduleRef,
       timeoutMs,
       retryAttempts,
+      forceClose,
     })
   );
 
