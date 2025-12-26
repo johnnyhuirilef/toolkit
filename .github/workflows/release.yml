@@ -79,8 +79,8 @@ jobs:
           ls -la "$dist_path"
 
       - name: Publish to NPM
-        working-directory: ${{ matrix.path }}
-        run: pnpm publish --provenance --access public
+        working-directory: dist/${{ matrix.path }}
+        run: pnpm publish --provenance --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
