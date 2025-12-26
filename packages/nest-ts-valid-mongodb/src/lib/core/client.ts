@@ -13,8 +13,12 @@ import { getTsValidMongoDbFactory } from './utils';
 export type MongoDbClientWrapper = {
   /** The TsValidMongoDb instance for creating models and accessing the database */
   client: TsValidMongoDb;
-  /** Function to gracefully close the MongoDB connection */
-  close: () => Promise<void>;
+  /**
+   * Function to close the MongoDB connection.
+   *
+   * @param force - Whether to force close the connection (drops pending operations)
+   */
+  close: (force?: boolean) => Promise<void>;
 };
 
 /**
@@ -62,9 +66,9 @@ export function createTsValidMongoDb(options: {
 
   return {
     client: tsValidMongoClient,
-    close: async () => {
+    close: async (force?: boolean) => {
       // We delegate the closing to the native client
-      await client.close();
+      await client.close(force);
     },
   };
 }
