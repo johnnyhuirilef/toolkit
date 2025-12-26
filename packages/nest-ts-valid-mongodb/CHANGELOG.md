@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.5](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.4...nest-ts-valid-mongodb-v0.1.5) (2025-12-26)
+
+
+### Bug Fixes
+
+* **nest-ts-valid-mongodb:** ensure package assets are copied to dist correctly ([04ea613](https://github.com/johnnyhuirilef/toolkit/commit/04ea613556cd4c0e95aee1d3aacc8691c9a60623))
+
+
+### Documentation
+
+* **nest-ts-valid-mongodb:** add acknowledgments to ts-valid-mongodb ([96efd7c](https://github.com/johnnyhuirilef/toolkit/commit/96efd7c75ea0607446456a0aadcddf0942a2bc77))
+
 ## [0.1.4](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.3...nest-ts-valid-mongodb-v0.1.4) (2025-12-24)
 
 
