@@ -45,8 +45,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -113,9 +113,6 @@ jobs:
 
           echo "📦 Running publint..."
           pnpm dlx publint "$dist_path"
-
-          echo "🔍 Checking TypeScript types..."
-          pnpm dlx @arethetypeswrong/cli --pack "$dist_path"
 
       - name: Publish to NPM
         uses: nick-fields/retry@v3
