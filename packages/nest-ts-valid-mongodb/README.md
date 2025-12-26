@@ -409,6 +409,123 @@ export class HealthService implements OnModuleInit {
 }
 ```
 
+## 🔄 Graceful Shutdown
+
+Production applications must handle shutdown gracefully to prevent data loss and connection leaks. This is especially critical in containerized environments (Docker, Kubernetes) where pods are frequently terminated.
+
+### Why Graceful Shutdown Matters
+
+When your NestJS application receives a termination signal (SIGTERM, SIGINT), MongoDB connections must be closed properly to:
+
+- **Prevent connection leaks** that exhaust the connection pool
+- **Avoid orphaned connections** in testing environments
+- **Ensure clean pod termination** in Kubernetes (respecting `terminationGracePeriodSeconds`)
+- **Allow in-flight operations to complete** before shutdown
+
+### Enabling Graceful Shutdown
+
+Enable shutdown hooks in your `main.ts`:
+
+```typescript
+// main.ts
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  // Enable graceful shutdown hooks
+  // This ensures MongoDB connections are properly closed on SIGTERM/SIGINT
+  app.enableShutdownHooks();
+
+  await app.listen(3000);
+}
+bootstrap();
+```
+
+### Configuration Options
+
+You can customize shutdown behavior when configuring the module:
+
+```typescript
+TsValidMongoModule.forRoot({
+  uri: 'mongodb://localhost:27017',
+  databaseName: 'my_database',
+
+  // Optional: Graceful shutdown configuration
+  shutdownTimeout: 10000,  // Timeout in milliseconds (default: 10000)
+  forceShutdown: false,    // Force close connections (default: false)
+})
+```
+
+#### Configuration Parameters
+
+- **`shutdownTimeout`** (number, optional)
+  - Maximum time to wait for connections to close gracefully
+  - Default: `10000` ms (10 seconds)
+  - Must be a positive finite number
+  - Set to `0` for no timeout (not recommended in production)
+
+- **`forceShutdown`** (boolean, optional)
+  - Whether to force-close connections after timeout
+  - Default: `false` (graceful close)
+  - Set to `true` for aggressive shutdown (use with caution)
+
+### Kubernetes Integration
+
+For Kubernetes deployments, ensure your `terminationGracePeriodSeconds` exceeds your shutdown timeout:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-nestjs-app
+spec:
+  template:
+    spec:
+      terminationGracePeriodSeconds: 30  # Should be > shutdownTimeout
+      containers:
+        - name: app
+          image: my-app:latest
+          # ... other config
+```
+
+### Structured Logging
+
+The shutdown process emits structured JSON logs compatible with observability platforms (Datadog, Splunk, etc.):
+
+```json
+// Shutdown initiated
+{
+  "event": "shutdown.start",
+  "connectionCount": 2,
+  "timestamp": "2025-01-15T10:30:00.000Z"
+}
+
+// Connection closed successfully
+{
+  "event": "connection.closed",
+  "token": "default",
+  "durationMs": 45,
+  "timestamp": "2025-01-15T10:30:00.050Z"
+}
+
+// Shutdown completed
+{
+  "event": "shutdown.complete",
+  "totalConnections": 2,
+  "successCount": 2,
+  "failureCount": 0,
+  "durationMs": 95,
+  "timestamp": "2025-01-15T10:30:00.100Z"
+}
+```
+
+### Best Practices
+
+1. **Always enable shutdown hooks** in production environments
+2. **Set appropriate timeout** based on your application's workload (typically 5-30 seconds)
+3. **Monitor shutdown logs** to detect slow or failing connection closures
+4. **Test shutdown behavior** in your integration tests
+5. **Coordinate with Kubernetes** `terminationGracePeriodSeconds` (k8s timeout should be higher)
+
 ## 🤝 Contributing
 
 We hate bad code. If you want to contribute, ensure:
