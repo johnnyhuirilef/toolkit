@@ -34,6 +34,10 @@ jobs:
       fail-fast: true
       matrix:
         path: ${{ fromJSON(needs.release-please.outputs.paths_released) }}
+    outputs:
+      package_name: ${{ steps.package-info.outputs.package_name }}
+      version: ${{ steps.get-version.outputs.version }}
+      description: ${{ steps.get-version.outputs.description }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -76,6 +80,15 @@ jobs:
           echo "Package name: $package_name"
           echo "NX Project: $project_name"
 
+      - name: Get version and description
+        id: get-version
+        working-directory: ${{ matrix.path }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          description=$(node -p "require('./package.json').description || 'No description'")
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "description=$description" >> $GITHUB_OUTPUT
+
       - name: Run tests
         run: pnpm nx test ${{ steps.package-info.outputs.project_name }}
 
@@ -111,33 +124,12 @@ jobs:
     needs: [release-please, publish]
     if: always() && needs.release-please.outputs.releases_created == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        path: ${{ fromJSON(needs.release-please.outputs.paths_released) }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Get package info
-        id: package-info
-        working-directory: ${{ matrix.path }}
-        run: |
-          package_name=$(node -p "require('./package.json').name")
-          version=$(node -p "require('./package.json').version")
-          description=$(node -p "require('./package.json').description || 'No description'")
-          # Clean description for JSON (escape quotes)
-          description=$(echo "$description" | sed 's/"/\\"/g')
-          echo "package_name=$package_name" >> $GITHUB_OUTPUT
-          echo "version=$version" >> $GITHUB_OUTPUT
-          echo "description=$description" >> $GITHUB_OUTPUT
-
-      - name: Get latest release info
+      - name: Set release info
         id: release-info
         run: |
-          release_url="https://github.com/${{ github.repository }}/releases/tag/${{ steps.package-info.outputs.package_name }}-v${{ steps.package-info.outputs.version }}"
-          npm_url="https://www.npmjs.com/package/${{ steps.package-info.outputs.package_name }}"
-
-          # Get commit info
+          release_url="https://github.com/${{ github.repository }}/releases/tag/${{ needs.publish.outputs.package_name }}-v${{ needs.publish.outputs.version }}"
+          npm_url="https://www.npmjs.com/package/${{ needs.publish.outputs.package_name }}"
           commit_author="${{ github.actor }}"
           echo "release_url=$release_url" >> $GITHUB_OUTPUT
           echo "npm_url=$npm_url" >> $GITHUB_OUTPUT
@@ -148,11 +140,11 @@ jobs:
         run: |
           if [ "${{ needs.publish.result }}" == "success" ]; then
             title="🚀 New Release Published!"
-            description="A new version of **${{ steps.package-info.outputs.package_name }}** has been published to NPM."
+            description="A new version of **${{ needs.publish.outputs.package_name }}** has been published to NPM."
             color=15418782
           else
             title="❌ Release Failed!"
-            description="Failed to publish **${{ steps.package-info.outputs.package_name }}**. Check the workflow logs."
+            description="Failed to publish **${{ needs.publish.outputs.package_name }}**. Check the workflow logs."
             color=15548997
           fi
 
@@ -168,22 +160,22 @@ jobs:
               \"fields\": [
                 {
                   \"name\": \"📦 Package\",
-                  \"value\": \"${{ steps.package-info.outputs.package_name }}\",
+                  \"value\": \"${{ needs.publish.outputs.package_name }}\",
                   \"inline\": true
                 },
                 {
-                  \"name\": \"🏷️ Version\", 
-                  \"value\": \"v${{ steps.package-info.outputs.version }}\",
+                  \"name\": \"🏷️ Version\",
+                  \"value\": \"v${{ needs.publish.outputs.version }}\",
                   \"inline\": true
                 },
                 {
                   \"name\": \"📝 Description\",
-                  \"value\": \"${{ steps.package-info.outputs.description }}\",
+                  \"value\": \"${{ needs.publish.outputs.description }}\",
                   \"inline\": false
                 },
                 {
                   \"name\": \"💾 Install Command\",
-                  \"value\": \"\`\`\`bash\\nnpm install ${{ steps.package-info.outputs.package_name }}@latest\\n\`\`\`\",
+                  \"value\": \"\`\`\`bash\\nnpm install ${{ needs.publish.outputs.package_name }}@latest\\n\`\`\`\",
                   \"inline\": false
                 },
                 {
