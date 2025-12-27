@@ -25,8 +25,8 @@ import {
   TsValidMongoModuleAsyncOptions,
 } from '../interfaces';
 import { TsValidMongoConnectionError, TsValidMongoConfigurationError } from '../errors';
-import { executeShutdown } from './shutdown/service';
-import { resolveShutdownConfig } from './shutdown/config';
+import { executeShutdown } from './shutdown/manager';
+import { resolveShutdownConfig } from './shutdown/utils';
 
 /**
  * Main module for integrating MongoDB with NestJS using the native driver and Zod validation.
@@ -79,11 +79,7 @@ export class TsValidMongoModule implements OnApplicationShutdown {
     }
 
     const shutdownConfig = resolveShutdownConfig(this.moduleOptions);
-    await executeShutdown({
-      tokens: this.connectionTokens,
-      moduleRef: this.moduleRef,
-      shutdownConfig,
-    });
+    await executeShutdown(this.connectionTokens, this.moduleRef, shutdownConfig);
   }
 
   /**
