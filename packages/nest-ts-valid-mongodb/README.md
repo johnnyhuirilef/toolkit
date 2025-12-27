@@ -442,7 +442,7 @@ bootstrap();
 
 ### Configuration Options
 
-You can customize shutdown behavior when configuring the module:
+You can customize shutdown behavior when configuring the module (Note: These settings are applied at application startup and cannot be changed dynamically):
 
 ```typescript
 TsValidMongoModule.forRoot({
@@ -500,7 +500,9 @@ spec:
 
 ### Structured Logging
 
-The shutdown process emits structured JSON logs compatible with observability platforms (Datadog, Splunk, etc.):
+The shutdown process emits structured JSON logs compatible with observability platforms (Datadog, Splunk, etc.).
+
+> **Pro Tip:** By default, NestJS wraps logs in its own text format. To get pure JSON output suitable for log aggregators, we recommend using a JSON-logger compatible with NestJS, such as `nestjs-pino`.
 
 ```json
 // Shutdown initiated
@@ -569,7 +571,7 @@ This is an actively maintained project. We welcome feedback, bug reports, and fe
 ## 📈 Roadmap
 
 - [ ] Comprehensive test suite with 80%+ coverage
-- [ ] Migration guide from Mongoose
+- [ ] Multi-tenant connection pools support
 - [ ] Performance benchmarks vs Mongoose
 - [ ] Support for MongoDB change streams
 - [ ] Advanced aggregation pipeline helpers
