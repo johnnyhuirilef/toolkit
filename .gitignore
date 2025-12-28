@@ -44,3 +44,6 @@ Thumbs.db
 .github/instructions/nx.instructions.md
 
 vitest.config.*.timestamp*
+# Stryker Mutation Testing
+.stryker-tmp
+reports/mutation
