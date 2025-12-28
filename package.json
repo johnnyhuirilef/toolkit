@@ -11,6 +11,8 @@
   },
   "private": true,
   "devDependencies": {
+    "@commitlint/cli": "^20.2.0",
+    "@commitlint/config-conventional": "^20.2.0",
     "@cspell/dict-es-es": "^3.0.8",
     "@cspell/eslint-plugin": "^9.4.0",
     "@eslint-community/eslint-plugin-eslint-comments": "^4.5.0",
