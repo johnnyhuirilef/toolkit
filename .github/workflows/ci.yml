@@ -9,7 +9,6 @@ on:
 permissions:
   actions: read
   contents: read
-  # Required for reviewdog and sticky comments to post on PRs
   checks: write
   pull-requests: write
 
@@ -34,28 +33,29 @@ jobs:
 
       - uses: nrwl/nx-set-shas@v4
 
-      # --- LINTING WITH REVIEW DOG 🐶 ---
-      # Runs ESLint and comments on the PR directly
+      # --- LINTING & REVIEWDOG 🐶 ---
       - name: Lint & Reviewdog
         uses: reviewdog/action-eslint@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-review
-          # Run eslint on current directory (or adjust to nx affected output if needed later)
-          # 'eslint_flags' defaults to '.' which is what we want
           eslint_flags: '. --ext .ts,.tsx,.js,.jsx'
           fail_on_error: true
-          filter_mode: nofilter # Show all errors (set to 'added' to show only new ones)
+          filter_mode: nofilter
 
-      # --- TESTING WITH REPORT 📊 ---
+      # --- TESTING WITH COVERAGE REPORT 📊 ---
       - name: Run Tests (Affected)
-        run: pnpm nx affected -t test --parallel=3 --configuration=ci
+        run: pnpm nx affected -t test --parallel=3 --configuration=ci --coverage
 
-      # Note: For sticky comments to work effectively with NX Monorepos,
-      # we usually need to aggregate coverage or test reports.
-      # For now, let's keep it simple: if tests fail, we see it in the Action logs.
-      # To add sticky comments for coverage later, we need to configure Vitest
-      # to output a summary.json and parse it.
+      - name: Coverage Report
+        uses: davelosert/vitest-coverage-report-action@v2
+        if: always() # Run even if tests fail slightly
+        with:
+          # This action automatically finds json-summary files
+          # But in a monorepo we might need to specify patterns if it fails to find them.
+          # For now, auto-detection usually works if report is standard.
+          json-summary-path: 'coverage/packages/**/coverage-summary.json'
+          json-final-path: 'coverage/packages/**/coverage-final.json'
 
       - name: Build & Typecheck (Affected)
         run: pnpm nx affected -t build typecheck --parallel=3
