@@ -19,9 +19,7 @@ const createIgnoreRules = () => ({
     '**/dist/**',
     '**/node_modules/**',
     '.github/instructions/**',
-    '**/*.timestamp*', // Vite/Vitest timestamps
-    'jest.config.ts',
-    'vitest.workspace.ts',
+    '**/*.timestamp*',
   ],
 });
 
@@ -63,7 +61,7 @@ const createBaseJavaScriptRules = () => js.configs.recommended;
 
 const createTypeScriptRules = () => [
   ...tseslint.configs.recommendedTypeChecked,
-  ...tseslint.configs.strictTypeChecked, // CRITICAL FOR LIBRARIES
+  ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
 ];
 
@@ -76,7 +74,7 @@ const createTypeScriptProjectConfiguration = () => ({
   },
   rules: {
     '@typescript-eslint/consistent-type-definitions': ['warn', 'type'],
-    '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }], // CRITICAL FOR TREE-SHAKING
+    '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
     '@typescript-eslint/require-await': ['warn'],
     '@typescript-eslint/no-extraneous-class': 'off',
     '@cspell/spellchecker': ['warn'],
@@ -93,6 +91,23 @@ const createTypeScriptDisableForNonTSFiles = () => ({
     '**/*.md/*.{ts,tsx,js,jsx}',
   ],
   ...tseslint.configs.disableTypeChecked,
+});
+
+// --- !!! FIX FOR CRASH !!! ---
+// Disable type-checked rules for config files that are not part of the main tsconfig project
+const createDisableTypeCheckedForConfigs = () => ({
+  files: [
+    '**/*.config.{js,ts,mts,cts,mjs,cjs}',
+    '**/vitest.workspace.ts',
+    '**/jest.preset.js'
+  ],
+  ...tseslint.configs.disableTypeChecked,
+  rules: {
+    // Re-enable standard rules that don't require types if needed, 
+    // or just leave them off for configs to be safe.
+    '@typescript-eslint/no-var-requires': 'off',
+    'no-undef': 'off' // Configs often use global vars or require
+  }
 });
 
 const createJavaScriptFileConfiguration = () => ({
@@ -139,7 +154,7 @@ const createNodeRules = () => ({
   },
 });
 
-// --- 5. QUALITY OF LIFE (Unicorn, Promise, Comments) ---
+// --- 5. QUALITY OF LIFE ---
 const createPromiseRules = () => pluginPromise.configs['flat/recommended'];
 
 const createUnicornRules = () => ({
@@ -156,7 +171,7 @@ const createUnicornRules = () => ({
 
 const createCommentsRules = () => comments.recommended;
 
-// --- 6. SPECIFIC FILE TYPES (JSON, Markdown, Configs) ---
+// --- 6. SPECIFIC FILE TYPES ---
 const createJsonRules = () => [...eslintPluginJsonc.configs['flat/recommended-with-jsonc']];
 
 const createJsonConfiguration = () => ({
@@ -220,7 +235,7 @@ const createTestingConfiguration = () => ({
   },
 });
 
-// --- 7. FINAL POLISH (Prettier, Spellcheck) ---
+// --- 7. FINAL POLISH ---
 const createPrettierRules = () => eslintConfigPrettier;
 const createSpellCheckRules = () => cspellConfigs.recommended;
 
@@ -237,6 +252,7 @@ export default [
   ...createTypeScriptRules(),
   createTypeScriptProjectConfiguration(),
   createTypeScriptDisableForNonTSFiles(),
+  createDisableTypeCheckedForConfigs(), // <--- NEW FIX
   
   // Imports & Node
   ...createImportRules(),
