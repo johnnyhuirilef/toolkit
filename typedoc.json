@@ -1,0 +1,12 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["packages/nest-ts-valid-mongodb/src/index.ts"],
+  "out": "dist/docs",
+  "plugin": [],
+  "name": "Ioni Toolkit",
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": true
+  }
+}

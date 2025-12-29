@@ -9,6 +9,8 @@ on:
 permissions:
   actions: read
   contents: read
+  checks: write
+  pull-requests: write
 
 jobs:
   main:
@@ -16,25 +18,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          filter: tree:0
           fetch-depth: 0
 
-      # This enables task distribution via Nx Cloud
-      # Run this command as early as possible, before dependencies are installed
-      # Learn more at https://nx.dev/ci/reference/nx-cloud-cli#npx-nxcloud-startcirun
-      - run: npx nx start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="e2e-ci"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
-      # Cache node_modules
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: 'pnpm'
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
-      # Prepend any command with "nx-cloud record --" to record its logs to Nx Cloud
-      - run: npx nx-cloud record -- npx nx format:check  --base="remotes/origin/main"
-      - run: npx nx run-many -t lint test build typecheck e2e-ci
-      # Nx Cloud recommends fixes for failures to help you get CI green faster. Learn more: https://nx.dev/ci/features/self-healing-ci
-      - run: npx nx fix-ci
-        if: always()
+      - uses: nrwl/nx-set-shas@v4
+
+      # --- LINTING & REVIEWDOG 🐶 ---
+      - name: Lint & Reviewdog
+        uses: reviewdog/action-eslint@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-review
+          eslint_flags: '. --ext .ts,.tsx,.js,.jsx'
+          fail_on_error: true
+          filter_mode: nofilter
+
+      # --- TESTING WITH COVERAGE REPORT 📊 ---
+      - name: Run Tests (Affected)
+        run: pnpm nx affected -t test --parallel=3 --configuration=ci --coverage
+
+      - name: Coverage Report
+        uses: davelosert/vitest-coverage-report-action@v2
+        if: always() # Run even if tests fail slightly
+        with:
+          # This action automatically finds json-summary files
+          # But in a monorepo we might need to specify patterns if it fails to find them.
+          # For now, auto-detection usually works if report is standard.
+          json-summary-path: 'coverage/packages/**/coverage-summary.json'
+          json-final-path: 'coverage/packages/**/coverage-final.json'
+
+      - name: Build & Typecheck (Affected)
+        run: pnpm nx affected -t build typecheck --parallel=3
