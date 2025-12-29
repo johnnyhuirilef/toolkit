@@ -1,27 +1,6 @@
 import { NestFactory } from '@nestjs/core';
+
 import { AppModule } from './app.module';
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  // Enable graceful shutdown hooks
-  // This ensures MongoDB connections are properly closed on SIGTERM/SIGINT
-  app.enableShutdownHooks();
-
-  // Enable CORS for development
-  app.enableCors();
-
-  const port = process.env.PORT || 3000;
-  await app.listen(port);
-
-  console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`📘 API Endpoints:`);
-  console.log(`   POST   /users          - Create user`);
-  console.log(`   GET    /users          - Get all users`);
-  console.log(`   GET    /users/count    - Count users`);
-  console.log(`   GET    /users/:email   - Get user by email`);
-  console.log(`   PUT    /users/:id/age  - Update user age`);
-  console.log(`   DELETE /users/:id      - Delete user`);
-}
-
-bootstrap();
+const app = await NestFactory.create(AppModule);
+await app.listen(process.env.PORT ?? 3000);
