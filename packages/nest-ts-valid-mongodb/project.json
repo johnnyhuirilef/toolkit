@@ -17,6 +17,28 @@
         "packageRoot": "dist/{projectRoot}"
       }
     },
+    "build": {
+      "executor": "@nx/rollup:rollup",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/packages/nest-ts-valid-mongodb",
+        "tsConfig": "packages/nest-ts-valid-mongodb/tsconfig.lib.json",
+        "project": "packages/nest-ts-valid-mongodb/package.json",
+        "entryFile": "packages/nest-ts-valid-mongodb/src/index.ts",
+        "external": [
+          "@nestjs/common",
+          "@nestjs/core",
+          "mongodb",
+          "ts-valid-mongodb",
+          "zod",
+          "reflect-metadata",
+          "rxjs"
+        ],
+        "rollupConfig": "packages/nest-ts-valid-mongodb/rollup.config.cjs",
+        "compiler": "swc",
+        "format": ["cjs", "esm"]
+      }
+    },
     "test": {
       "executor": "@nx/vite:test",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],

@@ -1,8 +1,9 @@
-import { Module } from '@nestjs/common';
 import { TsValidMongoModule } from '@ioni/nest-ts-valid-mongodb';
-import { UserSchema } from '../user.schema';
+import { Module } from '@nestjs/common';
+
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { UserSchema } from '../schemas/user.schema';
 
 @Module({
   imports: [
@@ -10,13 +11,11 @@ import { UsersService } from './users.service';
       {
         name: 'users',
         schema: UserSchema,
-        // Create a unique index on email
         indexes: [{ key: { email: 1 }, unique: true }],
       },
     ]),
   ],
   controllers: [UsersController],
   providers: [UsersService],
-  exports: [UsersService],
 })
 export class UsersModule {}
