@@ -187,16 +187,16 @@ export class UsersController {
 Create a Zod schema. This acts as both your runtime validator and your TypeScript type source.
 
 ```typescript
-// cats.schema.ts
+// users.schema.ts
 import { z } from 'zod';
 
-export const CatSchema = z.object({
+export const UserSchema = z.object({
   name: z.string(),
-  age: z.number().min(0),
-  breed: z.string().optional(),
+  email: z.string().email(),
+  age: z.number().min(18),
 });
 
-export type Cat = z.infer<typeof CatSchema>;
+export type User = z.infer<typeof UserSchema>;
 ```
 
 ### 2. Import the Module
@@ -207,7 +207,7 @@ Register the module in your `AppModule`.
 // app.module.ts
 import { Module } from '@nestjs/common';
 import { TsValidMongoModule } from '@ioni/nest-ts-valid-mongodb';
-import { CatSchema } from './cats.schema';
+import { UserSchema } from './users.schema';
 
 @Module({
   imports: [
@@ -218,7 +218,7 @@ import { CatSchema } from './cats.schema';
     }),
 
     // Register specific collections (features)
-    TsValidMongoModule.forFeature([{ name: 'cats', schema: CatSchema }]),
+    TsValidMongoModule.forFeature([{ name: 'users', schema: UserSchema }]),
   ],
 })
 export class AppModule {}
@@ -229,36 +229,36 @@ export class AppModule {}
 Use the `@InjectModel` decorator to get your **fully typed** model.
 
 ```typescript
-// cats.service.ts
+// users.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectModel, Model } from '@ioni/nest-ts-valid-mongodb';
-import { Cat, CatSchema } from './cats.schema';
+import { User, UserSchema } from './users.schema';
 
 @Injectable()
-export class CatsService {
-  constructor(@InjectModel('cats') private readonly catModel: Model<Cat>) {}
+export class UsersService {
+  constructor(@InjectModel('users') private readonly userModel: Model<User>) {}
 
-  async create(cat: Cat) {
-    // This will throw if 'cat' doesn't match the Zod schema!
-    return await this.catModel.insert(cat);
+  async create(user: User) {
+    // This will throw if 'user' doesn't match the Zod schema!
+    return await this.userModel.insert(user);
   }
 
   async findAll() {
-    return await this.catModel.find({});
+    return await this.userModel.find({});
   }
 
-  async findByName(name: string) {
-    return await this.catModel.findOneBy({ name });
+  async findByEmail(email: string) {
+    return await this.userModel.findOneBy({ email });
   }
 
   async updateAge(id: string, age: number) {
-    return await this.catModel.updateById(id, {
+    return await this.userModel.updateById(id, {
       values: { age },
     });
   }
 
   async delete(id: string) {
-    return await this.catModel.deleteById(id);
+    return await this.userModel.deleteById(id);
   }
 }
 ```
@@ -411,11 +411,14 @@ export class HealthService implements OnModuleInit {
 
 ## 🔄 Graceful Shutdown
 
-Production applications must handle shutdown gracefully to prevent data loss and connection leaks. This is especially critical in containerized environments (Docker, Kubernetes) where pods are frequently terminated.
+Production applications must handle shutdown gracefully to prevent data loss and connection leaks.
+This is especially critical in containerized environments (Docker, Kubernetes) where pods are
+frequently terminated.
 
 ### Why Graceful Shutdown Matters
 
-When your NestJS application receives a termination signal (SIGTERM, SIGINT), MongoDB connections must be closed properly to:
+When your NestJS application receives a termination signal (SIGTERM, SIGINT), MongoDB connections
+must be closed properly to:
 
 - **Prevent connection leaks** that exhaust the connection pool
 - **Avoid orphaned connections** in testing environments
@@ -442,7 +445,8 @@ bootstrap();
 
 ### Configuration Options
 
-You can customize shutdown behavior when configuring the module (Note: These settings are applied at application startup and cannot be changed dynamically):
+You can customize shutdown behavior when configuring the module (Note: These settings are applied at
+application startup and cannot be changed dynamically):
 
 ```typescript
 TsValidMongoModule.forRoot({
@@ -450,17 +454,17 @@ TsValidMongoModule.forRoot({
   databaseName: 'my_database',
 
   // Optional: Graceful shutdown configuration
-  shutdownTimeout: 10000,  // Max time for shutdown process (default: 10000ms)
-  forceShutdown: false,    // Wait for operations vs force close (default: false)
-})
+  shutdownTimeout: 10000, // Max time for shutdown process (default: 10000ms)
+  forceShutdown: false, // Wait for operations vs force close (default: false)
+});
 
 // Example: Faster shutdown with force close (use with caution)
 TsValidMongoModule.forRoot({
   uri: 'mongodb://localhost:27017',
   databaseName: 'my_database',
-  shutdownTimeout: 5000,   // Shorter timeout for dev/test environments
-  forceShutdown: true,     // Force immediate close (may interrupt operations)
-})
+  shutdownTimeout: 5000, // Shorter timeout for dev/test environments
+  forceShutdown: true, // Force immediate close (may interrupt operations)
+});
 ```
 
 #### Configuration Parameters
@@ -481,7 +485,8 @@ TsValidMongoModule.forRoot({
 
 ### Kubernetes Integration
 
-For Kubernetes deployments, ensure your `terminationGracePeriodSeconds` exceeds your shutdown timeout:
+For Kubernetes deployments, ensure your `terminationGracePeriodSeconds` exceeds your shutdown
+timeout:
 
 ```yaml
 apiVersion: apps/v1
@@ -491,7 +496,7 @@ metadata:
 spec:
   template:
     spec:
-      terminationGracePeriodSeconds: 30  # Should be > shutdownTimeout
+      terminationGracePeriodSeconds: 30 # Should be > shutdownTimeout
       containers:
         - name: app
           image: my-app:latest
@@ -500,9 +505,12 @@ spec:
 
 ### Structured Logging
 
-The shutdown process emits structured JSON logs compatible with observability platforms (Datadog, Splunk, etc.).
+The shutdown process emits structured JSON logs compatible with observability platforms (Datadog,
+Splunk, etc.).
 
-> **Pro Tip:** By default, NestJS wraps logs in its own text format. To get pure JSON output suitable for log aggregators, we recommend using a JSON-logger compatible with NestJS, such as `nestjs-pino`.
+> **Pro Tip:** By default, NestJS wraps logs in its own text format. To get pure JSON output
+> suitable for log aggregators, we recommend using a JSON-logger compatible with NestJS, such as
+> `nestjs-pino`.
 
 ```json
 // Shutdown initiated
@@ -543,12 +551,15 @@ The shutdown process includes built-in resilience features:
 ### Best Practices
 
 1. **Always enable shutdown hooks** (`app.enableShutdownHooks()`) in production environments
-2. **Use graceful close by default**: Keep `forceShutdown: false` unless you have specific requirements
+2. **Use graceful close by default**: Keep `forceShutdown: false` unless you have specific
+   requirements
 3. **Set appropriate timeout** based on your application's workload (typically 5-30 seconds)
-4. **Monitor shutdown logs** to detect slow or failing connection closures using structured JSON output
+4. **Monitor shutdown logs** to detect slow or failing connection closures using structured JSON
+   output
 5. **Test shutdown behavior** in your integration tests to ensure connections close cleanly
 6. **Avoid force shutdown** unless absolutely necessary - it may cause data inconsistencies
-7. **Coordinate with Kubernetes** `terminationGracePeriodSeconds` (k8s timeout should be higher than `shutdownTimeout`)
+7. **Coordinate with Kubernetes** `terminationGracePeriodSeconds` (k8s timeout should be higher than
+   `shutdownTimeout`)
 
 ## 🤝 Contributing
 
