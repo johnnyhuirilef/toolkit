@@ -1,5 +1,6 @@
 packages:
   - 'packages/*'
+  - 'packages/nest-ts-valid-mongodb/examples/*'
 
 onlyBuiltDependencies:
   - '@swc/core'

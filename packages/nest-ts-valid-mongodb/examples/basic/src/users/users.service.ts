@@ -1,53 +1,49 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel, Model, Doc } from '@ioni/nest-ts-valid-mongodb';
-import { User } from '../user.schema';
+import { InjectModel, Model } from '@ioni/nest-ts-valid-mongodb';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { ObjectId } from 'mongodb';
+
+import { User } from '../schemas/user.schema';
 
 @Injectable()
 export class UsersService {
   constructor(@InjectModel('users') private readonly usersModel: Model<User>) {}
 
-  /**
-   * Create a new user
-   * The user object will be validated against the Zod schema before insertion
-   */
-  async create(user: User): Promise<Doc<User>> {
+  async create(user: User) {
     return this.usersModel.insert(user);
   }
 
-  /**
-   * Find all users
-   */
-  async findAll(): Promise<Doc<User>[]> {
-    return this.usersModel.find();
+  async findAll() {
+    return this.usersModel.find({});
   }
 
-  /**
-   * Find a user by email
-   */
-  async findByEmail(email: string): Promise<Doc<User> | null> {
-    return this.usersModel.findOneBy({ email });
+  async findOne(id: string) {
+    if (!ObjectId.isValid(id)) {
+      throw new NotFoundException(`Invalid ID format: ${id}`);
+    }
+
+    const user = await this.usersModel.findById(new ObjectId(id));
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    return user;
   }
 
-  /**
-   * Update user's age
-   */
-  async updateAge(id: string, age: number): Promise<Doc<User> | null> {
-    return this.usersModel.updateById(id, {
-      values: { age },
+  async delete(id: string) {
+    if (!ObjectId.isValid(id)) {
+      throw new NotFoundException(`Invalid ID format: ${id}`);
+    }
+
+    // deleteOneBy returns the deleted document or null
+    const deletedUser = await this.usersModel.deleteOneBy({
+      _id: new ObjectId(id),
     });
-  }
 
-  /**
-   * Delete a user by ID
-   */
-  async delete(id: string): Promise<Doc<User> | null> {
-    return this.usersModel.deleteById(id);
-  }
+    if (!deletedUser) {
+      throw new NotFoundException(`User with ID ${id} not found for deletion`);
+    }
 
-  /**
-   * Count total users
-   */
-  async count(): Promise<number> {
-    return this.usersModel.count();
+    return deletedUser;
   }
 }
