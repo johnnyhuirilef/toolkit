@@ -20,6 +20,10 @@ const createIgnoreRules = () => ({
     '**/node_modules/**',
     '.github/instructions/**',
     '**/*.timestamp*',
+    '**/jest.config.ts',
+    '**/vite.config.ts',
+    '**/vitest.workspace.ts',
+    '**/rollup.config.cjs',
   ],
 });
 
