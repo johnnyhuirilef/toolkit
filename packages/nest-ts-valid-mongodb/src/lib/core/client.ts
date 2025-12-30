@@ -1,7 +1,7 @@
 import type { MongoClient } from 'mongodb';
-import TsValidMongoDb from 'ts-valid-mongodb';
+import type TsValidMongoDb from 'ts-valid-mongodb';
 
-import { getTsValidMongoDbFactory } from './utils';
+import { getTsValidMongoDatabaseFactory } from './utilities';
 
 /**
  * Wrapper object that contains a TsValidMongoDb instance and a close function.
@@ -10,7 +10,7 @@ import { getTsValidMongoDbFactory } from './utils';
  *
  * @internal
  */
-export type MongoDbClientWrapper = {
+export type MongoDatabaseClientWrapper = {
   /** The TsValidMongoDb instance for creating models and accessing the database */
   client: TsValidMongoDb;
   /**
@@ -39,7 +39,7 @@ export type MongoDbClientWrapper = {
  * const nativeClient = new MongoClient('mongodb://localhost:27017');
  * await nativeClient.connect();
  *
- * const wrapper = createTsValidMongoDb({
+ * const wrapper = createTsValidMongoDatabase({
  *   client: nativeClient,
  *   databaseName: 'my_app',
  * });
@@ -53,16 +53,16 @@ export type MongoDbClientWrapper = {
  *
  * @internal
  */
-export function createTsValidMongoDb(options: {
+export function createTsValidMongoDatabase(options: {
   client: MongoClient;
   databaseName: string;
-}): MongoDbClientWrapper {
+}): MongoDatabaseClientWrapper {
   const { databaseName, client } = options;
 
-  const TsValidMongoDbClass = getTsValidMongoDbFactory();
+  const TsValidMongoDatabaseClass = getTsValidMongoDatabaseFactory();
 
   // Wrap the native client with TsValidMongoDb
-  const tsValidMongoClient = TsValidMongoDbClass.createWithClient(client, databaseName);
+  const tsValidMongoClient = TsValidMongoDatabaseClass.createWithClient(client, databaseName);
 
   return {
     client: tsValidMongoClient,

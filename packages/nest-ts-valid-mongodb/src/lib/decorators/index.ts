@@ -1,4 +1,5 @@
 import { Inject } from '@nestjs/common';
+
 import { getConnectionToken, getModelToken } from '../core/tokens';
 
 /**

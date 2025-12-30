@@ -233,7 +233,7 @@ export type TsValidMongoModuleAsyncOptions = {
    */
   useFactory: (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...args: any[]
+    ...arguments_: any[]
   ) => Promise<TsValidMongoConnectionOptions> | TsValidMongoConnectionOptions;
   /** Dependencies to inject into the factory function */
   inject?: InjectionToken[];

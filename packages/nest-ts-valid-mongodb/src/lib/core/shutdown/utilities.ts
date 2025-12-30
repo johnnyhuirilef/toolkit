@@ -1,6 +1,6 @@
 import { SHUTDOWN_DEFAULTS } from '../../constants/shutdown';
 import type { TsValidMongoConnectionOptions } from '../../interfaces';
-import type { MongoDbClientWrapper } from '../client';
+import type { MongoDatabaseClientWrapper } from '../client';
 
 // --- CONFIGURATION ---
 
@@ -10,11 +10,9 @@ export type ShutdownConfig = {
   readonly forceClose: boolean;
 };
 
-export const resolveShutdownConfig = (
-  options?: TsValidMongoConnectionOptions
-): ShutdownConfig => {
+export const resolveShutdownConfig = (options?: TsValidMongoConnectionOptions): ShutdownConfig => {
   const userTimeout = options?.shutdownTimeout;
-  const timeoutMs = 
+  const timeoutMs =
     typeof userTimeout === 'number' && userTimeout >= 0 && Number.isFinite(userTimeout)
       ? userTimeout
       : SHUTDOWN_DEFAULTS.TIMEOUT_MS;
@@ -27,12 +25,12 @@ export const resolveShutdownConfig = (
 
 // --- GUARDS ---
 
-export const isValidConnectionWrapper = (value: unknown): value is MongoDbClientWrapper => {
+export const isValidConnectionWrapper = (value: unknown): value is MongoDatabaseClientWrapper => {
   return (
     typeof value === 'object' &&
     value !== null &&
     'close' in value &&
-    typeof (value as any).close === 'function' &&
+    typeof (value as { close: unknown }).close === 'function' &&
     'client' in value
   );
 };
@@ -41,7 +39,7 @@ export const isValidConnectionWrapper = (value: unknown): value is MongoDbClient
 
 export class ShutdownTimeoutError extends Error {
   constructor(operation: string, timeoutMs: number) {
-    super(`${operation} exceeded timeout of ${timeoutMs}ms`);
+    super(`${operation} exceeded timeout of ${String(timeoutMs)}ms`);
     this.name = 'ShutdownTimeoutError';
   }
 }
@@ -49,9 +47,9 @@ export class ShutdownTimeoutError extends Error {
 export const withTimeout = <T>(
   promise: Promise<T>,
   timeoutMs: number,
-  operation: string
+  operation: string,
 ): Promise<T> => {
-  const timeoutPromise = new Promise<never>((_, reject) => {
+  const timeoutPromise = new Promise<never>((_resolve, reject) => {
     setTimeout(() => {
       reject(new ShutdownTimeoutError(operation, timeoutMs));
     }, timeoutMs);
@@ -66,7 +64,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const withRetry = async <T>(
   operation: () => Promise<T>,
-  maxAttempts: number
+  maxAttempts: number,
 ): Promise<{ success: boolean; value?: T; error?: Error }> => {
   let lastError: Error | undefined;
   const delayMs = SHUTDOWN_DEFAULTS.RETRY_DELAY_MS;
