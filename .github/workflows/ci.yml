@@ -22,7 +22,6 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -47,6 +46,9 @@ jobs:
       - name: Run Tests (Affected)
         run: pnpm nx affected -t test --parallel=3 --configuration=ci --coverage
 
+      - name: Debug Coverage Directory
+        if: always()
+        run: ls -R coverage || echo "Coverage directory not found"
       - name: Coverage Report
         uses: davelosert/vitest-coverage-report-action@v2
         if: always() # Run even if tests fail slightly
