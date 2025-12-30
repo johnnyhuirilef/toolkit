@@ -1,11 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
-import { 
-  resolveShutdownConfig, 
-  withRetry, 
-  withTimeout, 
-  ShutdownTimeoutError 
-} from '../../../src/lib/core/shutdown/utils';
+import { describe, it, expect, vi } from 'vitest'; // eslint-disable-line n/no-extraneous-import
+
 import { SHUTDOWN_DEFAULTS } from '../../../src/lib/constants/shutdown';
+import {
+  resolveShutdownConfig,
+  withRetry,
+  withTimeout,
+  ShutdownTimeoutError,
+} from '../../../src/lib/core/shutdown/utilities';
 
 describe('Shutdown Utils', () => {
   describe('resolveShutdownConfig', () => {
@@ -17,17 +18,21 @@ describe('Shutdown Utils', () => {
     });
 
     it('should respect user options', () => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const config = resolveShutdownConfig({
         shutdownTimeout: 5000,
         forceShutdown: true,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       expect(config.timeoutMs).toBe(5000);
       expect(config.forceClose).toBe(true);
     });
 
     it('should ignore invalid timeout values', () => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const config = resolveShutdownConfig({
         shutdownTimeout: -100,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       expect(config.timeoutMs).toBe(SHUTDOWN_DEFAULTS.TIMEOUT_MS);
     });
@@ -40,7 +45,7 @@ describe('Shutdown Utils', () => {
     });
 
     it('should reject if promise times out', async () => {
-      const slowPromise = new Promise(resolve => setTimeout(resolve, 50));
+      const slowPromise = new Promise((resolve) => setTimeout(resolve, 50));
       // timeout is 10ms, so it should fail
       await expect(withTimeout(slowPromise, 10, 'test')).rejects.toThrow(ShutdownTimeoutError);
     });
@@ -56,10 +61,8 @@ describe('Shutdown Utils', () => {
     });
 
     it('should retry on failure', async () => {
-      const op = vi.fn()
-        .mockRejectedValueOnce(new Error('fail 1'))
-        .mockResolvedValue('ok');
-      
+      const op = vi.fn().mockRejectedValueOnce(new Error('fail 1')).mockResolvedValue('ok');
+
       const result = await withRetry(op, 3);
       expect(result.success).toBe(true);
       expect(result.value).toBe('ok');
