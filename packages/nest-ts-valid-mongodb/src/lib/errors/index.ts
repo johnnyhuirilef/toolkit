@@ -4,14 +4,8 @@
  */
 export class TsValidMongoError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
-    // @ts-ignore - 'cause' support depends on TS lib/target
     super(message, options);
     this.name = 'TsValidMongoError';
-
-    // Maintains proper stack trace for where our error was thrown (only available on V8)
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, this.constructor);
-    }
   }
 }
 

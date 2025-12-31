@@ -197,13 +197,20 @@ const createMarkdownConfiguration = () => [
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/consistent-type-imports': 'off',
       '@typescript-eslint/prefer-for-of': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
       'no-undef': 'off',
       'no-console': 'off',
       'import/no-unresolved': 'off',
+      'import/no-duplicates': 'off',
+      'import/order': 'off',
       'n/no-missing-import': 'off',
       'n/no-unsupported-features/node-builtins': 'off',
+      'unicorn/prevent-abbreviations': 'off',
+      'unicorn/numeric-separators-style': 'off',
+      'unicorn/prefer-top-level-await': 'off',
       '@cspell/spellchecker': 'off',
-      '@nx/enforce-module-boundaries': 'off', // <--- DISABLE NX BOUNDARY CHECK IN MARKDOWN
+      '@nx/enforce-module-boundaries': 'off',
     },
   },
 ];
@@ -226,15 +233,30 @@ const createZodSchemasConfiguration = () => ({
   },
 });
 
-const createTestingConfiguration = () => ({
-  files: ['**/jest.config.{js,ts,mjs}', '**/jest.preset.{js,ts,mjs}'],
-  rules: {
-    '@eslint-community/eslint-comments/no-unlimited-disable': 'off',
-    'unicorn/no-abusive-eslint-disable': 'off',
-    'unicorn/prefer-module': 'off',
-    '@typescript-eslint/no-require-imports': 'off',
+const createTestingConfiguration = () => [
+  {
+    files: ['**/jest.config.{js,ts,mjs}', '**/jest.preset.{js,ts,mjs}'],
+    rules: {
+      '@eslint-community/eslint-comments/no-unlimited-disable': 'off',
+      'unicorn/no-abusive-eslint-disable': 'off',
+      'unicorn/prefer-module': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+    },
   },
-});
+  {
+    files: ['**/*.spec.ts', '**/*.test.ts', '**/tests/**/*.ts', '**/test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/unbound-method': 'off',
+      'unicorn/no-useless-undefined': 'off', // Mock functions require explicit undefined in strict mode
+    },
+  },
+];
 
 // --- 7. FINAL POLISH ---
 const createPrettierRules = () => eslintConfigPrettier;
@@ -272,7 +294,7 @@ export default [
   createJavaScriptFileConfiguration(),
   createConfigurationFilesRules(),
   createZodSchemasConfiguration(),
-  createTestingConfiguration(),
+  ...createTestingConfiguration(),
 
   // Formatting (Must be last)
   createPrettierRules(),

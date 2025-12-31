@@ -16,7 +16,7 @@ export const SHUTDOWN_DEFAULTS = {
    * Default maximum time to wait for all connections to close gracefully.
    * After 10 seconds, the shutdown process will complete regardless.
    */
-  TIMEOUT_MS: 10000,
+  TIMEOUT_MS: 10_000,
 
   /**
    * Default behavior is to wait for graceful close, not force immediate shutdown.

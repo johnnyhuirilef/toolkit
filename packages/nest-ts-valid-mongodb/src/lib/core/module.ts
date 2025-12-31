@@ -1,32 +1,25 @@
-import {
-  DynamicModule,
-  Global,
-  Inject,
-  Logger,
-  Module,
-  OnApplicationShutdown,
-  Provider,
-  Optional,
-} from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
-import TsValidMongoDb, { Schema } from 'ts-valid-mongodb';
+import type { DynamicModule, OnApplicationShutdown, Provider } from '@nestjs/common';
+import { Global, Inject, Logger, Module, Optional } from '@nestjs/common';
+import type { ModuleRef } from '@nestjs/core';
+import type TsValidMongoDb from 'ts-valid-mongodb';
+import { Schema } from 'ts-valid-mongodb';
 
-import { createTsValidMongoDb, MongoDbClientWrapper } from './client';
-import { getTsValidMongoDbFactory } from './utils';
+import type { createTsValidMongoDatabase, MongoDatabaseClientWrapper } from './client';
 import { getModelToken } from './tokens';
+import { getTsValidMongoDatabaseFactory } from './utilities';
 import {
   DEFAULT_CONNECTION_NAME,
   TS_VALID_MONGO_CONNECTION_TOKENS,
   TS_VALID_MONGO_MODULE_OPTIONS,
 } from '../constants';
-import {
+import { TsValidMongoConnectionError, TsValidMongoConfigurationError } from '../errors';
+import type {
   TsValidMongoCollectionDefinition,
   TsValidMongoConnectionOptions,
   TsValidMongoModuleAsyncOptions,
 } from '../interfaces';
-import { TsValidMongoConnectionError, TsValidMongoConfigurationError } from '../errors';
 import { executeShutdown } from './shutdown/manager';
-import { resolveShutdownConfig } from './shutdown/utils';
+import { resolveShutdownConfig } from './shutdown/utilities';
 
 /**
  * Main module for integrating MongoDB with NestJS using the native driver and Zod validation.
@@ -55,10 +48,10 @@ import { resolveShutdownConfig } from './shutdown/utils';
 @Module({})
 export class TsValidMongoModule implements OnApplicationShutdown {
   constructor(
-    private readonly moduleRef: ModuleRef,
+    private readonly moduleReference: ModuleRef,
     @Optional()
     @Inject(TS_VALID_MONGO_CONNECTION_TOKENS)
-    private readonly connectionTokens: (string | symbol)[],
+    private readonly connectionTokens: (string | symbol)[] | undefined,
     @Optional()
     @Inject(TS_VALID_MONGO_MODULE_OPTIONS)
     private readonly moduleOptions?: TsValidMongoConnectionOptions,
@@ -73,13 +66,13 @@ export class TsValidMongoModule implements OnApplicationShutdown {
    *
    * @param signal - Optional shutdown signal (SIGTERM, SIGINT, etc.)
    */
-  async onApplicationShutdown(signal?: string) {
+  async onApplicationShutdown() {
     if (!this.connectionTokens) {
       return;
     }
 
     const shutdownConfig = resolveShutdownConfig(this.moduleOptions);
-    await executeShutdown(this.connectionTokens, this.moduleRef, shutdownConfig);
+    await executeShutdown(this.connectionTokens, this.moduleReference, shutdownConfig);
   }
 
   /**
@@ -161,8 +154,8 @@ export class TsValidMongoModule implements OnApplicationShutdown {
 
     const connectionProvider: Provider = {
       provide: connectionToken,
-      useFactory: async (...args: unknown[]) => {
-        const config = await options.useFactory(...args);
+      useFactory: async (...arguments_: unknown[]) => {
+        const config = await options.useFactory(...arguments_);
         return await this.createConnectionWrapper(config);
       },
       inject: options.inject ?? [],
@@ -170,8 +163,8 @@ export class TsValidMongoModule implements OnApplicationShutdown {
 
     const optionsProvider: Provider = {
       provide: TS_VALID_MONGO_MODULE_OPTIONS,
-      useFactory: async (...args: unknown[]) => {
-        return await options.useFactory(...args);
+      useFactory: async (...arguments_: unknown[]) => {
+        return await options.useFactory(...arguments_);
       },
       inject: options.inject ?? [],
     };
@@ -235,16 +228,16 @@ export class TsValidMongoModule implements OnApplicationShutdown {
     const connectionToken = connectionName ?? DEFAULT_CONNECTION_NAME;
 
     const providers: Provider[] = collections.map((collection) => {
-      const provide = collection.provide || getModelToken(collection.name);
+      const provide = collection.provide ?? getModelToken(collection.name);
 
       return {
         provide,
-        useFactory: (dbWrapper: ReturnType<typeof createTsValidMongoDb>) => {
+        useFactory: (databaseWrapper: ReturnType<typeof createTsValidMongoDatabase>) => {
           Logger.log(`📄 Creating model: '${collection.name}'`, 'TsValidMongoModule');
 
           // We access the internal client from the wrapper
-          return dbWrapper.client.createModel(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return databaseWrapper.client.createModel(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
             new Schema(collection.name, collection.schema as any, {
               versionKey: collection.versionKey ?? true,
               indexes: collection.indexes,
@@ -273,23 +266,26 @@ export class TsValidMongoModule implements OnApplicationShutdown {
    */
   private static async createConnectionWrapper(
     options: TsValidMongoConnectionOptions,
-  ): Promise<MongoDbClientWrapper> {
+  ): Promise<MongoDatabaseClientWrapper> {
     Logger.log(
       `🔌 Preparing MongoDB connection for database: ${options.databaseName}`,
       'TsValidMongoModule',
     );
 
-    let dbInstance: TsValidMongoDb;
-    const TsValidMongoDbClass = getTsValidMongoDbFactory();
+    let databaseInstance: TsValidMongoDb;
+    const TsValidMongoDatabaseClass = getTsValidMongoDatabaseFactory();
 
     if (options.uri) {
-      dbInstance = TsValidMongoDbClass.create(
+      databaseInstance = TsValidMongoDatabaseClass.create(
         options.uri,
         options.databaseName,
         options.clientOptions,
       );
     } else if (options.mongoClient) {
-      dbInstance = TsValidMongoDbClass.createWithClient(options.mongoClient, options.databaseName);
+      databaseInstance = TsValidMongoDatabaseClass.createWithClient(
+        options.mongoClient,
+        options.databaseName,
+      );
     } else {
       throw new TsValidMongoConfigurationError(
         'TsValidMongoModule requires either "mongoClient" or "uri" to be provided.',
@@ -298,15 +294,15 @@ export class TsValidMongoModule implements OnApplicationShutdown {
 
     try {
       // .connect() returns the native MongoClient!
-      const nativeClient = await dbInstance.connect();
+      const nativeClient = await databaseInstance.connect();
       Logger.log(`✅ MongoDB Connected to ${options.databaseName}`, 'TsValidMongoModule');
 
       // Return the wrapper with the instance and the close method using the native client we just got
       return {
-        client: dbInstance,
+        client: databaseInstance,
         close: async (force?: boolean) => {
           // Use provided force parameter, fallback to options, then default to false
-          const shouldForce = force ?? (options.forceShutdown ?? false);
+          const shouldForce = force ?? options.forceShutdown ?? false;
           await nativeClient.close(shouldForce);
         },
       };

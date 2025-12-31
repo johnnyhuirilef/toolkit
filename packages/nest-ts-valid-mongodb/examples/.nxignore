@@ -1,0 +1,3 @@
+# Ignore all examples from NX project graph
+# These are usage examples, not packages to be built/tested in CI
+**/*

@@ -1,5 +1,5 @@
-import { Test } from '@nestjs/testing'; // eslint-disable-line n/no-extraneous-import
-import { vi, describe, it, expect } from 'vitest'; // eslint-disable-line n/no-extraneous-import
+import { Test } from '@nestjs/testing';
+import { vi, describe, it, expect } from 'vitest';
 
 import { TsValidMongoModule } from '../../src/lib/core/module';
 import { TsValidMongoConfigurationError } from '../../src/lib/errors';

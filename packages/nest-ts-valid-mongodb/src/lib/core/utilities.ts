@@ -8,9 +8,9 @@ import TsValidMongoDb from 'ts-valid-mongodb';
  *
  * @internal
  */
-interface TsValidMongoDbModule {
+type TsValidMongoDatabaseModule = {
   default: typeof TsValidMongoDb;
-}
+};
 
 /**
  * Type guard to check if the imported library is wrapped in a 'default' property.
@@ -23,7 +23,7 @@ interface TsValidMongoDbModule {
  *
  * @internal
  */
-function isModuleWithDefault(value: unknown): value is TsValidMongoDbModule {
+function isModuleWithDefault(value: unknown): value is TsValidMongoDatabaseModule {
   return typeof value === 'object' && value !== null && 'default' in value;
 }
 
@@ -37,19 +37,19 @@ function isModuleWithDefault(value: unknown): value is TsValidMongoDbModule {
  *
  * @example
  * ```typescript
- * const TsValidMongoDbClass = getTsValidMongoDbFactory();
- * const instance = TsValidMongoDbClass.create('mongodb://localhost', 'mydb');
+ * const TsValidMongoDatabaseClass = getTsValidMongoDatabaseFactory();
+ * const instance = TsValidMongoDatabaseClass.create('mongodb://localhost', 'mydb');
  * ```
  *
  * @internal
  */
-export function getTsValidMongoDbFactory(): typeof TsValidMongoDb {
+export function getTsValidMongoDatabaseFactory(): typeof TsValidMongoDb {
   // We cast to unknown first because we are about to inspect its runtime shape,
   // which might differ from the compile-time type definition.
-  const lib = TsValidMongoDb as unknown;
+  const library = TsValidMongoDb as unknown;
 
-  if (isModuleWithDefault(lib)) {
-    return lib.default;
+  if (isModuleWithDefault(library)) {
+    return library.default;
   }
 
   return TsValidMongoDb;

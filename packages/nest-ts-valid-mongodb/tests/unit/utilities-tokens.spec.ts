@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { getTsValidMongoDbFactory } from '../../src/lib/core/utils';
-import { getModelToken, getConnectionToken } from '../../src/lib/core/tokens';
-import { DEFAULT_CONNECTION_NAME } from '../../src/lib/constants';
 
-describe('getTsValidMongoDbFactory', () => {
+import { DEFAULT_CONNECTION_NAME } from '../../src/lib/constants';
+import { getModelToken, getConnectionToken } from '../../src/lib/core/tokens';
+import { getTsValidMongoDatabaseFactory } from '../../src/lib/core/utilities';
+
+describe('getTsValidMongoDatabaseFactory', () => {
   it('should return TsValidMongoDb class directly when imported as ESM', () => {
-    const factory = getTsValidMongoDbFactory();
+    const factory = getTsValidMongoDatabaseFactory();
 
     expect(factory).toBeDefined();
     expect(typeof factory).toBe('function');
@@ -13,11 +14,11 @@ describe('getTsValidMongoDbFactory', () => {
 
   it('should handle CJS/ESM interop gracefully', () => {
     // This test verifies the function handles both module formats
-    const factory = getTsValidMongoDbFactory();
+    const factory = getTsValidMongoDatabaseFactory();
 
     // Should have the static methods
-    expect(factory.create).toBeDefined();
-    expect(factory.createWithClient).toBeDefined();
+    expect(typeof factory.create).toBe('function');
+    expect(typeof factory.createWithClient).toBe('function');
   });
 });
 

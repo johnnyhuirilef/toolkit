@@ -1,0 +1,2 @@
+# Examples are not packages to be published or tested in CI
+packages/*/examples/**

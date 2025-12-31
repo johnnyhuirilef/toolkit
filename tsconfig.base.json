@@ -17,6 +17,7 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
+    "baseUrl": ".",
     "customConditions": ["@org/source"],
     "paths": {
       "@ioni/nest-ts-valid-mongodb": ["packages/nest-ts-valid-mongodb/src/index.ts"]
