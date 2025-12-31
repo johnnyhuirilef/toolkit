@@ -63,11 +63,16 @@ const createNxConfiguration = () => [
 // --- 3. TYPESCRIPT & JAVASCRIPT CORE ---
 const createBaseJavaScriptRules = () => js.configs.recommended;
 
-const createTypeScriptRules = () => [
-  ...tseslint.configs.recommendedTypeChecked,
-  ...tseslint.configs.strictTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
-];
+const createTypeScriptRules = () =>
+  [
+    ...tseslint.configs.recommendedTypeChecked,
+    ...tseslint.configs.strictTypeChecked,
+    ...tseslint.configs.stylisticTypeChecked,
+  ].map((config) => ({
+    ...config,
+    files: ['**/*.ts', '**/*.tsx'],
+    ignores: ['**/*.config.{js,ts,mts,cts,mjs,cjs}', '**/vitest.workspace.ts', '**/jest.preset.js'],
+  }));
 
 const createTypeScriptProjectConfiguration = () => ({
   files: ['**/*.ts', '**/*.tsx'],
@@ -95,23 +100,6 @@ const createTypeScriptDisableForNonTSFiles = () => ({
     '**/*.md/*.{ts,tsx,js,jsx}',
   ],
   ...tseslint.configs.disableTypeChecked,
-});
-
-// --- !!! FIX FOR CRASH !!! ---
-// Disable type-checked rules for config files that are not part of the main tsconfig project
-const createDisableTypeCheckedForConfigs = () => ({
-  files: [
-    '**/*.config.{js,ts,mts,cts,mjs,cjs}',
-    '**/vitest.workspace.ts',
-    '**/jest.preset.js'
-  ],
-  ...tseslint.configs.disableTypeChecked,
-  rules: {
-    // Re-enable standard rules that don't require types if needed, 
-    // or just leave them off for configs to be safe.
-    '@typescript-eslint/no-var-requires': 'off',
-    'no-undef': 'off' // Configs often use global vars or require
-  }
 });
 
 const createJavaScriptFileConfiguration = () => ({
@@ -144,7 +132,15 @@ const createImportRules = () => [
 const createImportResolverConfiguration = () => ({
   settings: {
     'import/resolver': {
-      typescript: { alwaysTryTypes: true, project: './tsconfig.json' },
+      typescript: {
+        alwaysTryTypes: true,
+        project: [
+          './tsconfig.base.json',
+          'packages/*/tsconfig.json',
+          'packages/*/tsconfig.lib.json',
+          'packages/*/tsconfig.spec.json',
+        ],
+      },
       node: true,
     },
   },
@@ -207,6 +203,7 @@ const createMarkdownConfiguration = () => [
       'n/no-missing-import': 'off',
       'n/no-unsupported-features/node-builtins': 'off',
       '@cspell/spellchecker': 'off',
+      '@nx/enforce-module-boundaries': 'off', // <--- DISABLE NX BOUNDARY CHECK IN MARKDOWN
     },
   },
 ];
@@ -247,28 +244,27 @@ const createSpellCheckRules = () => cspellConfigs.recommended;
 export default [
   createIgnoreRules(),
   createGlobalConfiguration(),
-  
+
   // Architecture & Base
   ...createNxConfiguration(),
   createBaseJavaScriptRules(),
-  
+
   // TypeScript Strictness
   ...createTypeScriptRules(),
   createTypeScriptProjectConfiguration(),
   createTypeScriptDisableForNonTSFiles(),
-  createDisableTypeCheckedForConfigs(), // <--- NEW FIX
-  
+
   // Imports & Node
   ...createImportRules(),
   createImportResolverConfiguration(),
   createNodeRules(),
-  
+
   // Quality Assurance
   createPromiseRules(),
   createUnicornRules(),
   createCommentsRules(),
   createSpellCheckRules(),
-  
+
   // Specific File Handlers
   ...createJsonRules(),
   createJsonConfiguration(),
@@ -277,7 +273,7 @@ export default [
   createConfigurationFilesRules(),
   createZodSchemasConfiguration(),
   createTestingConfiguration(),
-  
+
   // Formatting (Must be last)
   createPrettierRules(),
 ];
