@@ -2,7 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "moduleResolution": "NodeNext",
+    "moduleResolution": "nodenext",
     "outDir": "../../dist/out-tsc",
     "declaration": true,
     "types": ["node"]
