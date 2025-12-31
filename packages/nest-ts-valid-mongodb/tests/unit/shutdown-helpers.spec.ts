@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import {
   createMockWrapper,
   createHangingWrapper,
@@ -31,10 +32,7 @@ describe('Shutdown Test Helpers', () => {
     it('creates wrapper that never resolves', async () => {
       const wrapper = createHangingWrapper();
 
-      const raceResult = await Promise.race([
-        wrapper.close(),
-        Promise.resolve('timeout'),
-      ]);
+      const raceResult = await Promise.race([wrapper.close(), Promise.resolve('timeout')]);
 
       expect(raceResult).toBe('timeout');
     });
@@ -108,9 +106,9 @@ describe('Shutdown Test Helpers', () => {
 
       await Promise.all(wrappers.map((w) => w.close()));
 
-      wrappers.forEach((w) => {
+      for (const w of wrappers) {
         expect(w.close).toHaveBeenCalled();
-      });
+      }
     });
   });
 
@@ -122,9 +120,9 @@ describe('Shutdown Test Helpers', () => {
 
       await Promise.all(wrappers.map((w) => w.close()));
 
-      wrappers.forEach((w) => {
+      for (const w of wrappers) {
         expect(w.close).toHaveBeenCalled();
-      });
+      }
     });
 
     it('creates mix of successful and failing wrappers', async () => {

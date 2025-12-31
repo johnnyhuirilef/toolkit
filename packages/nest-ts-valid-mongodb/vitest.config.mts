@@ -13,8 +13,8 @@ export default defineConfig(() => ({
     environment: 'node',
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
-    testTimeout: 30000,
-    hookTimeout: 90000,
+    testTimeout: 30_000,
+    hookTimeout: 90_000,
     coverage: {
       reportsDirectory: '../../coverage/packages/nest-ts-valid-mongodb',
       provider: 'v8' as const,

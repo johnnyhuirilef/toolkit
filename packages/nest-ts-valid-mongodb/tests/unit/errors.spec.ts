@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import {
   TsValidMongoError,
   TsValidMongoConnectionError,
@@ -99,9 +100,9 @@ describe('Error instanceof checks', () => {
       new TsValidMongoConfigurationError('Config error'),
     ];
 
-    errors.forEach((error) => {
+    for (const error of errors) {
       expect(error).toBeInstanceOf(TsValidMongoError);
-    });
+    }
 
     expect(errors[1]).toBeInstanceOf(TsValidMongoConnectionError);
     expect(errors[2]).toBeInstanceOf(TsValidMongoConfigurationError);
