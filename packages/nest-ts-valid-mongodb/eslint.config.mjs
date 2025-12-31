@@ -2,7 +2,7 @@ import baseConfig from '../../eslint.config.mjs';
 
 export default [
   {
-    ignores: ['**/README.md'],
+    ignores: ['**/README.md', 'examples/**'],
   },
   ...baseConfig,
   {

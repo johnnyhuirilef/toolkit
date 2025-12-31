@@ -253,6 +253,7 @@ const createTestingConfiguration = () => [
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-return': 'off',
       '@typescript-eslint/unbound-method': 'off',
+      'unicorn/no-useless-undefined': 'off', // Mock functions require explicit undefined in strict mode
     },
   },
 ];
