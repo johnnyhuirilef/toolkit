@@ -20,7 +20,7 @@ describe('Shutdown Manager', () => {
     vi.clearAllMocks();
 
     wrapperMock = {
-      close: vi.fn().mockResolvedValue(),
+      close: vi.fn().mockResolvedValue(undefined),
       client: {}, // needed for validation
     };
 

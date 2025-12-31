@@ -23,7 +23,7 @@ export const createMockWrapper = (
   overrides?: Partial<MongoDatabaseClientWrapper>,
 ): MongoDatabaseClientWrapper => ({
   client: {} as any,
-  close: vi.fn().mockResolvedValue(),
+  close: vi.fn().mockResolvedValue(undefined),
   ...overrides,
 });
 

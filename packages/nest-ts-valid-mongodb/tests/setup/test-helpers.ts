@@ -15,8 +15,8 @@ export function createMockMongoClient(): MongoClient {
   } as unknown as Db;
 
   return {
-    connect: vi.fn().mockResolvedValue(),
-    close: vi.fn().mockResolvedValue(),
+    connect: vi.fn().mockResolvedValue(undefined),
+    close: vi.fn().mockResolvedValue(undefined),
     db: vi.fn().mockReturnValue(mockDatabase),
   } as unknown as MongoClient;
 }
@@ -29,7 +29,7 @@ export function createMockTsValidMongoDatabase(): TsValidMongoDb {
 
   return {
     connect: vi.fn().mockResolvedValue(mockClient),
-    disconnect: vi.fn().mockResolvedValue(),
+    disconnect: vi.fn().mockResolvedValue(undefined),
     getDb: vi.fn().mockReturnValue(mockClient.db()),
     createModel: vi.fn().mockReturnValue({
       insert: vi.fn(),
