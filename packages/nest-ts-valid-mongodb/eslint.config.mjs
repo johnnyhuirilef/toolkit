@@ -1,6 +1,9 @@
 import baseConfig from '../../eslint.config.mjs';
 
 export default [
+  {
+    ignores: ['**/README.md'],
+  },
   ...baseConfig,
   {
     files: ['**/*.json'],
@@ -20,6 +23,21 @@ export default [
     },
     languageOptions: {
       parser: await import('jsonc-eslint-parser'),
+    },
+  },
+  {
+    files: ['**/README.md/**'],
+    rules: {
+      // Markdown code blocks can have syntax that confuses parsers - disable all parsing
+      'no-undef': 'off',
+      'no-irregular-whitespace': 'off',
+    },
+  },
+  {
+    files: ['**/jest-e2e.json', '**/test/**/*.json'],
+    rules: {
+      // jest-e2e.json is a standard NestJS convention
+      'unicorn/prevent-abbreviations': 'off',
     },
   },
 ];
