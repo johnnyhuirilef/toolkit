@@ -1,9 +1,12 @@
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
 import { defineConfig } from 'vitest/config';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
 
 export default defineConfig(() => ({
-  root: __dirname,
+  root: path.dirname(fileURLToPath(import.meta.url)),
   cacheDir: '../../node_modules/.vite/packages/nest-ts-valid-mongodb',
   plugins: [nxViteTsPaths(), nxCopyAssetsPlugin(['*.md'])],
   test: {
