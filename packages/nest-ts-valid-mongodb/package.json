@@ -64,6 +64,7 @@
   },
   "peerDependenciesMeta": {},
   "devDependencies": {
+    "@nestjs/testing": "^11.0.0",
     "vitest": "^3.0.0"
   },
   "dependencies": {}
