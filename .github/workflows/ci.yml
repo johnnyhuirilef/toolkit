@@ -21,13 +21,15 @@ jobs:
           fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
+        name: Install pnpm
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
 
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - uses: nrwl/nx-set-shas@v4
 
@@ -38,12 +40,12 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-review
           eslint_flags: '. --ext .ts,.tsx,.js,.jsx'
-          fail_on_error: true
+          fail_level: error
           filter_mode: nofilter
 
       # --- TESTING WITH COVERAGE REPORT 📊 ---
       - name: Run Tests (Affected)
-        run: pnpm nx affected -t test --parallel=3 --configuration=ci --coverage
+        run: pnpm nx affected -t test --parallel=3 --coverage
 
       - name: Debug Coverage Directory
         if: always()
