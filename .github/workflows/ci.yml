@@ -44,16 +44,10 @@ jobs:
       - name: Run Tests (Affected)
         run: pnpm nx affected -t test --parallel=3 --coverage
 
-      - name: Debug Coverage Directory
-        if: always()
-        run: ls -R coverage || echo "Coverage directory not found"
       - name: Coverage Report
+        if: hashFiles('coverage/**/*.json') != ''
         uses: davelosert/vitest-coverage-report-action@v2
-        if: always() # Run even if tests fail slightly
         with:
-          # This action automatically finds json-summary files
-          # But in a monorepo we might need to specify patterns if it fails to find them.
-          # For now, auto-detection usually works if report is standard.
           json-summary-path: 'coverage/packages/**/coverage-summary.json'
           json-final-path: 'coverage/packages/**/coverage-final.json'
 
