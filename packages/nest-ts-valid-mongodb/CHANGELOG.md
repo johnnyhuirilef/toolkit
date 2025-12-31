@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.3.0](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.2.0...nest-ts-valid-mongodb-v0.3.0) (2025-12-31)
+
+
+### Features
+
+* **example:** implement declarative users service with zod validation ([cfcb240](https://github.com/johnnyhuirilef/toolkit/commit/cfcb2409034126b90cb1cd911162b96e15f6575a))
+* **example:** overhaul basic example with declarative pattern and docker infra ([2e1b7a1](https://github.com/johnnyhuirilef/toolkit/commit/2e1b7a1e57240dc784f819eae150a588d82f1d9f))
+
+
+### Miscellaneous
+
+* elevate quality standards (Lint, CI, Tests, Hooks) ([0514db5](https://github.com/johnnyhuirilef/toolkit/commit/0514db5ec71b602b35a202877ff7e05b526b341b))
+* **example:** cleanup legacy files and add prettier config ([febf5b7](https://github.com/johnnyhuirilef/toolkit/commit/febf5b7a12608ad08ff728f6483615d4eeceeec4))
+
+
+### Documentation
+
+* **nest-ts-valid-mongodb:** unify readme examples to use user domain ([c50c6c6](https://github.com/johnnyhuirilef/toolkit/commit/c50c6c6f1a339a10b784fd3aabe064fd5b0d362a))
+* **nest-ts-valid-mongodb:** unify readme examples to use user domain ([d8ac39f](https://github.com/johnnyhuirilef/toolkit/commit/d8ac39f7c2536f5b9c1992161d2edfa3d8344c4f))
+
+
+### Code Refactoring
+
+* **nest-ts-valid-mongodb:** enforce strict linting and standard naming ([#16](https://github.com/johnnyhuirilef/toolkit/issues/16)) ([bfdf7b9](https://github.com/johnnyhuirilef/toolkit/commit/bfdf7b9bb1bd6457b610ab2744174c98fe869ac9))
+
+
+### Tests
+
+* **mongo:** add initial unit tests for module configuration ([5cde7dc](https://github.com/johnnyhuirilef/toolkit/commit/5cde7dce8febc023a09278faf9ed77851f9ae028))
+* **mongo:** setup mutation testing configuration ([afc5b8e](https://github.com/johnnyhuirilef/toolkit/commit/afc5b8e065bb9e6f96e8e1cb818b9f492782335a))
+
 ## [0.2.0](https://github.com/johnnyhuirilef/toolkit/compare/nest-ts-valid-mongodb-v0.1.5...nest-ts-valid-mongodb-v0.2.0) (2025-12-27)
 
 
