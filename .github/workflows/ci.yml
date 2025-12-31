@@ -21,40 +21,33 @@ jobs:
           fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
+        name: Install pnpm
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
 
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - uses: nrwl/nx-set-shas@v4
 
-      # --- LINTING & REVIEWDOG 🐶 ---
-      - name: Lint & Reviewdog
-        uses: reviewdog/action-eslint@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          reporter: github-pr-review
-          eslint_flags: '. --ext .ts,.tsx,.js,.jsx'
-          fail_on_error: true
-          filter_mode: nofilter
+      # --- LINTING WITH PROBLEM MATCHERS 🔍 ---
+      - name: Setup ESLint Problem Matcher
+        run: echo "::add-matcher::.github/eslint-matcher.json"
+
+      - name: Lint (Affected)
+        run: pnpm nx affected -t lint --parallel=3
 
       # --- TESTING WITH COVERAGE REPORT 📊 ---
       - name: Run Tests (Affected)
-        run: pnpm nx affected -t test --parallel=3 --configuration=ci --coverage
+        run: pnpm nx affected -t test --parallel=3 --coverage
 
-      - name: Debug Coverage Directory
-        if: always()
-        run: ls -R coverage || echo "Coverage directory not found"
       - name: Coverage Report
+        if: hashFiles('coverage/**/*.json') != ''
         uses: davelosert/vitest-coverage-report-action@v2
-        if: always() # Run even if tests fail slightly
         with:
-          # This action automatically finds json-summary files
-          # But in a monorepo we might need to specify patterns if it fails to find them.
-          # For now, auto-detection usually works if report is standard.
           json-summary-path: 'coverage/packages/**/coverage-summary.json'
           json-final-path: 'coverage/packages/**/coverage-final.json'
 

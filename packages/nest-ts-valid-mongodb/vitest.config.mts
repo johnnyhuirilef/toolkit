@@ -13,12 +13,12 @@ export default defineConfig(() => ({
     environment: 'node',
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
-    testTimeout: 30000, 
-    hookTimeout: 90000, 
+    testTimeout: 30000,
+    hookTimeout: 90000,
     coverage: {
       reportsDirectory: '../../coverage/packages/nest-ts-valid-mongodb',
       provider: 'v8' as const,
-      reporter: ['text', 'json-summary'], // <--- ADDED JSON SUMMARY
+      reporter: ['text', 'json-summary', 'json'], // <--- ADDED JSON for coverage-final.json
     },
   },
 }));
