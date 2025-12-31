@@ -1,7 +1,9 @@
-import { describe, it, expect } from 'vitest';
+/* eslint-disable @typescript-eslint/no-unused-vars, unicorn/prevent-abbreviations */
 import { Inject } from '@nestjs/common';
-import { InjectModel, InjectConnection } from '../../src/lib/decorators';
+import { describe, it, expect } from 'vitest';
+
 import { getModelToken, getConnectionToken } from '../../src/lib/core/tokens';
+import { InjectModel, InjectConnection } from '../../src/lib/decorators';
 
 describe('InjectModel', () => {
   it('should return an Inject decorator', () => {
@@ -35,7 +37,9 @@ describe('InjectModel', () => {
     // This is more of a type check - the decorator should be assignable
     // to parameter decorators in NestJS classes
     class TestService {
-      constructor(@InjectModel('users') private usersModel: unknown) {}
+      constructor(@InjectModel('users') _usersModel: unknown) {
+        // Test purposes
+      }
     }
 
     expect(TestService).toBeDefined();
@@ -71,11 +75,15 @@ describe('InjectConnection', () => {
   it('should work with NestJS dependency injection', () => {
     // Type check for decorator usage
     class TestService {
-      constructor(@InjectConnection() private db: unknown) {}
+      constructor(@InjectConnection() _db: unknown) {
+        // Test purposes
+      }
     }
 
     class TestServiceWithCustomConnection {
-      constructor(@InjectConnection('analytics') private analyticsDb: unknown) {}
+      constructor(@InjectConnection('analytics') _analyticsDb: unknown) {
+        // Test purposes
+      }
     }
 
     expect(TestService).toBeDefined();
@@ -86,10 +94,9 @@ describe('InjectConnection', () => {
 describe('Decorator integration', () => {
   it('should allow injecting both model and connection in same class', () => {
     class TestService {
-      constructor(
-        @InjectModel('users') private usersModel: unknown,
-        @InjectConnection() private db: unknown,
-      ) {}
+      constructor(@InjectModel('users') _usersModel: unknown, @InjectConnection() _db: unknown) {
+        // Test purposes
+      }
     }
 
     expect(TestService).toBeDefined();
@@ -98,9 +105,11 @@ describe('Decorator integration', () => {
   it('should allow injecting multiple models', () => {
     class TestService {
       constructor(
-        @InjectModel('users') private usersModel: unknown,
-        @InjectModel('products') private productsModel: unknown,
-      ) {}
+        @InjectModel('users') _usersModel: unknown,
+        @InjectModel('products') _productsModel: unknown,
+      ) {
+        // Test purposes
+      }
     }
 
     expect(TestService).toBeDefined();
@@ -109,11 +118,15 @@ describe('Decorator integration', () => {
   it('should allow injecting multiple connections', () => {
     class TestService {
       constructor(
-        @InjectConnection() private primaryDb: unknown,
-        @InjectConnection('analytics') private analyticsDb: unknown,
-      ) {}
+        @InjectConnection() _primaryDb: unknown,
+        @InjectConnection('analytics') _analyticsDb: unknown,
+      ) {
+        // Test purposes
+      }
     }
 
     expect(TestService).toBeDefined();
   });
 });
+
+/* eslint-enable */

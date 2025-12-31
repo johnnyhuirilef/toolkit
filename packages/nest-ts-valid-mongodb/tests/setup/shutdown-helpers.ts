@@ -1,8 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, unicorn/prevent-abbreviations */
+/* cspell:disable */
 import { vi } from 'vitest';
-import type { MongoDbClientWrapper } from '../../src/lib/core/client';
+
+import type { MongoDatabaseClientWrapper } from '../../src/lib/core/client';
 
 /**
- * Creates a mock MongoDbClientWrapper that resolves successfully.
+ * Creates a mock MongoDatabaseClientWrapper that resolves successfully.
  *
  * Use this for testing happy path scenarios where connections close cleanly.
  *
@@ -17,10 +20,10 @@ import type { MongoDbClientWrapper } from '../../src/lib/core/client';
  * ```
  */
 export const createMockWrapper = (
-  overrides?: Partial<MongoDbClientWrapper>
-): MongoDbClientWrapper => ({
+  overrides?: Partial<MongoDatabaseClientWrapper>,
+): MongoDatabaseClientWrapper => ({
   client: {} as any,
-  close: vi.fn().mockResolvedValue(undefined),
+  close: vi.fn().mockResolvedValue(),
   ...overrides,
 });
 
@@ -38,10 +41,13 @@ export const createMockWrapper = (
  * await wrapper.close();
  * ```
  */
-export const createHangingWrapper = (): MongoDbClientWrapper => ({
+export const createHangingWrapper = (): MongoDatabaseClientWrapper => ({
   client: {} as any,
   close: vi.fn().mockImplementation(
-    () => new Promise(() => {}) // Never resolves
+    () =>
+      new Promise(() => {
+        /* Never resolves */
+      }),
   ),
 });
 
@@ -60,8 +66,8 @@ export const createHangingWrapper = (): MongoDbClientWrapper => ({
  * ```
  */
 export const createFailingWrapper = (
-  error: Error = new Error('Connection close failed')
-): MongoDbClientWrapper => ({
+  error: Error = new Error('Connection close failed'),
+): MongoDatabaseClientWrapper => ({
   client: {} as any,
   close: vi.fn().mockRejectedValue(error),
 });
@@ -85,8 +91,8 @@ export const createFailingWrapper = (
  */
 export const createRetryableWrapper = (
   failCount: number,
-  error: Error = new Error('Temporary failure')
-): MongoDbClientWrapper => {
+  error: Error = new Error('Temporary failure'),
+): MongoDatabaseClientWrapper => {
   let attempts = 0;
 
   return {
@@ -98,7 +104,7 @@ export const createRetryableWrapper = (
         return Promise.reject(error);
       }
 
-      return Promise.resolve(undefined);
+      return Promise.resolve();
     }),
   };
 };
@@ -120,11 +126,9 @@ export const createRetryableWrapper = (
  * expect(duration).toBeGreaterThanOrEqual(1000);
  * ```
  */
-export const createSlowWrapper = (delayMs: number): MongoDbClientWrapper => ({
+export const createSlowWrapper = (delayMs: number): MongoDatabaseClientWrapper => ({
   client: {} as any,
-  close: vi.fn().mockImplementation(
-    () => new Promise((resolve) => setTimeout(resolve, delayMs))
-  ),
+  close: vi.fn().mockImplementation(() => new Promise((resolve) => setTimeout(resolve, delayMs))),
 });
 
 /**
@@ -159,7 +163,7 @@ export const waitForTime = (ms: number): Promise<void> =>
  * wrappers.forEach(w => expect(w.close).toHaveBeenCalled());
  * ```
  */
-export const createMultipleWrappers = (count: number): MongoDbClientWrapper[] =>
+export const createMultipleWrappers = (count: number): MongoDatabaseClientWrapper[] =>
   Array.from({ length: count }, () => createMockWrapper());
 
 /**
@@ -176,7 +180,7 @@ export const createMultipleWrappers = (count: number): MongoDbClientWrapper[] =>
  *   success: 3,
  *   failing: 1,
  *   slow: 1,
- * });
+ *   });
  * // Returns 5 wrappers: 3 successful, 1 failing, 1 slow
  * ```
  */
@@ -185,8 +189,8 @@ export const createMixedWrappers = (config: {
   failing?: number;
   slow?: number;
   slowDelayMs?: number;
-}): MongoDbClientWrapper[] => {
-  const wrappers: MongoDbClientWrapper[] = [];
+}): MongoDatabaseClientWrapper[] => {
+  const wrappers: MongoDatabaseClientWrapper[] = [];
 
   for (let i = 0; i < config.success; i++) {
     wrappers.push(createMockWrapper());
@@ -207,3 +211,5 @@ export const createMixedWrappers = (config: {
 
   return wrappers;
 };
+
+/* eslint-enable */

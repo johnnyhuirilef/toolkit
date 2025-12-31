@@ -47,3 +47,5 @@ vitest.config.*.timestamp*
 # Stryker Mutation Testing
 .stryker-tmp
 reports/mutation
+
+**/eslint-report.json

@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "baseUrl": ".",
     "outDir": "../../dist/out-tsc",
     "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node", "vitest"],
     "module": "esnext",
@@ -9,6 +10,7 @@
     "declaration": true
   },
   "include": [
+    "src/**/*.ts",
     "vite.config.ts",
     "vite.config.mts",
     "vitest.config.ts",
@@ -23,6 +25,7 @@
     "src/**/*.spec.jsx",
     "src/**/*.d.ts",
     "tests/**/*.spec.ts",
-    "tests/**/*.test.ts"
+    "tests/**/*.test.ts",
+    "tests/**/*.ts"
   ]
 }

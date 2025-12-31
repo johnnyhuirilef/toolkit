@@ -63,5 +63,8 @@
     "zod": "^3.0.0"
   },
   "peerDependenciesMeta": {},
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  },
   "dependencies": {}
 }
