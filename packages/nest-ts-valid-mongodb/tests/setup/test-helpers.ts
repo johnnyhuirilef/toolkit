@@ -1,12 +1,12 @@
+import type { MongoClient, Db } from 'mongodb';
+import type TsValidMongoDb from 'ts-valid-mongodb';
 import { vi } from 'vitest';
-import { MongoClient, Db } from 'mongodb';
-import TsValidMongoDb from 'ts-valid-mongodb';
 
 /**
  * Creates a mock MongoClient for testing
  */
 export function createMockMongoClient(): MongoClient {
-  const mockDb = {
+  const mockDatabase = {
     command: vi.fn().mockResolvedValue({ ok: 1 }),
     collection: vi.fn().mockReturnValue({
       createIndex: vi.fn().mockResolvedValue('index_name'),
@@ -15,21 +15,21 @@ export function createMockMongoClient(): MongoClient {
   } as unknown as Db;
 
   return {
-    connect: vi.fn().mockResolvedValue(undefined),
-    close: vi.fn().mockResolvedValue(undefined),
-    db: vi.fn().mockReturnValue(mockDb),
+    connect: vi.fn().mockResolvedValue(),
+    close: vi.fn().mockResolvedValue(),
+    db: vi.fn().mockReturnValue(mockDatabase),
   } as unknown as MongoClient;
 }
 
 /**
  * Creates a mock TsValidMongoDb instance
  */
-export function createMockTsValidMongoDb(): TsValidMongoDb {
+export function createMockTsValidMongoDatabase(): TsValidMongoDb {
   const mockClient = createMockMongoClient();
 
   return {
     connect: vi.fn().mockResolvedValue(mockClient),
-    disconnect: vi.fn().mockResolvedValue(undefined),
+    disconnect: vi.fn().mockResolvedValue(),
     getDb: vi.fn().mockReturnValue(mockClient.db()),
     createModel: vi.fn().mockReturnValue({
       insert: vi.fn(),

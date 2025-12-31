@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, unicorn/prevent-abbreviations */
+/* eslint-disable unicorn/prevent-abbreviations */
 /* cspell:disable */
 import { vi } from 'vitest';
 

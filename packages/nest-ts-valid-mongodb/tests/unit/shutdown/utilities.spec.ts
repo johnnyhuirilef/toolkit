@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'; // eslint-disable-line n/no-extraneous-import
+import { describe, it, expect, vi } from 'vitest';
 
 import { SHUTDOWN_DEFAULTS } from '../../../src/lib/constants/shutdown';
 import {
@@ -18,21 +18,17 @@ describe('Shutdown Utils', () => {
     });
 
     it('should respect user options', () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const config = resolveShutdownConfig({
         shutdownTimeout: 5000,
         forceShutdown: true,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       expect(config.timeoutMs).toBe(5000);
       expect(config.forceClose).toBe(true);
     });
 
     it('should ignore invalid timeout values', () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const config = resolveShutdownConfig({
         shutdownTimeout: -100,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       expect(config.timeoutMs).toBe(SHUTDOWN_DEFAULTS.TIMEOUT_MS);
     });

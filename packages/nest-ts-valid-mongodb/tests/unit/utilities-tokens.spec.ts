@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'; // eslint-disable-line n/no-extraneous-import
+import { describe, it, expect } from 'vitest';
 
 import { DEFAULT_CONNECTION_NAME } from '../../src/lib/constants';
 import { getModelToken, getConnectionToken } from '../../src/lib/core/tokens';
