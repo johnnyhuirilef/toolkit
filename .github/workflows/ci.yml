@@ -49,8 +49,17 @@ jobs:
       - name: Run Tests (Affected)
         run: pnpm nx affected -t test --parallel=3 --coverage
 
+      - name: Check Coverage Files
+        id: check-coverage
+        run: |
+          if ls coverage/packages/**/coverage-summary.json 1> /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Coverage Report
-        if: hashFiles('coverage/**/*.json') != ''
+        if: steps.check-coverage.outputs.exists == 'true'
         uses: davelosert/vitest-coverage-report-action@v2
         with:
           json-summary-path: 'coverage/packages/**/coverage-summary.json'
