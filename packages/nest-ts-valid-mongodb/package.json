@@ -65,6 +65,8 @@
   "peerDependenciesMeta": {},
   "devDependencies": {
     "@nestjs/testing": "^11.0.0",
+    "@nx/vite": "^22.0.0",
+    "jsonc-eslint-parser": "^2.0.0",
     "vitest": "^3.0.0"
   },
   "dependencies": {}
