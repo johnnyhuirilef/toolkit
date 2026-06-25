@@ -1,0 +1,82 @@
+{
+  "name": "@ioni/nest-zod-mongo",
+  "version": "0.1.0",
+  "description": "NestJS dynamic module for @ioni/zod-mongo — typed repository injection with graceful shutdown",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist/*.cjs",
+    "dist/*.mjs",
+    "dist/*.d.cts",
+    "dist/*.d.mts",
+    "dist/*.map",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "type": "commonjs",
+  "sideEffects": false,
+  "keywords": [
+    "nestjs",
+    "mongodb",
+    "zod",
+    "repository",
+    "typescript",
+    "schema",
+    "nosql",
+    "database",
+    "dependency-injection"
+  ],
+  "author": "Johnny J. Huirilef",
+  "license": "MIT",
+  "homepage": "https://github.com/johnnyhuirilef/toolkit/tree/main/packages/nest-zod-mongo#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnnyhuirilef/toolkit.git",
+    "directory": "packages/nest-zod-mongo"
+  },
+  "bugs": {
+    "url": "https://github.com/johnnyhuirilef/toolkit/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "peerDependencies": {
+    "@ioni/zod-mongo": "^0.1.0",
+    "@nestjs/common": "^10.0.0 || ^11.0.0",
+    "@nestjs/core": "^10.0.0 || ^11.0.0",
+    "mongodb": ">=6.0.0",
+    "zod": ">=3.0.0 <5.0.0"
+  },
+  "peerDependenciesMeta": {},
+  "devDependencies": {
+    "@nestjs/testing": "^11.0.0",
+    "@nx/vite": "^22.0.0",
+    "@testcontainers/mongodb": "^11.10.0",
+    "jsonc-eslint-parser": "^2.0.0",
+    "reflect-metadata": "^0.2.2",
+    "tsdown": "^0.22.3",
+    "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "radashi": "^12.1.0"
+  }
+}
