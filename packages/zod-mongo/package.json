@@ -38,7 +38,9 @@
     "typescript",
     "schema",
     "nosql",
-    "database"
+    "database",
+    "immutable",
+    "type-safe"
   ],
   "author": "Johnny J. Huirilef",
   "license": "MIT",
