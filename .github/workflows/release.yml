@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: Run release-please
         id: release
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         path: ${{ fromJSON(needs.release-please.outputs.paths_released) }}
     outputs:
@@ -144,65 +144,57 @@ jobs:
 
       - name: Send Discord notification
         if: env.DISCORD_WEBHOOK != ''
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+          PACKAGE_NAME: ${{ needs.publish.outputs.package_name }}
+          VERSION: ${{ needs.publish.outputs.version }}
+          DESCRIPTION: ${{ needs.publish.outputs.description }}
+          COMMIT_AUTHOR: ${{ steps.release-info.outputs.commit_author }}
+          RELEASE_URL: ${{ steps.release-info.outputs.release_url }}
+          NPM_URL: ${{ steps.release-info.outputs.npm_url }}
+          REPO: ${{ github.repository }}
         run: |
-          if [ "${{ needs.publish.result }}" == "success" ]; then
+          if [ "$PUBLISH_RESULT" = "success" ]; then
             title="New Release Published!"
-            description="A new version of **${{ needs.publish.outputs.package_name }}** has been published to NPM."
+            description="A new version of **${PACKAGE_NAME}** has been published to NPM."
             color=15418782
           else
             title="Release Failed!"
-            description="Failed to publish **${{ needs.publish.outputs.package_name }}**. Check the workflow logs."
+            description="Failed to publish **${PACKAGE_NAME}**. Check the workflow logs."
             color=15548997
           fi
 
-          curl -H "Content-Type: application/json" \
-          -d "{
-            \"embeds\": [{
-              \"title\": \"$title\",
-              \"description\": \"$description\",
-              \"color\": $color,
-              \"thumbnail\": {
-                \"url\": \"https://raw.githubusercontent.com/npm/logos/master/npm%20square/n-64.png\"
-              },
-              \"fields\": [
-                {
-                  \"name\": \"Package\",
-                  \"value\": \"${{ needs.publish.outputs.package_name }}\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"Version\",
-                  \"value\": \"v${{ needs.publish.outputs.version }}\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"Description\",
-                  \"value\": \"${{ needs.publish.outputs.description }}\",
-                  \"inline\": false
-                },
-                {
-                  \"name\": \"Install Command\",
-                  \"value\": \"\`\`\`bash\\nnpm install ${{ needs.publish.outputs.package_name }}@latest\\n\`\`\`\",
-                  \"inline\": false
-                },
-                {
-                  \"name\": \"Released by\",
-                  \"value\": \"${{ steps.release-info.outputs.commit_author }}\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"Links\",
-                  \"value\": \"[Release Notes](${{ steps.release-info.outputs.release_url }}) | [NPM Page](${{ steps.release-info.outputs.npm_url }})\",
-                  \"inline\": false
+          payload=$(jq -n \
+            --arg title "$title" \
+            --arg description "$description" \
+            --argjson color "$color" \
+            --arg package_name "$PACKAGE_NAME" \
+            --arg version "v$VERSION" \
+            --arg install_cmd "npm install ${PACKAGE_NAME}@latest" \
+            --arg author "$COMMIT_AUTHOR" \
+            --arg release_url "$RELEASE_URL" \
+            --arg npm_url "$NPM_URL" \
+            --arg repo "$REPO" \
+            '{
+              embeds: [{
+                title: $title,
+                description: $description,
+                color: $color,
+                thumbnail: { url: "https://raw.githubusercontent.com/npm/logos/master/npm%20square/n-64.png" },
+                fields: [
+                  { name: "Package",         value: $package_name,  inline: true },
+                  { name: "Version",          value: $version,       inline: true },
+                  { name: "Description",      value: $description,   inline: false },
+                  { name: "Install Command",  value: ("`" + $install_cmd + "`"), inline: false },
+                  { name: "Released by",      value: $author,        inline: true },
+                  { name: "Links",            value: ("[Release Notes](" + $release_url + ") | [NPM Page](" + $npm_url + ")"), inline: false }
+                ],
+                footer: {
+                  text: $repo,
+                  icon_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
                 }
-              ],
-              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)\",
-              \"footer\": {
-                \"text\": \"${{ github.repository }}\",
-                \"icon_url\": \"https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png\"
-              }
-            }]
-          }" \
-          "$DISCORD_WEBHOOK"
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+              }]
+            }')
+
+          curl --fail-with-body -s -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK"
