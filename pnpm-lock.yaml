@@ -353,7 +353,7 @@ importers:
         specifier: ^12.1.0
         version: 12.9.1
       zod:
-        specifier: '>=3.0.0 <5.0.0'
+        specifier: '>=3.0.0'
         version: 3.25.76
     devDependencies:
       '@nx/vite':
