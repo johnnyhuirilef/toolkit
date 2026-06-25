@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.2.3...mongo-v0.2.4) (2026-06-25)
+
+
+### Bug Fixes
+
+* **zod-mongo:** declare zod peer dep as required in peerDependenciesMeta ([2ed070b](https://github.com/johnnyhuirilef/toolkit/commit/2ed070b14ed8a984ca1c58ee0b6ce4dd4ebed2d4))
+
 ## [0.2.3](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.2.2...mongo-v0.2.3) (2026-06-25)
 
 
