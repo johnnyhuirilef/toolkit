@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.2.0...mongo-v0.2.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* **zod-mongo:** add missing npm keywords for discoverability ([f52dc3d](https://github.com/johnnyhuirilef/toolkit/commit/f52dc3da7243ce4077347348d076f6477084220c))
+
 ## [0.2.0](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.1.0...mongo-v0.2.0) (2026-06-25)
 
 
