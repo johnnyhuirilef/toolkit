@@ -68,6 +68,7 @@
   },
   "peerDependenciesMeta": {},
   "devDependencies": {
+    "@ioni/zod-mongo": "workspace:*",
     "@nestjs/testing": "^11.0.0",
     "@nx/vite": "^22.0.0",
     "@testcontainers/mongodb": "^11.10.0",

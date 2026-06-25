@@ -294,9 +294,6 @@ importers:
 
   packages/nest-zod-mongo:
     dependencies:
-      '@ioni/zod-mongo':
-        specifier: workspace:*
-        version: link:../zod-mongo
       '@nestjs/common':
         specifier: ^10.0.0 || ^11.0.0
         version: 11.1.10(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -304,7 +301,7 @@ importers:
         specifier: ^10.0.0 || ^11.0.0
         version: 11.1.10(@nestjs/common@11.1.10(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.10)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       mongodb:
-        specifier: ^5.0.0 || ^6.0.0 || ^7.0.0
+        specifier: '>=6.0.0'
         version: 6.21.0(socks@2.8.7)
       radashi:
         specifier: ^12.1.0
@@ -313,6 +310,9 @@ importers:
         specifier: '>=3.0.0 <5.0.0'
         version: 3.25.76
     devDependencies:
+      '@ioni/zod-mongo':
+        specifier: workspace:*
+        version: link:../zod-mongo
       '@nestjs/testing':
         specifier: ^11.0.0
         version: 11.1.10(@nestjs/common@11.1.10(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.10)(@nestjs/platform-express@11.1.10)
@@ -338,7 +338,7 @@ importers:
   packages/zod-mongo:
     dependencies:
       mongodb:
-        specifier: ^5.0.0 || ^6.0.0 || ^7.0.0
+        specifier: '>=6.0.0'
         version: 6.21.0(socks@2.8.7)
       radashi:
         specifier: ^12.1.0
@@ -17935,7 +17935,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 2.0.0
-      vitest: 3.2.4(@types/node@22.19.3)(@vitest/ui@3.2.4)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vitest: 3.2.4(@types/node@20.19.9)(@vitest/ui@3.2.4)(jiti@2.4.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
   '@vitest/utils@3.2.4':
     dependencies:
@@ -21265,7 +21265,7 @@ snapshots:
       lodash.isstring: 4.0.1
       lodash.once: 4.1.1
       ms: 2.1.3
-      semver: 7.7.3
+      semver: 7.8.5
     optional: true
 
   jsprim@2.0.2:
