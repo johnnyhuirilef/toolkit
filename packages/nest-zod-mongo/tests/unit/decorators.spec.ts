@@ -1,5 +1,5 @@
-import { defineCollection } from '@ioni/zod-mongo';
 import { Inject } from '@nestjs/common';
+import { defineCollection } from '@wenu/mongo';
 import { describe, it, expect } from 'vitest';
 import * as z from 'zod';
 

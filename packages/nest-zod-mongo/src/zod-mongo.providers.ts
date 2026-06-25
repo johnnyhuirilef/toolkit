@@ -1,7 +1,7 @@
-import { ok, err, toDbError, createRepository, syncIndexes } from '@ioni/zod-mongo';
-import type { CollectionDef, ZodCompat, IdStrategy } from '@ioni/zod-mongo';
 import { Logger } from '@nestjs/common';
 import type { Provider, InjectionToken } from '@nestjs/common';
+import { ok, err, toDbError, createRepository, syncIndexes } from '@wenu/mongo';
+import type { CollectionDef, ZodCompat, IdStrategy } from '@wenu/mongo';
 import { MongoClient } from 'mongodb';
 import type { Db } from 'mongodb';
 import { isNullish, tryit } from 'radashi';

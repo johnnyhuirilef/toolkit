@@ -21,8 +21,8 @@
     "customConditions": ["@org/source"],
     "paths": {
       "@ioni/nest-ts-valid-mongodb": ["packages/nest-ts-valid-mongodb/src/index.ts"],
-      "@ioni/nest-zod-mongo": ["packages/nest-zod-mongo/src/index.ts"],
-      "@ioni/zod-mongo": ["packages/zod-mongo/src/index.ts"]
+      "@wenu/nest-mongo": ["packages/nest-zod-mongo/src/index.ts"],
+      "@wenu/mongo": ["packages/zod-mongo/src/index.ts"]
     },
     "resolveJsonModule": true,
     "esModuleInterop": true,

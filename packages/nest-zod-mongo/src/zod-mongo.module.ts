@@ -1,7 +1,7 @@
-import type { CollectionDef, ZodCompat, IdStrategy } from '@ioni/zod-mongo';
 import type { DynamicModule, OnApplicationShutdown } from '@nestjs/common';
 import { Global, Logger, Module } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+import type { CollectionDef, ZodCompat, IdStrategy } from '@wenu/mongo';
 import { isEmpty, tryit } from 'radashi';
 
 import { resolveShutdownConfig, shutdownAll } from './shutdown';

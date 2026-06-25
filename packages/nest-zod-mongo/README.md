@@ -1,7 +1,7 @@
-# @ioni/nest-zod-mongo
+# @wenu/nest-mongo
 
-NestJS dynamic module for `@ioni/zod-mongo` — typed MongoDB repository injection with graceful
-shutdown. MongoDB 6/7 compatible. NestJS 10/11 compatible.
+NestJS dynamic module for `@wenu/mongo` — typed MongoDB repository injection with graceful shutdown.
+MongoDB 6/7 compatible. NestJS 10/11 compatible.
 
 ## Table of Contents
 
@@ -39,10 +39,10 @@ shutdown. MongoDB 6/7 compatible. NestJS 10/11 compatible.
 
 ```bash
 # npm
-npm install @ioni/nest-zod-mongo @ioni/zod-mongo
+npm install @wenu/nest-mongo @wenu/mongo
 
 # pnpm
-pnpm add @ioni/nest-zod-mongo @ioni/zod-mongo
+pnpm add @wenu/nest-mongo @wenu/mongo
 ```
 
 ### Peer dependencies
@@ -60,7 +60,7 @@ npm install @nestjs/common@^10 @nestjs/core@^10 mongodb@^6
 ```typescript
 // app.module.ts
 import { Module } from '@nestjs/common';
-import { ZodMongoModule } from '@ioni/nest-zod-mongo';
+import { ZodMongoModule } from '@wenu/nest-mongo';
 import { UserModule } from './user/user.module';
 
 @Module({
@@ -78,7 +78,7 @@ export class AppModule {}
 ```typescript
 // user/user.module.ts
 import { Module } from '@nestjs/common';
-import { ZodMongoModule } from '@ioni/nest-zod-mongo';
+import { ZodMongoModule } from '@wenu/nest-mongo';
 import { UserCollection } from './user.collection';
 import { UserService } from './user.service';
 
@@ -92,8 +92,8 @@ export class UserModule {}
 ```typescript
 // user/user.service.ts
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@ioni/nest-zod-mongo';
-import type { Repository } from '@ioni/nest-zod-mongo';
+import { InjectRepository } from '@wenu/nest-mongo';
+import type { Repository } from '@wenu/nest-mongo';
 import { UserCollection } from './user.collection';
 
 type UserRepo = Repository<typeof UserCollection.schema, 'objectid'>;
@@ -193,7 +193,7 @@ Inject a typed repository for a collection. Accepts a `CollectionDef` or a plain
 Inject the raw `Db` handle for direct driver access.
 
 ```typescript
-import { InjectConnection } from '@ioni/nest-zod-mongo'
+import { InjectConnection } from '@wenu/nest-mongo'
 import type { Db } from 'mongodb'
 
 @Injectable()
@@ -250,10 +250,10 @@ ZodMongoModule.forFeature([EventCollection], 'analytics');
 
 When `syncIndexes: true` (default), the module calls `createIndexes()` for every collection
 registered via `forFeature`. Indexes are declared in `defineCollection()` using the `index()` helper
-from `@ioni/zod-mongo`.
+from `@wenu/mongo`.
 
 ```typescript
-import { defineCollection, index } from '@ioni/nest-zod-mongo';
+import { defineCollection, index } from '@wenu/nest-mongo';
 import * as z from 'zod';
 
 const UserCollection = defineCollection({
@@ -306,7 +306,7 @@ ZodMongoModule.forRoot({
 Both extend `Error` and are exported for use in `catch` blocks or NestJS exception filters.
 
 ```typescript
-import { ZodMongoConnectionError } from '@ioni/nest-zod-mongo';
+import { ZodMongoConnectionError } from '@wenu/nest-mongo';
 
 try {
   await app.init();
@@ -332,7 +332,7 @@ try {
 ### Token helpers
 
 ```typescript
-import { getRepositoryToken, getConnectionToken, DEFAULT_CONNECTION } from '@ioni/nest-zod-mongo';
+import { getRepositoryToken, getConnectionToken, DEFAULT_CONNECTION } from '@wenu/nest-mongo';
 
 getRepositoryToken('users'); // 'usersRepository'
 getRepositoryToken('users', 'analytics'); // 'analytics_usersRepository'
@@ -340,14 +340,14 @@ getConnectionToken(); // DEFAULT_CONNECTION symbol
 getConnectionToken('analytics'); // 'analytics'
 ```
 
-### Re-exports from @ioni/zod-mongo
+### Re-exports from @wenu/mongo
 
-For convenience, the following are re-exported so you don't need to install `@ioni/zod-mongo`
-separately for common types:
+For convenience, the following are re-exported so you don't need to install `@wenu/mongo` separately
+for common types:
 
 ```typescript
-import { defineCollection, ok, err, isOk, isErr } from '@ioni/nest-zod-mongo';
-import type { Repository, CollectionDef, Doc, Result, DbError } from '@ioni/nest-zod-mongo';
+import { defineCollection, ok, err, isOk, isErr } from '@wenu/nest-mongo';
+import type { Repository, CollectionDef, Doc, Result, DbError } from '@wenu/nest-mongo';
 ```
 
 ---

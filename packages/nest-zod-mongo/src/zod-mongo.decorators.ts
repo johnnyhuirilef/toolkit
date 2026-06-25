@@ -1,5 +1,5 @@
-import type { CollectionDef, ZodCompat, IdStrategy } from '@ioni/zod-mongo';
 import { Inject } from '@nestjs/common';
+import type { CollectionDef, ZodCompat, IdStrategy } from '@wenu/mongo';
 import { isString } from 'radashi';
 
 import { getRepositoryToken, getConnectionToken } from './zod-mongo.tokens';

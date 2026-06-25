@@ -1,7 +1,7 @@
-import { defineCollection } from '@ioni/zod-mongo';
-import type { Repository } from '@ioni/zod-mongo';
 import { Injectable } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { defineCollection } from '@wenu/mongo';
+import type { Repository } from '@wenu/mongo';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as z from 'zod';
 

@@ -17,6 +17,6 @@ export type {
   MongoClientWrapper,
 } from './zod-mongo.interfaces';
 
-// Re-exports from @ioni/zod-mongo for DX
-export type { Repository, CollectionDef, Doc, Result, DbError } from '@ioni/zod-mongo';
-export { defineCollection, ok, err, isOk, isErr } from '@ioni/zod-mongo';
+// Re-exports from @wenu/mongo for DX
+export type { Repository, CollectionDef, Doc, Result, DbError } from '@wenu/mongo';
+export { defineCollection, ok, err, isOk, isErr } from '@wenu/mongo';

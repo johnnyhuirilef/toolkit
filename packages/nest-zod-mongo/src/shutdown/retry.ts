@@ -1,5 +1,5 @@
-import type { Result } from '@ioni/zod-mongo';
-import { ok, err, toDbError } from '@ioni/zod-mongo';
+import type { Result } from '@wenu/mongo';
+import { ok, err, toDbError } from '@wenu/mongo';
 import { tryit } from 'radashi';
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));

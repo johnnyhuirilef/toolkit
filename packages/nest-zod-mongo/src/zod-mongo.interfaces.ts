@@ -1,5 +1,5 @@
-import type { Result } from '@ioni/zod-mongo';
 import type { ModuleMetadata, InjectionToken } from '@nestjs/common';
+import type { Result } from '@wenu/mongo';
 import type { MongoClient, MongoClientOptions } from 'mongodb';
 
 type ZodMongoOptionsBase = {

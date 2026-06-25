@@ -1,6 +1,6 @@
 # CLAUDE.md — packages/zod-mongo
 
-> Agent context for `@ioni/zod-mongo`. Assumes the root `CLAUDE.md` has already been read.
+> Agent context for `@wenu/mongo`. Assumes the root `CLAUDE.md` has already been read.
 
 ## Package overview
 

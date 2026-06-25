@@ -1,4 +1,4 @@
-import { defineCollection, syncIndexes, index } from '@ioni/zod-mongo';
+import { defineCollection, syncIndexes, index } from '@wenu/mongo';
 import type { Db, MongoClient } from 'mongodb';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import * as z from 'zod';

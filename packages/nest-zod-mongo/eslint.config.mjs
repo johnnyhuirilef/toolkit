@@ -13,7 +13,7 @@ export default [
         {
           allowList: {
             Props: true,
-            // Public API type names — stable exports re-exported from @ioni/zod-mongo
+            // Public API type names — stable exports re-exported from @wenu/mongo
             DbError: true,
             DbErrorKind: true,
             toDbError: true,

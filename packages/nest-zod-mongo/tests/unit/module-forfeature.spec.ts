@@ -1,5 +1,5 @@
-import { defineCollection } from '@ioni/zod-mongo';
 import type { FactoryProvider } from '@nestjs/common';
+import { defineCollection } from '@wenu/mongo';
 import type { Db } from 'mongodb';
 import { describe, it, expect, vi } from 'vitest';
 import * as z from 'zod';

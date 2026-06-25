@@ -1,7 +1,7 @@
 {
-  "name": "@ioni/nest-zod-mongo",
+  "name": "@wenu/nest-mongo",
   "version": "0.1.0",
-  "description": "NestJS dynamic module for @ioni/zod-mongo — typed repository injection with graceful shutdown",
+  "description": "NestJS dynamic module for @wenu/mongo — typed repository injection with graceful shutdown",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
@@ -60,7 +60,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "peerDependencies": {
-    "@ioni/zod-mongo": "^0.1.0",
+    "@wenu/mongo": "^0.1.0",
     "@nestjs/common": "^10.0.0 || ^11.0.0",
     "@nestjs/core": "^10.0.0 || ^11.0.0",
     "mongodb": ">=6.0.0",
@@ -68,7 +68,7 @@
   },
   "peerDependenciesMeta": {},
   "devDependencies": {
-    "@ioni/zod-mongo": "workspace:*",
+    "@wenu/mongo": "workspace:*",
     "@nestjs/testing": "^11.0.0",
     "@nx/vite": "^22.0.0",
     "@testcontainers/mongodb": "^11.10.0",

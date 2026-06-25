@@ -1,5 +1,5 @@
-import { defineCollection, createRepository } from '@ioni/zod-mongo';
-import type { Repository } from '@ioni/zod-mongo';
+import { defineCollection, createRepository } from '@wenu/mongo';
+import type { Repository } from '@wenu/mongo';
 import type { Db, MongoClient } from 'mongodb';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as z from 'zod';

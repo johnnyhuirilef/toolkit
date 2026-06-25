@@ -1,6 +1,6 @@
-import type { Result } from '@ioni/zod-mongo';
-import { err, isOk, isErr, toDbError } from '@ioni/zod-mongo';
 import type { ModuleRef } from '@nestjs/core';
+import type { Result } from '@wenu/mongo';
+import { err, isOk, isErr, toDbError } from '@wenu/mongo';
 import { isNullish, tryit } from 'radashi';
 
 import type { MongoClientWrapper } from '../zod-mongo.interfaces';

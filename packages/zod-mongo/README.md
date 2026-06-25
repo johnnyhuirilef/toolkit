@@ -1,4 +1,4 @@
-# @ioni/zod-mongo
+# @wenu/mongo
 
 Declarative, immutable, type-safe MongoDB repository layer with Zod validation. Zero throws. Dual
 ESM/CJS. MongoDB 5/6/7 compatible. Zod 3 and 4 compatible.
@@ -42,13 +42,13 @@ ESM/CJS. MongoDB 5/6/7 compatible. Zod 3 and 4 compatible.
 
 ```bash
 # npm
-npm install @ioni/zod-mongo
+npm install @wenu/mongo
 
 # pnpm
-pnpm add @ioni/zod-mongo
+pnpm add @wenu/mongo
 
 # yarn
-yarn add @ioni/zod-mongo
+yarn add @wenu/mongo
 ```
 
 ### Peer dependencies
@@ -70,7 +70,7 @@ npm install zod@^3
 ```typescript
 import * as z from 'zod';
 import { MongoClient } from 'mongodb';
-import { defineCollection, createRepository } from '@ioni/zod-mongo';
+import { defineCollection, createRepository } from '@wenu/mongo';
 
 // 1. Define the schema and collection
 const UserCollection = defineCollection({
@@ -114,7 +114,7 @@ utilities.
 
 ```typescript
 import * as z from 'zod';
-import { defineCollection, index } from '@ioni/zod-mongo';
+import { defineCollection, index } from '@wenu/mongo';
 
 const ProductCollection = defineCollection({
   name: 'products',
@@ -132,7 +132,7 @@ const ProductCollection = defineCollection({
 The `Doc<Schema, Id>` type resolves to the schema output merged with the inferred `_id` type:
 
 ```typescript
-import type { Doc } from '@ioni/zod-mongo';
+import type { Doc } from '@wenu/mongo';
 
 type Product = Doc<(typeof ProductCollection)['schema'], (typeof ProductCollection)['id']>;
 // { _id: string; sku: string; name: string; price: number; tags: string[] }
@@ -144,7 +144,7 @@ Pass the collection definition and a `Db` instance. The repository is a plain ob
 no state beyond the driver handle.
 
 ```typescript
-import { createRepository } from '@ioni/zod-mongo';
+import { createRepository } from '@wenu/mongo';
 
 const products = createRepository(ProductCollection, db);
 ```
@@ -164,7 +164,7 @@ type Result<T, E = DbError> = Ok<T> | Err<E>;
 Use the `ok` discriminant or the `isOk` / `isErr` type guards:
 
 ```typescript
-import { isOk, isErr } from '@ioni/zod-mongo';
+import { isOk, isErr } from '@wenu/mongo';
 
 const result = await users.findById(id);
 
@@ -264,7 +264,7 @@ if (bulk.ok) {
 message strings:
 
 ```typescript
-import type { DbError, DbErrorKind } from '@ioni/zod-mongo';
+import type { DbError, DbErrorKind } from '@wenu/mongo';
 
 type DbErrorKind =
   | 'validation' // Zod parse failed (insert/update input) — no DB call was made
@@ -292,7 +292,7 @@ if (!result.ok) {
 You can also convert any caught value into a `DbError` using `toDbError`:
 
 ```typescript
-import { toDbError } from '@ioni/zod-mongo';
+import { toDbError } from '@wenu/mongo';
 
 const dbError = toDbError(caughtError);
 ```
@@ -362,7 +362,7 @@ startup or generate a migrate-mongo migration file.
 ### Declaring indexes
 
 ```typescript
-import { defineCollection, index } from '@ioni/zod-mongo';
+import { defineCollection, index } from '@wenu/mongo';
 
 const ArticleCollection = defineCollection({
   name: 'articles',
@@ -386,7 +386,7 @@ const ArticleCollection = defineCollection({
 Safe to call on every startup — MongoDB skips indexes that already exist.
 
 ```typescript
-import { syncIndexes } from '@ioni/zod-mongo';
+import { syncIndexes } from '@wenu/mongo';
 
 const result = await syncIndexes(ArticleCollection, db);
 if (!result.ok) {
@@ -397,7 +397,7 @@ if (!result.ok) {
 ### Generating a migrate-mongo script
 
 ```typescript
-import { generateIndexMigration } from '@ioni/zod-mongo';
+import { generateIndexMigration } from '@wenu/mongo';
 import fs from 'node:fs';
 
 const migration = generateIndexMigration(ArticleCollection);
