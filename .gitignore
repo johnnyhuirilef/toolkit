@@ -49,3 +49,17 @@ vitest.config.*.timestamp*
 reports/mutation
 
 **/eslint-report.json
+.nx/polygraph
+.claude/worktrees
+.claude/settings.local.json
+
+# Agent/tooling directories not part of the Nx workspace
+.agents
+.atl
+.claude
+.cursor
+.github/agents
+.github/skills
+
+# External repository references — not Nx projects
+docs/
