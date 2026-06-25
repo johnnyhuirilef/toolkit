@@ -45,11 +45,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Enable corepack
+        run: corepack enable pnpm
 
       - name: Get pnpm store directory
         shell: bash
@@ -104,15 +104,15 @@ jobs:
 
       - name: Verify build output
         run: |
-          dist_path="dist/${{ matrix.path }}"
+          dist_path="${{ matrix.path }}/dist"
           if [ ! -d "$dist_path" ]; then
-            echo "❌ Error: Build output not found at $dist_path"
+            echo "Error: Build output not found at $dist_path"
             exit 1
           fi
-          echo "✅ Build output found at $dist_path"
+          echo "Build output found at $dist_path"
 
-          echo "📦 Running publint..."
-          pnpm dlx publint "$dist_path"
+          echo "Running publint..."
+          cd "${{ matrix.path }}" && pnpm dlx publint dist
 
       - name: Publish to NPM
         uses: nick-fields/retry@v3
@@ -121,7 +121,7 @@ jobs:
           max_attempts: 3
           retry_wait_seconds: 30
           command: |
-            cd dist/${{ matrix.path }}
+            cd ${{ matrix.path }}
             pnpm publish --provenance --access public --no-git-checks
 
   discord-notification:
@@ -143,11 +143,11 @@ jobs:
         if: env.DISCORD_WEBHOOK != ''
         run: |
           if [ "${{ needs.publish.result }}" == "success" ]; then
-            title="🚀 New Release Published!"
+            title="New Release Published!"
             description="A new version of **${{ needs.publish.outputs.package_name }}** has been published to NPM."
             color=15418782
           else
-            title="❌ Release Failed!"
+            title="Release Failed!"
             description="Failed to publish **${{ needs.publish.outputs.package_name }}**. Check the workflow logs."
             color=15548997
           fi
@@ -163,33 +163,33 @@ jobs:
               },
               \"fields\": [
                 {
-                  \"name\": \"📦 Package\",
+                  \"name\": \"Package\",
                   \"value\": \"${{ needs.publish.outputs.package_name }}\",
                   \"inline\": true
                 },
                 {
-                  \"name\": \"🏷️ Version\",
+                  \"name\": \"Version\",
                   \"value\": \"v${{ needs.publish.outputs.version }}\",
                   \"inline\": true
                 },
                 {
-                  \"name\": \"📝 Description\",
+                  \"name\": \"Description\",
                   \"value\": \"${{ needs.publish.outputs.description }}\",
                   \"inline\": false
                 },
                 {
-                  \"name\": \"💾 Install Command\",
+                  \"name\": \"Install Command\",
                   \"value\": \"\`\`\`bash\\nnpm install ${{ needs.publish.outputs.package_name }}@latest\\n\`\`\`\",
                   \"inline\": false
                 },
                 {
-                  \"name\": \"👤 Released by\",
+                  \"name\": \"Released by\",
                   \"value\": \"${{ steps.release-info.outputs.commit_author }}\",
                   \"inline\": true
                 },
                 {
-                  \"name\": \"🔗 Links\",
-                  \"value\": \"[📋 Release Notes](${{ steps.release-info.outputs.release_url }}) • [📦 NPM Page](${{ steps.release-info.outputs.npm_url }})\",
+                  \"name\": \"Links\",
+                  \"value\": \"[Release Notes](${{ steps.release-info.outputs.release_url }}) | [NPM Page](${{ steps.release-info.outputs.npm_url }})\",
                   \"inline\": false
                 }
               ],

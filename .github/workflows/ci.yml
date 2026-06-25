@@ -6,6 +6,10 @@ on:
       - main
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   actions: read
   contents: read
@@ -20,20 +24,32 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
-        name: Install pnpm
+      - name: Enable corepack
+        run: corepack enable pnpm
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: 'pnpm'
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - uses: nrwl/nx-set-shas@v4
 
-      # --- LINTING WITH ANNOTATIONS 🔍 ---
+      # --- LINTING WITH ANNOTATIONS ---
       - name: Lint (Affected)
         run: pnpm nx affected -t lint --parallel=3 -- --format json --output-file eslint-report.json
         continue-on-error: true
@@ -45,7 +61,7 @@ jobs:
           report-json: eslint-report.json
           check-name: ESLint Results
 
-      # --- TESTING WITH COVERAGE REPORT 📊 ---
+      # --- TESTING WITH COVERAGE REPORT ---
       - name: Run Tests (Affected)
         run: pnpm nx affected -t test --parallel=3 --coverage
 
