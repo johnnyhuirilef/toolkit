@@ -62,7 +62,7 @@
   },
   "peerDependencies": {
     "mongodb": ">=6.0.0",
-    "zod": ">=3.0.0 <5.0.0"
+    "zod": ">=3.0.0"
   },
   "peerDependenciesMeta": {},
   "funding": {
