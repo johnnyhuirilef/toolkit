@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.2.1...mongo-v0.2.2) (2026-06-25)
+
+
+### Bug Fixes
+
+* **zod-mongo:** add funding field to package metadata ([ff4e95f](https://github.com/johnnyhuirilef/toolkit/commit/ff4e95fd1dea3bd0b48a523fe2d8185fb56af092))
+
 ## [0.2.1](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.2.0...mongo-v0.2.1) (2026-06-25)
 
 
