@@ -65,6 +65,10 @@
     "zod": ">=3.0.0 <5.0.0"
   },
   "peerDependenciesMeta": {},
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/johnnyhuirilef"
+  },
   "devDependencies": {
     "@nx/vite": "^22.0.0",
     "@testcontainers/mongodb": "^11.10.0",
