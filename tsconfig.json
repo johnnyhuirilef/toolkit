@@ -5,6 +5,12 @@
   "references": [
     {
       "path": "./packages/nest-ts-valid-mongodb"
+    },
+    {
+      "path": "./packages/zod-mongo"
+    },
+    {
+      "path": "./packages/nest-zod-mongo"
     }
   ]
 }

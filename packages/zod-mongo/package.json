@@ -1,0 +1,77 @@
+{
+  "name": "@wenu/mongo",
+  "version": "0.1.0",
+  "description": "Declarative, immutable, type-safe MongoDB repository layer with Zod validation. Zero throws, dual ESM/CJS, pluggable ID strategies.",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist/*.cjs",
+    "dist/*.mjs",
+    "dist/*.d.cts",
+    "dist/*.d.mts",
+    "dist/*.map",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "type": "commonjs",
+  "sideEffects": false,
+  "keywords": [
+    "mongodb",
+    "zod",
+    "validation",
+    "repository",
+    "typescript",
+    "schema",
+    "nosql",
+    "database"
+  ],
+  "author": "Johnny J. Huirilef",
+  "license": "MIT",
+  "homepage": "https://github.com/johnnyhuirilef/toolkit/tree/main/packages/zod-mongo#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnnyhuirilef/toolkit.git",
+    "directory": "packages/zod-mongo"
+  },
+  "bugs": {
+    "url": "https://github.com/johnnyhuirilef/toolkit/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "peerDependencies": {
+    "mongodb": ">=6.0.0",
+    "zod": ">=3.0.0 <5.0.0"
+  },
+  "peerDependenciesMeta": {},
+  "devDependencies": {
+    "@nx/vite": "^22.0.0",
+    "@testcontainers/mongodb": "^11.10.0",
+    "jsonc-eslint-parser": "^2.0.0",
+    "tsdown": "^0.22.3",
+    "tsx": "^4.0.0",
+    "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "radashi": "^12.1.0"
+  }
+}

@@ -1,2 +1,13 @@
 # Examples are not packages to be published or tested in CI
 packages/*/examples/**
+
+# Agent/tooling directories — not Nx projects
+.agents/**
+.claude/**
+.cursor/**
+.atl/**
+.github/agents/**
+.github/skills/**
+
+# External repository references — not Nx projects
+docs/**

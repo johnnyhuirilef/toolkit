@@ -38,7 +38,8 @@
       "plugin": "@nx/eslint/plugin",
       "options": {
         "targetName": "lint"
-      }
+      },
+      "exclude": [".agents/**", ".claude/**", ".cursor/**"]
     },
     {
       "plugin": "@nx/vitest",
@@ -50,6 +51,7 @@
     }
   ],
   "nxCloudId": "6949af25dc6a25b78ac240bb",
+  "ignoredGlobs": [".agents/**", ".claude/**", ".cursor/**", ".atl/**"],
   "targetDefaults": {
     "@nx/vitest:test": {
       "cache": true,

@@ -5,7 +5,7 @@
   "projectType": "library",
   "release": {
     "version": {
-      "manifestRootsToUpdate": ["dist/{projectRoot}"],
+      "manifestRootsToUpdate": ["{projectRoot}"],
       "currentVersionResolver": "git-tag",
       "fallbackCurrentVersionResolver": "disk"
     }
@@ -14,29 +14,16 @@
   "targets": {
     "nx-release-publish": {
       "options": {
-        "packageRoot": "dist/{projectRoot}"
+        "packageRoot": "{projectRoot}"
       }
     },
     "build": {
-      "executor": "@nx/rollup:rollup",
-      "outputs": ["{options.outputPath}"],
+      "executor": "nx:run-commands",
+      "cache": true,
+      "outputs": ["{projectRoot}/dist"],
       "options": {
-        "outputPath": "dist/packages/nest-ts-valid-mongodb",
-        "tsConfig": "packages/nest-ts-valid-mongodb/tsconfig.lib.json",
-        "project": "packages/nest-ts-valid-mongodb/package.json",
-        "entryFile": "packages/nest-ts-valid-mongodb/src/index.ts",
-        "external": [
-          "@nestjs/common",
-          "@nestjs/core",
-          "mongodb",
-          "ts-valid-mongodb",
-          "zod",
-          "reflect-metadata",
-          "rxjs"
-        ],
-        "rollupConfig": "packages/nest-ts-valid-mongodb/rollup.config.cjs",
-        "compiler": "swc",
-        "format": ["cjs", "esm"]
+        "command": "pnpm tsdown --config-loader tsx",
+        "cwd": "{projectRoot}"
       }
     },
     "test": {

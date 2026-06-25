@@ -6,6 +6,10 @@ on:
       - main
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   actions: read
   contents: read
@@ -20,20 +24,32 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
-        name: Install pnpm
+      - name: Enable corepack
+        run: corepack enable pnpm
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'pnpm'
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - uses: nrwl/nx-set-shas@v4
 
-      # --- LINTING WITH ANNOTATIONS 🔍 ---
+      # --- LINTING WITH ANNOTATIONS ---
       - name: Lint (Affected)
         run: pnpm nx affected -t lint --parallel=3 -- --format json --output-file eslint-report.json
         continue-on-error: true
@@ -45,25 +61,46 @@ jobs:
           report-json: eslint-report.json
           check-name: ESLint Results
 
-      # --- TESTING WITH COVERAGE REPORT 📊 ---
+      # --- TESTING WITH COVERAGE REPORT ---
       - name: Run Tests (Affected)
         run: pnpm nx affected -t test --parallel=3 --coverage
 
-      - name: Check Coverage Files
+      - name: Merge Coverage Reports
         id: check-coverage
         run: |
-          if ls coverage/packages/**/coverage-summary.json 1> /dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
+          SUMMARY_FILES=$(find coverage/packages -name "coverage-summary.json" 2>/dev/null)
+          FINAL_FILES=$(find coverage/packages -name "coverage-final.json" 2>/dev/null)
+          if [ -z "$SUMMARY_FILES" ]; then
             echo "exists=false" >> $GITHUB_OUTPUT
+          else
+            node -e "
+              const fs = require('fs');
+              const files = process.argv.slice(1);
+              const merged = files.reduce((acc, f) => {
+                const data = JSON.parse(fs.readFileSync(f, 'utf8'));
+                return Object.assign(acc, data);
+              }, {});
+              fs.mkdirSync('coverage/merged', { recursive: true });
+              fs.writeFileSync('coverage/merged/coverage-summary.json', JSON.stringify(merged));
+            " $SUMMARY_FILES
+            node -e "
+              const fs = require('fs');
+              const files = process.argv.slice(1);
+              const merged = files.reduce((acc, f) => {
+                const data = JSON.parse(fs.readFileSync(f, 'utf8'));
+                return Object.assign(acc, data);
+              }, {});
+              fs.writeFileSync('coverage/merged/coverage-final.json', JSON.stringify(merged));
+            " $FINAL_FILES
+            echo "exists=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Coverage Report
         if: steps.check-coverage.outputs.exists == 'true'
         uses: davelosert/vitest-coverage-report-action@v2
         with:
-          json-summary-path: 'coverage/packages/**/coverage-summary.json'
-          json-final-path: 'coverage/packages/**/coverage-final.json'
+          json-summary-path: 'coverage/merged/coverage-summary.json'
+          json-final-path: 'coverage/merged/coverage-final.json'
 
       - name: Build & Typecheck (Affected)
         run: pnpm nx affected -t build typecheck --parallel=3

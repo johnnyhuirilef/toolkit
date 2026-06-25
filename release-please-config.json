@@ -4,6 +4,14 @@
     "packages/nest-ts-valid-mongodb": {
       "release-type": "node",
       "package-name": "@ioni/nest-ts-valid-mongodb"
+    },
+    "packages/zod-mongo": {
+      "release-type": "node",
+      "package-name": "@wenu/mongo"
+    },
+    "packages/nest-zod-mongo": {
+      "release-type": "node",
+      "package-name": "@wenu/nest-mongo"
     }
   },
   "changelog-sections": [

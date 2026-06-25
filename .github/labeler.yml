@@ -1,0 +1,19 @@
+'package: zod-mongo':
+  - changed-files:
+      - any-glob-to-any-file: 'packages/zod-mongo/**'
+
+'package: nest-zod-mongo':
+  - changed-files:
+      - any-glob-to-any-file: 'packages/nest-zod-mongo/**'
+
+'package: nest-ts-valid-mongodb':
+  - changed-files:
+      - any-glob-to-any-file: 'packages/nest-ts-valid-mongodb/**'
+
+'ci':
+  - changed-files:
+      - any-glob-to-any-file: '.github/**'
+
+'dependencies':
+  - changed-files:
+      - any-glob-to-any-file: 'pnpm-lock.yaml'

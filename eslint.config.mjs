@@ -19,6 +19,8 @@ const createIgnoreRules = () => ({
     '**/dist/**',
     '**/node_modules/**',
     '.github/instructions/**',
+    '.agents/**',
+    '.claude/**',
     '**/*.timestamp*',
     '**/jest.config.ts',
     '**/vite.config.ts',
@@ -161,7 +163,22 @@ const createUnicornRules = () => ({
   ...eslintPluginUnicorn.configs.recommended,
   rules: {
     ...eslintPluginUnicorn.configs.recommended.rules,
-    'unicorn/prevent-abbreviations': ['error', { allowList: { Props: true } }],
+    'unicorn/prevent-abbreviations': [
+      'error',
+      {
+        allowList: {
+          Props: true,
+          fn: true,
+          // zod-mongo / nest-zod-mongo domain names — each package has these in its own allowList too
+          Def: true,
+          Db: true,
+          Doc: true,
+          Err: true,
+          err: true,
+          isErr: true,
+        },
+      },
+    ],
     'unicorn/text-encoding-identifier-case': 'off',
     'unicorn/filename-case': 'off',
     'unicorn/no-null': 'off',
@@ -260,7 +277,13 @@ const createTestingConfiguration = () => [
 
 // --- 7. FINAL POLISH ---
 const createPrettierRules = () => eslintConfigPrettier;
-const createSpellCheckRules = () => cspellConfigs.recommended;
+const createSpellCheckRules = () => ({
+  ...cspellConfigs.recommended,
+  rules: {
+    ...cspellConfigs.recommended.rules,
+    '@cspell/spellchecker': ['warn', { cspell: { words: ['ioni', 'Huirilef', 'radashi', 'tryit', 'forfeature', 'paramtypes'] } }],
+  },
+});
 
 // --- COMPOSITION ROOT ---
 export default [
