@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.2.2...mongo-v0.2.3) (2026-06-25)
+
+
+### Bug Fixes
+
+* **zod-mongo:** broaden zod peer dependency to support zod v5 ([6b6a3c6](https://github.com/johnnyhuirilef/toolkit/commit/6b6a3c6e4596d71331b9f7440d25167d21d3e53f))
+
 ## [0.2.2](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.2.1...mongo-v0.2.2) (2026-06-25)
 
 
