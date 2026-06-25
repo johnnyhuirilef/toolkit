@@ -60,12 +60,12 @@ npm install @nestjs/common@^10 @nestjs/core@^10 mongodb@^6
 ```typescript
 // app.module.ts
 import { Module } from '@nestjs/common';
-import { ZodMongoModule } from '@wenu/nest-mongo';
+import { MongoModule } from '@wenu/nest-mongo';
 import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
-    ZodMongoModule.forRoot({
+    MongoModule.forRoot({
       uri: 'mongodb://localhost:27017',
       databaseName: 'myapp',
     }),
@@ -78,12 +78,12 @@ export class AppModule {}
 ```typescript
 // user/user.module.ts
 import { Module } from '@nestjs/common';
-import { ZodMongoModule } from '@wenu/nest-mongo';
+import { MongoModule } from '@wenu/nest-mongo';
 import { UserCollection } from './user.collection';
 import { UserService } from './user.service';
 
 @Module({
-  imports: [ZodMongoModule.forFeature([UserCollection])],
+  imports: [MongoModule.forFeature([UserCollection])],
   providers: [UserService],
 })
 export class UserModule {}
@@ -117,7 +117,7 @@ export class UserService {
 Use when connection options are available at module load time.
 
 ```typescript
-ZodMongoModule.forRoot({
+MongoModule.forRoot({
   uri: 'mongodb://localhost:27017',
   databaseName: 'myapp',
 });
@@ -144,7 +144,7 @@ Use when options depend on a config service, environment variables, or other asy
 ```typescript
 import { ConfigService } from '@nestjs/config';
 
-ZodMongoModule.forRootAsync({
+MongoModule.forRootAsync({
   imports: [ConfigModule],
   useFactory: (config: ConfigService) => ({
     uri: config.get<string>('MONGO_URI'),
@@ -160,10 +160,10 @@ Register one or more collections in a feature module. Optionally scope to a name
 
 ```typescript
 // Default connection
-ZodMongoModule.forFeature([UserCollection, PostCollection]);
+MongoModule.forFeature([UserCollection, PostCollection]);
 
 // Named connection
-ZodMongoModule.forFeature([OrderCollection], 'analytics');
+MongoModule.forFeature([OrderCollection], 'analytics');
 ```
 
 Each collection gets a repository provider keyed by
@@ -219,12 +219,12 @@ own `MongoClient`, `Db`, and shutdown lifecycle independently.
 ```typescript
 @Module({
   imports: [
-    ZodMongoModule.forRoot({
+    MongoModule.forRoot({
       uri: process.env.PRIMARY_MONGO_URI,
       databaseName: 'app',
       connectionName: 'primary',
     }),
-    ZodMongoModule.forRoot({
+    MongoModule.forRoot({
       uri: process.env.ANALYTICS_MONGO_URI,
       databaseName: 'analytics',
       connectionName: 'analytics',
@@ -238,10 +238,10 @@ export class AppModule {}
 
 ```typescript
 // user.module.ts
-ZodMongoModule.forFeature([UserCollection], 'primary');
+MongoModule.forFeature([UserCollection], 'primary');
 
 // reporting.module.ts
-ZodMongoModule.forFeature([EventCollection], 'analytics');
+MongoModule.forFeature([EventCollection], 'analytics');
 ```
 
 ---
@@ -265,13 +265,13 @@ const UserCollection = defineCollection({
 
 MongoDB skips indexes that already exist — safe to run on every startup.
 
-To disable: `ZodMongoModule.forRoot({ ..., syncIndexes: false })`.
+To disable: `MongoModule.forRoot({ ..., syncIndexes: false })`.
 
 ---
 
 ## Graceful Shutdown
 
-`ZodMongoModule` implements `OnApplicationShutdown`. When `app.close()` is called, all registered
+`MongoModule` implements `OnApplicationShutdown`. When `app.close()` is called, all registered
 `MongoClient` instances are closed in parallel with timeout and retry protection.
 
 Enable shutdown hooks in your bootstrap:
@@ -285,7 +285,7 @@ await app.listen(3000);
 Configure shutdown behavior via `forRoot` options:
 
 ```typescript
-ZodMongoModule.forRoot({
+MongoModule.forRoot({
   uri: '...',
   databaseName: 'myapp',
   shutdownTimeoutMs: 5_000, // give each close() 5 seconds
@@ -298,20 +298,20 @@ ZodMongoModule.forRoot({
 
 ## Error Types
 
-| Error                        | When thrown                                         |
-| ---------------------------- | --------------------------------------------------- |
-| `ZodMongoConnectionError`    | `MongoClient.connect()` fails during module init    |
-| `ZodMongoConfigurationError` | Neither `uri` nor `mongoClient` provided in options |
+| Error                     | When thrown                                         |
+| ------------------------- | --------------------------------------------------- |
+| `MongoConnectionError`    | `MongoClient.connect()` fails during module init    |
+| `MongoConfigurationError` | Neither `uri` nor `mongoClient` provided in options |
 
 Both extend `Error` and are exported for use in `catch` blocks or NestJS exception filters.
 
 ```typescript
-import { ZodMongoConnectionError } from '@wenu/nest-mongo';
+import { MongoConnectionError } from '@wenu/nest-mongo';
 
 try {
   await app.init();
 } catch (error) {
-  if (error instanceof ZodMongoConnectionError) {
+  if (error instanceof MongoConnectionError) {
     console.error('Could not connect to MongoDB:', error.message);
   }
 }
@@ -321,7 +321,7 @@ try {
 
 ## API Reference
 
-### ZodMongoModule
+### MongoModule
 
 | Method                           | Returns         | Description                                       |
 | -------------------------------- | --------------- | ------------------------------------------------- |
