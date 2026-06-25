@@ -2,26 +2,33 @@
   "name": "@ioni/nest-ts-valid-mongodb",
   "version": "0.2.0",
   "description": "High-performance MongoDB Native Driver wrapper for NestJS with Zod schema validation. Lightweight, type-safe, and robust",
-  "main": "./index.cjs.js",
-  "module": "./index.esm.js",
-  "types": "./index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
+    "./package.json": "./package.json",
     ".": {
-      "types": "./index.d.ts",
-      "import": "./index.esm.js",
-      "require": "./index.cjs.js",
-      "default": "./index.cjs.js"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "files": [
-    "*.js",
-    "*.d.ts",
-    "*.map",
-    "src",
+    "dist/*.cjs",
+    "dist/*.mjs",
+    "dist/*.d.cts",
+    "dist/*.d.mts",
+    "dist/*.map",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
   ],
+  "type": "commonjs",
   "sideEffects": false,
   "keywords": [
     "nestjs",
@@ -67,6 +74,8 @@
     "@nestjs/testing": "^11.0.0",
     "@nx/vite": "^22.0.0",
     "jsonc-eslint-parser": "^2.0.0",
+    "tsdown": "^0.22.3",
+    "tsx": "^4.0.0",
     "vitest": "^3.0.0"
   },
   "dependencies": {}

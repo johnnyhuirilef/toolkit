@@ -2,7 +2,7 @@ import baseConfig from '../../eslint.config.mjs';
 
 export default [
   {
-    ignores: ['**/README.md', 'examples/**'],
+    ignores: ['**/README.md', 'examples/**', 'dist/**', 'tsdown.config.mts'],
   },
   ...baseConfig,
   {
@@ -13,11 +13,11 @@ export default [
         {
           ignoredFiles: [
             '{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}',
-            '{projectRoot}/rollup.config.{js,ts,mjs,mts,cjs,cts}',
+            '{projectRoot}/tsdown.config.{js,ts,mjs,mts,cjs,cts}',
             '{projectRoot}/vite.config.{js,ts,mjs,mts}',
             '{projectRoot}/vitest.config.{js,ts,mjs,mts}',
           ],
-          ignoredDependencies: ['vitest', '@nx/vite', '@nestjs/testing'],
+          ignoredDependencies: ['vitest', '@nx/vite', '@nestjs/testing', 'tsdown'],
         },
       ],
     },

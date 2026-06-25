@@ -200,6 +200,12 @@ importers:
       jsonc-eslint-parser:
         specifier: ^2.0.0
         version: 2.4.2
+      tsdown:
+        specifier: ^0.22.3
+        version: 0.22.3(tsx@4.21.0)(typescript@5.9.3)
+      tsx:
+        specifier: ^4.0.0
+        version: 4.21.0
       vitest:
         specifier: ^3.0.0
         version: 3.2.4(@types/node@22.19.3)(@vitest/ui@3.2.4)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
@@ -18557,7 +18563,7 @@ snapshots:
   bin-version-check@5.1.0:
     dependencies:
       bin-version: 6.0.0
-      semver: 7.7.3
+      semver: 7.8.5
       semver-truncate: 3.0.0
 
   bin-version@6.0.0:
@@ -19581,7 +19587,7 @@ snapshots:
   eslint-compat-utils@0.5.1(eslint@9.39.2(jiti@2.4.2)):
     dependencies:
       eslint: 9.39.2(jiti@2.4.2)
-      semver: 7.7.3
+      semver: 7.8.5
 
   eslint-compat-utils@0.6.5(eslint@9.39.2(jiti@2.4.2)):
     dependencies:
@@ -20836,7 +20842,7 @@ snapshots:
       '@babel/parser': 7.28.5
       '@istanbuljs/schema': 0.1.3
       istanbul-lib-coverage: 3.2.2
-      semver: 7.7.3
+      semver: 7.8.5
     transitivePeerDependencies:
       - supports-color
 
@@ -21130,7 +21136,7 @@ snapshots:
       jest-message-util: 30.2.0
       jest-util: 30.2.0
       pretty-format: 30.2.0
-      semver: 7.7.3
+      semver: 7.8.5
       synckit: 0.11.11
     transitivePeerDependencies:
       - supports-color
@@ -21142,7 +21148,7 @@ snapshots:
       chalk: 4.1.2
       ci-info: 4.3.1
       graceful-fs: 4.2.11
-      picomatch: 4.0.3
+      picomatch: 4.0.4
 
   jest-validate@30.2.0:
     dependencies:
@@ -21478,7 +21484,7 @@ snapshots:
 
   make-dir@4.0.0:
     dependencies:
-      semver: 7.7.3
+      semver: 7.8.5
 
   make-error@1.3.6: {}
 
@@ -22724,7 +22730,7 @@ snapshots:
 
   semver-truncate@3.0.0:
     dependencies:
-      semver: 7.7.3
+      semver: 7.8.5
 
   semver@6.3.1: {}
 
