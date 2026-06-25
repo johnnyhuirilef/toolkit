@@ -1,4 +1,4 @@
-export const DEFAULT_CONNECTION = Symbol('ZodMongoDefaultConnection');
+export const DEFAULT_CONNECTION = Symbol('MongoDefaultConnection');
 
 export const getRepositoryToken = (name: string, connectionName?: string | symbol): string =>
   connectionName === undefined || connectionName === DEFAULT_CONNECTION
@@ -11,8 +11,8 @@ export const getConnectionToken = (connectionName?: string | symbol): string | s
     : connectionName;
 
 export const getClientWrapperToken = (connectionName?: string | symbol): string =>
-  `ZodMongoClientWrapper_${String(connectionName ?? 'default')}`;
+  `MongoClientWrapper_${String(connectionName ?? 'default')}`;
 
 // Internal tokens — not exported from index.ts
-export const ZOD_MONGO_CONNECTION_TOKENS = Symbol('ZodMongoConnectionTokens');
-export const ZOD_MONGO_MODULE_OPTIONS = Symbol('ZodMongoModuleOptions');
+export const ZOD_MONGO_CONNECTION_TOKENS = Symbol('MongoConnectionTokens');
+export const ZOD_MONGO_MODULE_OPTIONS = Symbol('MongoModuleOptions');

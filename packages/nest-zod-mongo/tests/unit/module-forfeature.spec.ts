@@ -4,8 +4,8 @@ import type { Db } from 'mongodb';
 import { describe, it, expect, vi } from 'vitest';
 import * as z from 'zod';
 
-import type { ZodMongoOptions } from '../../src/zod-mongo.interfaces';
-import { ZodMongoModule } from '../../src/zod-mongo.module';
+import type { MongoOptions } from '../../src/zod-mongo.interfaces';
+import { MongoModule } from '../../src/zod-mongo.module';
 import { createRepositoryProviders } from '../../src/zod-mongo.providers';
 import { getRepositoryToken, ZOD_MONGO_MODULE_OPTIONS } from '../../src/zod-mongo.tokens';
 
@@ -15,9 +15,9 @@ const UserCollection = defineCollection({
   id: 'objectid',
 });
 
-describe('ZodMongoModule.forFeature', () => {
+describe('MongoModule.forFeature', () => {
   it('forFeature returns providers with correct repository token', () => {
-    const dynamicModule = ZodMongoModule.forFeature([UserCollection]);
+    const dynamicModule = MongoModule.forFeature([UserCollection]);
     const providers = dynamicModule.providers as FactoryProvider[];
     const tokens = providers.map((p) => p.provide);
     expect(tokens).toContain(getRepositoryToken('users'));
@@ -33,7 +33,7 @@ describe('ZodMongoModule.forFeature', () => {
     const fakeDatabase = {
       collection: vi.fn().mockReturnValue(fakeCollection),
     } as unknown as Db;
-    const fakeOptions: ZodMongoOptions = {
+    const fakeOptions: MongoOptions = {
       mongoClient: {} as never,
       databaseName: 'test',
       syncIndexes: false,

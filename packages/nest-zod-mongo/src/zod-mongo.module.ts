@@ -5,7 +5,7 @@ import type { CollectionDef, ZodCompat, IdStrategy } from '@wenu/mongo';
 import { isEmpty, tryit } from 'radashi';
 
 import { resolveShutdownConfig, shutdownAll } from './shutdown';
-import type { ZodMongoOptions, ZodMongoAsyncOptions } from './zod-mongo.interfaces';
+import type { MongoOptions, MongoAsyncOptions } from './zod-mongo.interfaces';
 import {
   createConnectionProviders,
   createAsyncConnectionProviders,
@@ -15,22 +15,22 @@ import { ZOD_MONGO_CONNECTION_TOKENS, ZOD_MONGO_MODULE_OPTIONS } from './zod-mon
 
 @Global()
 @Module({})
-export class ZodMongoModule implements OnApplicationShutdown {
+export class MongoModule implements OnApplicationShutdown {
   constructor(private readonly moduleReference: ModuleRef) {}
 
-  static forRoot(options: ZodMongoOptions): DynamicModule {
+  static forRoot(options: MongoOptions): DynamicModule {
     const providers = createConnectionProviders(options);
     return {
-      module: ZodMongoModule,
+      module: MongoModule,
       providers,
       exports: providers,
     };
   }
 
-  static forRootAsync(asyncOptions: ZodMongoAsyncOptions): DynamicModule {
+  static forRootAsync(asyncOptions: MongoAsyncOptions): DynamicModule {
     const providers = createAsyncConnectionProviders(asyncOptions);
     return {
-      module: ZodMongoModule,
+      module: MongoModule,
       imports: asyncOptions.imports ?? [],
       providers,
       exports: providers,
@@ -43,7 +43,7 @@ export class ZodMongoModule implements OnApplicationShutdown {
   ): DynamicModule {
     const providers = createRepositoryProviders(collections, connectionName);
     return {
-      module: ZodMongoModule,
+      module: MongoModule,
       providers,
       exports: providers,
     };
@@ -59,14 +59,14 @@ export class ZodMongoModule implements OnApplicationShutdown {
     );
     if (tokenError !== undefined || isEmpty(wrapperTokens)) return;
 
-    const [optionsError, options] = await resolve<ZodMongoOptions>(ZOD_MONGO_MODULE_OPTIONS);
+    const [optionsError, options] = await resolve<MongoOptions>(ZOD_MONGO_MODULE_OPTIONS);
     const config = resolveShutdownConfig(optionsError === undefined ? options : undefined);
     const summary = await shutdownAll(wrapperTokens, this.moduleReference, config);
     Logger.log(
       `MongoDB shutdown: ${String(summary.closed)}/${String(summary.total)} closed in ${String(summary.durationMs)}ms`,
-      'ZodMongoModule',
+      'MongoModule',
     );
     if (summary.failed > 0)
-      Logger.error(`${String(summary.failed)} connection(s) failed to close`, 'ZodMongoModule');
+      Logger.error(`${String(summary.failed)} connection(s) failed to close`, 'MongoModule');
   }
 }

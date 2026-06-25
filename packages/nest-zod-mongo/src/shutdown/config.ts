@@ -1,4 +1,4 @@
-import type { ZodMongoOptions } from '../zod-mongo.interfaces';
+import type { MongoOptions } from '../zod-mongo.interfaces';
 
 export type ShutdownConfig = {
   readonly timeoutMs: number;
@@ -15,7 +15,7 @@ const DEFAULTS = Object.freeze({
 const isValidTimeout = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
-export const resolveShutdownConfig = (options?: ZodMongoOptions): ShutdownConfig => ({
+export const resolveShutdownConfig = (options?: MongoOptions): ShutdownConfig => ({
   timeoutMs: isValidTimeout(options?.shutdownTimeoutMs)
     ? options.shutdownTimeoutMs
     : DEFAULTS.timeoutMs,

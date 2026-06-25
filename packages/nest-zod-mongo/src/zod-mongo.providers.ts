@@ -6,12 +6,8 @@ import { MongoClient } from 'mongodb';
 import type { Db } from 'mongodb';
 import { isNullish, tryit } from 'radashi';
 
-import { ZodMongoConfigurationError, ZodMongoConnectionError } from './zod-mongo.errors';
-import type {
-  ZodMongoOptions,
-  ZodMongoAsyncOptions,
-  MongoClientWrapper,
-} from './zod-mongo.interfaces';
+import { MongoConfigurationError, MongoConnectionError } from './zod-mongo.errors';
+import type { MongoOptions, MongoAsyncOptions, MongoClientWrapper } from './zod-mongo.interfaces';
 import {
   getConnectionToken,
   getClientWrapperToken,
@@ -22,24 +18,24 @@ import {
 
 // --- Connection trio (pure functions, no NestJS, no logging) ---
 
-const ensureValidOptions = (options: ZodMongoOptions): ZodMongoOptions => {
+const ensureValidOptions = (options: MongoOptions): MongoOptions => {
   if (!('uri' in options && options.uri) && !('mongoClient' in options && options.mongoClient))
-    throw new ZodMongoConfigurationError('Provide either "uri" or "mongoClient".');
+    throw new MongoConfigurationError('Provide either "uri" or "mongoClient".');
   return options;
 };
 
-const resolveClient = (options: ZodMongoOptions): MongoClient =>
+const resolveClient = (options: MongoOptions): MongoClient =>
   'mongoClient' in options && options.mongoClient !== undefined
     ? options.mongoClient
     : new MongoClient(options.uri, options.clientOptions);
 
 const connectAndWrap = async (
   client: MongoClient,
-  options: ZodMongoOptions,
+  options: MongoOptions,
 ): Promise<{ readonly db: Db; readonly wrapper: MongoClientWrapper }> => {
   const [error] = await tryit(() => client.connect())();
   if (error !== undefined)
-    throw new ZodMongoConnectionError(`Failed to connect to database "${options.databaseName}".`, {
+    throw new MongoConnectionError(`Failed to connect to database "${options.databaseName}".`, {
       cause: error,
     });
   const database = client.db(options.databaseName);
@@ -56,13 +52,13 @@ const connectAndWrap = async (
 };
 
 export const establishConnection = (
-  options: ZodMongoOptions,
+  options: MongoOptions,
 ): Promise<{ readonly db: Db; readonly wrapper: MongoClientWrapper }> =>
   Promise.resolve().then(() => connectAndWrap(resolveClient(ensureValidOptions(options)), options));
 
 // --- NestJS provider factories ---
 
-export const createConnectionProviders = (options: ZodMongoOptions): Provider[] => {
+export const createConnectionProviders = (options: MongoOptions): Provider[] => {
   const wrapperToken = getClientWrapperToken(options.connectionName);
   const databaseToken = getConnectionToken(options.connectionName);
   // Single establish-token guarantees exactly one client.connect() call (ADR-2)
@@ -97,7 +93,7 @@ export const createConnectionProviders = (options: ZodMongoOptions): Provider[] 
   ];
 };
 
-export const createAsyncConnectionProviders = (asyncOptions: ZodMongoAsyncOptions): Provider[] => {
+export const createAsyncConnectionProviders = (asyncOptions: MongoAsyncOptions): Provider[] => {
   const wrapperToken = getClientWrapperToken(asyncOptions.connectionName);
   const databaseToken = getConnectionToken(asyncOptions.connectionName);
   const establishToken = Symbol(`establish_${String(asyncOptions.connectionName ?? 'default')}`);
@@ -148,18 +144,19 @@ export const createRepositoryProviders = (
 ): Provider[] =>
   collections.map((collectionEntry) => ({
     provide: getRepositoryToken(collectionEntry.name, connectionName),
-    useFactory: async (database: Db, moduleOptions: ZodMongoOptions) => {
-      // ponytail: mongodb@5 Db type differs from @6/@7 at the workspace boundary — cast through unknown
-      const databaseHandle = database as unknown as Parameters<typeof createRepository>[1];
+    useFactory: async (
+      database: Parameters<typeof createRepository>[1],
+      moduleOptions: MongoOptions,
+    ) => {
       if (moduleOptions.syncIndexes !== false) {
-        const result = await syncIndexes(collectionEntry, databaseHandle);
+        const result = await syncIndexes(collectionEntry, database);
         if (!result.ok)
           Logger.warn(
             `Index sync failed for "${collectionEntry.name}": ${result.error.message}`,
-            'ZodMongoModule',
+            'MongoModule',
           );
       }
-      return createRepository(collectionEntry, databaseHandle);
+      return createRepository(collectionEntry, database);
     },
     inject: [getConnectionToken(connectionName), ZOD_MONGO_MODULE_OPTIONS],
   }));

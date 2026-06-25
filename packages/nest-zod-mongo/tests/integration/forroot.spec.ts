@@ -2,7 +2,7 @@ import type { Db, MongoClient } from 'mongodb';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
-import { ZodMongoConnectionError } from '../../src/zod-mongo.errors';
+import { MongoConnectionError } from '../../src/zod-mongo.errors';
 import { establishConnection } from '../../src/zod-mongo.providers';
 
 let database: Db;
@@ -30,13 +30,13 @@ describe('establishConnection (forRoot integration)', () => {
     expect(result['ok']).toBe(1);
   });
 
-  it('throws ZodMongoConnectionError on bad URI', async () => {
+  it('throws MongoConnectionError on bad URI', async () => {
     await expect(
       establishConnection({
         uri: 'mongodb://localhost:1',
         databaseName: 'test_db',
         clientOptions: { connectTimeoutMS: 1000, serverSelectionTimeoutMS: 1000 },
       }),
-    ).rejects.toBeInstanceOf(ZodMongoConnectionError);
+    ).rejects.toBeInstanceOf(MongoConnectionError);
   }, 10_000);
 });

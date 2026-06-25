@@ -1,7 +1,7 @@
-export class ZodMongoConnectionError extends Error {
-  override readonly name = 'ZodMongoConnectionError';
+export class MongoConnectionError extends Error {
+  override readonly name = 'MongoConnectionError';
 }
 
-export class ZodMongoConfigurationError extends Error {
-  override readonly name = 'ZodMongoConfigurationError';
+export class MongoConfigurationError extends Error {
+  override readonly name = 'MongoConfigurationError';
 }

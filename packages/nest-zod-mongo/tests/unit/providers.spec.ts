@@ -3,7 +3,7 @@ import { defineCollection } from '@wenu/mongo';
 import { describe, it, expect } from 'vitest';
 import * as z from 'zod';
 
-import { ZodMongoConfigurationError } from '../../src/zod-mongo.errors';
+import { MongoConfigurationError } from '../../src/zod-mongo.errors';
 import { createRepositoryProviders, establishConnection } from '../../src/zod-mongo.providers';
 import { getRepositoryToken } from '../../src/zod-mongo.tokens';
 
@@ -14,11 +14,11 @@ const UserCollection = defineCollection({
 });
 
 describe('ensureValidOptions (via establishConnection)', () => {
-  it('throws ZodMongoConfigurationError when neither uri nor mongoClient provided', async () => {
+  it('throws MongoConfigurationError when neither uri nor mongoClient provided', async () => {
     await expect(
       // @ts-expect-error — intentionally invalid options
       establishConnection({ databaseName: 'test' }),
-    ).rejects.toBeInstanceOf(ZodMongoConfigurationError);
+    ).rejects.toBeInstanceOf(MongoConfigurationError);
   });
 });
 

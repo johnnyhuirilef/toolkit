@@ -2,7 +2,7 @@ import type { ModuleMetadata, InjectionToken } from '@nestjs/common';
 import type { Result } from '@wenu/mongo';
 import type { MongoClient, MongoClientOptions } from 'mongodb';
 
-type ZodMongoOptionsBase = {
+type MongoOptionsBase = {
   readonly connectionName?: string | symbol;
   readonly databaseName: string;
   readonly syncIndexes?: boolean;
@@ -11,25 +11,23 @@ type ZodMongoOptionsBase = {
   readonly forceShutdown?: boolean;
 };
 
-type ZodMongoOptionsWithUri = ZodMongoOptionsBase & {
+type MongoOptionsWithUri = MongoOptionsBase & {
   readonly uri: string;
   readonly clientOptions?: MongoClientOptions;
   readonly mongoClient?: never;
 };
 
-type ZodMongoOptionsWithClient = ZodMongoOptionsBase & {
+type MongoOptionsWithClient = MongoOptionsBase & {
   readonly mongoClient: MongoClient;
   readonly uri?: never;
   readonly clientOptions?: never;
 };
 
-export type ZodMongoOptions = ZodMongoOptionsWithUri | ZodMongoOptionsWithClient;
+export type MongoOptions = MongoOptionsWithUri | MongoOptionsWithClient;
 
-export type ZodMongoAsyncOptions = Pick<ModuleMetadata, 'imports'> & {
+export type MongoAsyncOptions = Pick<ModuleMetadata, 'imports'> & {
   readonly connectionName?: string | symbol;
-  readonly useFactory: (
-    ...arguments_: readonly unknown[]
-  ) => Promise<ZodMongoOptions> | ZodMongoOptions;
+  readonly useFactory: (...arguments_: readonly unknown[]) => Promise<MongoOptions> | MongoOptions;
   readonly inject?: readonly InjectionToken[];
 };
 

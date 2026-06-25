@@ -7,7 +7,7 @@ import * as z from 'zod';
 
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
 import { InjectRepository } from '../../src/zod-mongo.decorators';
-import { ZodMongoModule } from '../../src/zod-mongo.module';
+import { MongoModule } from '../../src/zod-mongo.module';
 
 const UserCollection = defineCollection({
   name: 'users_di',
@@ -34,8 +34,8 @@ describe('NestJS DI wiring — @InjectRepository via TestingModule', () => {
   it('resolves @InjectRepository in a real service via NestJS DI', async () => {
     const moduleReference = await Test.createTestingModule({
       imports: [
-        ZodMongoModule.forRoot({ uri: getUri(), databaseName: 'test_di', clientOptions }),
-        ZodMongoModule.forFeature([UserCollection]),
+        MongoModule.forRoot({ uri: getUri(), databaseName: 'test_di', clientOptions }),
+        MongoModule.forFeature([UserCollection]),
       ],
       providers: [UserService],
     }).compile();
