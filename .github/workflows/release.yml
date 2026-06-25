@@ -112,7 +112,7 @@ jobs:
           echo "Build output found at $dist_path"
 
           echo "Running publint..."
-          cd "${{ matrix.path }}" && pnpm dlx publint dist
+          cd "${{ matrix.path }}" && pnpm dlx publint .
 
       - name: Publish to NPM
         uses: nick-fields/retry@v3
