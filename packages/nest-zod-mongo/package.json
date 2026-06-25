@@ -75,6 +75,7 @@
     "jsonc-eslint-parser": "^2.0.0",
     "reflect-metadata": "^0.2.2",
     "tsdown": "^0.22.3",
+    "tsx": "^4.0.0",
     "vitest": "^3.0.0"
   },
   "dependencies": {

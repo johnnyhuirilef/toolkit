@@ -68,6 +68,7 @@
     "@testcontainers/mongodb": "^11.10.0",
     "jsonc-eslint-parser": "^2.0.0",
     "tsdown": "^0.22.3",
+    "tsx": "^4.0.0",
     "vitest": "^3.0.0"
   },
   "dependencies": {
