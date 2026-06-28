@@ -9,4 +9,4 @@ export { index, syncIndexes, generateIndexMigration } from './indexes.js';
 export type { CollectionDef, Doc } from './collection.js';
 export { defineCollection } from './collection.js';
 export type { Repository } from './repository.js';
-export { createRepository } from './repository.js';
+export { createRepository } from './mongo-repository.js';
