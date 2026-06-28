@@ -1,5 +1,5 @@
 import type { Db, Document, Filter, OptionalUnlessRequiredId, UpdateFilter } from 'mongodb';
-import { isNullish, shake, tryit } from 'radashi';
+import { isError, isNullish, shake, tryit } from 'radashi';
 
 import type { CollectionDef, Doc } from './collection.js';
 import { findOneAndModify } from './compat/driver.js';
@@ -14,6 +14,8 @@ export type Repository<Schema extends ZodCompat, Id extends IdStrategy> = {
   findById(id: InferIdType<Id>): Promise<Result<Doc<Schema, Id> | null>>;
   findOne(filter: Filter<Doc<Schema, Id>>): Promise<Result<Doc<Schema, Id> | null>>;
   find(filter?: Filter<Doc<Schema, Id>>): Promise<Result<Doc<Schema, Id>[]>>;
+  count(filter?: Filter<Doc<Schema, Id>>): Promise<Result<number>>;
+  exists(filter: Filter<Doc<Schema, Id>>): Promise<Result<boolean>>;
   insert(data: Infer<Schema>): Promise<Result<Doc<Schema, Id>>>;
   insertMany(data: Infer<Schema>[]): Promise<Result<Doc<Schema, Id>[]>>;
   updateById(
@@ -53,8 +55,8 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
   const idStrategy = collection.id;
 
   const parseSchema = (data: unknown): Result<Infer<Schema>> => {
-    const [error, value] = tryit(() => schema.parse(data) as Infer<Schema>)();
-    return isNullish(error) ? ok(value as Infer<Schema>) : err(toDbError(error));
+    const result = tryit(() => schema.parse(data) as Infer<Schema>)();
+    return isError(result) ? err(toDbError(result)) : ok(result as Infer<Schema>);
   };
 
   const parsePartialSchema = (data: unknown): Result<Partial<Infer<Schema>>> => {
@@ -63,8 +65,8 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
       'partial' in schema && typeof (schema as { partial?: unknown }).partial === 'function'
         ? (schema as { partial: () => ZodCompat }).partial()
         : schema;
-    const [error, value] = tryit(() => partial.parse(data) as Partial<Infer<Schema>>)();
-    return isNullish(error) ? ok(value as Partial<Infer<Schema>>) : err(toDbError(error));
+    const result = tryit(() => partial.parse(data) as Partial<Infer<Schema>>)();
+    return isError(result) ? err(toDbError(result)) : ok(result as Partial<Infer<Schema>>);
   };
 
   const resolveId = (
@@ -110,6 +112,13 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
         const cursor = coll.find(filter ?? {});
         return cursor.toArray().then((records) => records as TDoc[]);
       }),
+
+    count: (filter) => runSafe(() => coll.countDocuments(filter ?? {})),
+
+    exists: async (filter) => {
+      const result = await runSafe(() => coll.countDocuments(filter, { limit: 1 }));
+      return result.ok ? { ok: true, value: result.value > 0 } : result;
+    },
 
     insert: async (data) => {
       const parsed = parseSchema(data);

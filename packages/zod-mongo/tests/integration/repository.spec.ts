@@ -362,3 +362,75 @@ describe('compound _id strategy (ZodCompat object)', () => {
     expect(result.error.kind).toBe('validation');
   });
 });
+
+describe('count and exists', () => {
+  let container: StartedMongoDBContainer;
+  let client: MongoClient;
+  let database: Db;
+
+  const CountCollection = defineCollection({
+    name: 'counters',
+    schema: z.object({ tag: z.string() }),
+    id: 'uuid' as const,
+  });
+
+  beforeAll(async () => {
+    container = await new MongoDBContainer('mongo:7').start();
+    client = new MongoClient(container.getConnectionString(), { directConnection: true });
+    await client.connect();
+    database = client.db('test-count');
+  }, 90_000);
+
+  afterAll(async () => {
+    await client.close();
+    await container.stop();
+  });
+
+  const setup = () => ({ repo: createRepository(CountCollection, database) });
+
+  it('count returns 0 for empty collection', async () => {
+    const { repo } = setup();
+    const result = await repo.count();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toBe(0);
+  });
+
+  it('count returns total when no filter given', async () => {
+    const { repo } = setup();
+    await repo.insert({ tag: 'a' });
+    await repo.insert({ tag: 'b' });
+    const result = await repo.count();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toBeGreaterThanOrEqual(2);
+  });
+
+  it('count with filter returns matching documents only', async () => {
+    const { repo } = setup();
+    await repo.insert({ tag: 'target' });
+    await repo.insert({ tag: 'other' });
+    const result = await repo.count({ tag: 'target' } as Parameters<typeof repo.count>[0]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toBeGreaterThanOrEqual(1);
+  });
+
+  it('exists returns false for empty collection', async () => {
+    const emptyDb = client.db('test-exists-empty');
+    const repo = createRepository(CountCollection, emptyDb);
+    const result = await repo.exists({ tag: 'ghost' } as Parameters<typeof repo.exists>[0]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toBe(false);
+  });
+
+  it('exists returns true when at least one document matches', async () => {
+    const { repo } = setup();
+    await repo.insert({ tag: 'present' });
+    const result = await repo.exists({ tag: 'present' } as Parameters<typeof repo.exists>[0]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toBe(true);
+  });
+});
