@@ -1,11 +1,12 @@
 import type {
   Collection,
   Filter,
-  UpdateFilter,
-  FindOneAndUpdateOptions,
   FindOneAndDeleteOptions,
+  FindOneAndUpdateOptions,
   ModifyResult,
+  UpdateFilter,
   WithId,
+  WithoutId,
 } from 'mongodb';
 
 // ponytail: version detection at load time — avoids per-call overhead
@@ -18,7 +19,8 @@ const MONGO_MAJOR = (() => {
 
 type FindOneAndModifyOp<T> =
   | { kind: 'update'; update: UpdateFilter<T>; options?: FindOneAndUpdateOptions }
-  | { kind: 'delete'; options?: FindOneAndDeleteOptions };
+  | { kind: 'delete'; options?: FindOneAndDeleteOptions }
+  | { kind: 'upsert'; replacement: WithoutId<T> };
 
 // ponytail: v5 returns ModifyResult<T> ({ value: WithId<T> | null, ... }); v6/7 returns WithId<T> | null directly.
 // ModifyResult<T> and WithId<T> don't overlap, so we go through unknown for the v5 branch only.
@@ -38,6 +40,13 @@ export const findOneAndModify = async <T extends object>(
   const isV5 = MONGO_MAJOR <= 5;
   if (op.kind === 'delete') {
     const raw = await collection.findOneAndDelete(filter, op.options ?? {});
+    return extractResult<T>(raw, isV5);
+  }
+  if (op.kind === 'upsert') {
+    const raw = await collection.findOneAndReplace(filter, op.replacement, {
+      upsert: true,
+      returnDocument: 'after',
+    });
     return extractResult<T>(raw, isV5);
   }
   const raw = await collection.findOneAndUpdate(filter, op.update, {

@@ -1,6 +1,11 @@
 # Examples are not packages to be published or tested in CI
 packages/*/examples/**
 
+# Documentation and agent instructions — not source code
+**/README.md
+**/CLAUDE.md
+**/*.agent.md
+
 # Agent/tooling directories — not Nx projects
 .agents/**
 .claude/**

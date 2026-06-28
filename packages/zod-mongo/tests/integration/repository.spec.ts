@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { MongoDBContainer, type StartedMongoDBContainer } from '@testcontainers/mongodb';
 import type { Db } from 'mongodb';
 import { MongoClient, ObjectId } from 'mongodb';
@@ -431,5 +433,208 @@ describe('count and exists', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value).toBe(true);
+  });
+});
+
+describe('upsertById and upsertOne', () => {
+  let container: StartedMongoDBContainer;
+  let client: MongoClient;
+
+  const UpsertCollection = defineCollection({
+    name: 'upserts',
+    schema: z.object({ slug: z.string(), title: z.string() }),
+    id: 'uuid' as const,
+  });
+
+  beforeAll(async () => {
+    container = await new MongoDBContainer('mongo:7').start();
+    client = new MongoClient(container.getConnectionString(), { directConnection: true });
+    await client.connect();
+  }, 90_000);
+
+  afterAll(async () => {
+    await client.close();
+    await container.stop();
+  });
+
+  const setup = (databaseName: string) => ({
+    repo: createRepository(UpsertCollection, client.db(databaseName)),
+  });
+
+  it('upsertById inserts document at given id when it does not exist', async () => {
+    const { repo } = setup('test-upsert-true-insert');
+    const id = randomUUID();
+    const result = await repo.upsertById(id, { slug: 'new', title: 'New' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value._id).toBe(id);
+    expect(result.value.slug).toBe('new');
+  });
+
+  it('upsertById replaces document at given id when it already exists', async () => {
+    const { repo } = setup('test-upsert-replace-existing');
+    const inserted = await repo.insert({ slug: 'seed', title: 'Seed' });
+    expect(inserted.ok).toBe(true);
+    if (!inserted.ok) return;
+
+    const result = await repo.upsertById(inserted.value._id, { slug: 'seed', title: 'Updated' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.title).toBe('Updated');
+    expect(result.value._id).toBe(inserted.value._id);
+  });
+
+  it('upsertOne inserts when no document matches filter and assigns id per strategy', async () => {
+    const { repo } = setup('test-upsertone-insert');
+    const result = await repo.upsertOne({ slug: 'ghost' }, { slug: 'ghost', title: 'Ghost' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.slug).toBe('ghost');
+    expect(result.value.title).toBe('Ghost');
+    // uuid strategy — _id must be a valid UUID string, not a MongoDB ObjectId
+    expect(typeof result.value._id).toBe('string');
+    expect(result.value._id).toMatch(
+      /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i,
+    );
+  });
+
+  it('upsertOne replaces when document matches filter', async () => {
+    const { repo } = setup('test-upsertone-replace');
+    await repo.insert({ slug: 'existing', title: 'Before' });
+
+    const result = await repo.upsertOne({ slug: 'existing' }, { slug: 'existing', title: 'After' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.title).toBe('After');
+
+    const count = await repo.count();
+    expect(count.ok).toBe(true);
+    if (!count.ok) return;
+    expect(count.value).toBe(1);
+  });
+
+  it('upsertById returns validation error for invalid data', async () => {
+    const { repo } = setup('test-upsert-validation');
+    const inserted = await repo.insert({ slug: 'valid', title: 'Valid' });
+    expect(inserted.ok).toBe(true);
+    if (!inserted.ok) return;
+
+    const result = await repo.upsertById(inserted.value._id, {
+      slug: 123 as never,
+      title: 'Bad',
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+  });
+});
+
+describe('composite _id via custom ZodCompat schema', () => {
+  let container: StartedMongoDBContainer;
+  let client: MongoClient;
+
+  const CompositeId = z.object({ tenantId: z.string(), slug: z.string() });
+
+  const ArticleCollection = defineCollection({
+    name: 'articles',
+    schema: z.object({ _id: CompositeId, title: z.string() }),
+    id: CompositeId,
+  });
+
+  beforeAll(async () => {
+    container = await new MongoDBContainer('mongo:7').start();
+    client = new MongoClient(container.getConnectionString(), { directConnection: true });
+    await client.connect();
+  }, 90_000);
+
+  afterAll(async () => {
+    await client.close();
+    await container.stop();
+  });
+
+  const setup = (databaseName: string) => ({
+    repo: createRepository(ArticleCollection, client.db(databaseName)),
+  });
+
+  it('inserts a document with a composite _id', async () => {
+    const { repo } = setup('test-composite-insert');
+    const result = await repo.insert({ _id: { tenantId: 'acme', slug: 'hello' }, title: 'Hello' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value._id).toEqual({ tenantId: 'acme', slug: 'hello' });
+    expect(result.value.title).toBe('Hello');
+  });
+
+  it('finds a document by composite _id', async () => {
+    const { repo } = setup('test-composite-find');
+    await repo.insert({ _id: { tenantId: 'acme', slug: 'hello' }, title: 'Hello' });
+
+    const found = await repo.findById({ tenantId: 'acme', slug: 'hello' });
+    expect(found.ok).toBe(true);
+    if (!found.ok) return;
+    expect(found.value?.title).toBe('Hello');
+  });
+
+  it('rejects invalid composite _id', async () => {
+    const { repo } = setup('test-composite-validation');
+    const result = await repo.insert({
+      _id: { tenantId: 'acme', slug: 123 as never },
+      title: 'Bad',
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+  });
+
+  it('updateById patches a document by composite _id', async () => {
+    const { repo } = setup('test-composite-update');
+    await repo.insert({ _id: { tenantId: 'acme', slug: 'update-me' }, title: 'Before' });
+
+    const result = await repo.updateById(
+      { tenantId: 'acme', slug: 'update-me' },
+      { title: 'After' },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value?.title).toBe('After');
+    expect(result.value?._id).toEqual({ tenantId: 'acme', slug: 'update-me' });
+  });
+
+  it('deleteById removes a document by composite _id', async () => {
+    const { repo } = setup('test-composite-delete');
+    await repo.insert({ _id: { tenantId: 'acme', slug: 'delete-me' }, title: 'Gone' });
+
+    const result = await repo.deleteById({ tenantId: 'acme', slug: 'delete-me' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value?._id).toEqual({ tenantId: 'acme', slug: 'delete-me' });
+
+    const gone = await repo.findById({ tenantId: 'acme', slug: 'delete-me' });
+    expect(gone.ok).toBe(true);
+    if (!gone.ok) return;
+    expect(gone.value).toBeNull();
+  });
+
+  it('upsertById inserts with composite _id on insert-path', async () => {
+    const { repo } = setup('test-composite-upsert-insert');
+    const id = { tenantId: 'acme', slug: 'new-article' };
+
+    const result = await repo.upsertById(id, { _id: id, title: 'New' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value._id).toEqual(id);
+    expect(result.value.title).toBe('New');
+  });
+
+  it('upsertOne inserts with composite _id from data on insert-path', async () => {
+    const { repo } = setup('test-composite-upsertone-insert');
+    const id: z.infer<typeof CompositeId> = { tenantId: 'acme', slug: 'auto-article' };
+
+    // filter by the full _id object — exact match required for composite _id
+    const result = await repo.upsertOne({ _id: id }, { _id: id, title: 'Auto' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value._id).toEqual(id);
+    expect(result.value.title).toBe('Auto');
   });
 });
