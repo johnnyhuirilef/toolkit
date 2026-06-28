@@ -1,2 +1,2 @@
-export type ZodCompat = { readonly _output: unknown; parse(data: unknown): unknown };
+export type ZodCompat<T = unknown> = { readonly _output: T; parse(data: unknown): T };
 export type Infer<T extends ZodCompat> = T['_output'];
