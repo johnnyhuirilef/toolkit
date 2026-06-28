@@ -77,16 +77,23 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
     }
   };
 
-  const buildDoc = (validated: Infer<Schema>): TDoc => {
+  const buildDoc = (validated: Infer<Schema>): Result<TDoc> => {
     if (idStrategy === 'objectid' || idStrategy === 'uuid') {
       const id = generateId(idStrategy);
       // ponytail: Infer<Schema> is structurally unknown at this level; spreading requires a cast to object.
       // The result is Doc<Schema, Id> by construction (_id + validated fields).
-      return { ...(validated as object), _id: id } as TDoc;
+      return ok({ ...(validated as object), _id: id } as TDoc);
     }
-    // ponytail: for 'string'/'custom' strategies the caller embeds _id in data —
-    // validated already satisfies TDoc structurally; single cast via object is sufficient.
-    return { ...(validated as object) } as TDoc;
+    if (typeof idStrategy === 'object' && 'parse' in idStrategy) {
+      try {
+        const id = idStrategy.parse((validated as Record<string, unknown>)['_id']);
+        return ok({ ...(validated as object), _id: id } as TDoc);
+      } catch (error) {
+        return err(toDbError(error));
+      }
+    }
+    // ponytail: 'string' strategy — caller embeds _id in data, no validation needed.
+    return ok({ ...(validated as object) } as TDoc);
   };
 
   return {
@@ -113,10 +120,11 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
     insert: async (data) => {
       const parsed = parseSchema(data);
       if (!parsed.ok) return parsed as Result<TDoc>;
+      const record = buildDoc(parsed.value);
+      if (!record.ok) return record;
       return runSafe(async () => {
-        const record = buildDoc(parsed.value);
-        await coll.insertOne(record as OptionalUnlessRequiredId<TDoc>);
-        return record;
+        await coll.insertOne(record.value as OptionalUnlessRequiredId<TDoc>);
+        return record.value;
       });
     },
 
@@ -127,8 +135,11 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
         if (!result.ok) return result as Result<TDoc[]>;
         parsedItems.push(result.value);
       }
+      const built = parsedItems.map((item) => buildDoc(item));
+      const failed = built.find((r) => !r.ok);
+      if (failed) return failed as Result<TDoc[]>;
+      const records = (built as { ok: true; value: TDoc }[]).map((r) => r.value);
       return runSafe(async () => {
-        const records = parsedItems.map((item) => buildDoc(item));
         await coll.insertMany(records as OptionalUnlessRequiredId<TDoc>[]);
         return records;
       });

@@ -352,4 +352,13 @@ describe('compound _id strategy (ZodCompat object)', () => {
     if (!found.ok) return;
     expect(found.value).toBeNull();
   });
+
+  it('should return a validation error when _id fails the id schema', async () => {
+    const { repo } = setup();
+    // _id missing required fields — fails z.object({ tenantId, userId })
+    const result = await repo.insert({ _id: { tenantId: 'only' } as never, role: 'admin' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+  });
 });
