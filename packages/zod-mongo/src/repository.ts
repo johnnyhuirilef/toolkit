@@ -1,5 +1,5 @@
 import type { Db, Document, Filter, OptionalUnlessRequiredId, UpdateFilter } from 'mongodb';
-import { isError, isNullish, shake, tryit } from 'radashi';
+import { isNullish, shake, tryit } from 'radashi';
 
 import type { CollectionDef, Doc } from './collection.js';
 import { findOneAndModify } from './compat/driver.js';
@@ -55,8 +55,11 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
   const idStrategy = collection.id;
 
   const parseSchema = (data: unknown): Result<Infer<Schema>> => {
-    const result = tryit(() => schema.parse(data) as Infer<Schema>)();
-    return isError(result) ? err(toDbError(result)) : ok(result as Infer<Schema>);
+    try {
+      return ok(schema.parse(data) as Infer<Schema>);
+    } catch (error) {
+      return err(toDbError(error));
+    }
   };
 
   const parsePartialSchema = (data: unknown): Result<Partial<Infer<Schema>>> => {
@@ -65,8 +68,11 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
       'partial' in schema && typeof (schema as { partial?: unknown }).partial === 'function'
         ? (schema as { partial: () => ZodCompat }).partial()
         : schema;
-    const result = tryit(() => partial.parse(data) as Partial<Infer<Schema>>)();
-    return isError(result) ? err(toDbError(result)) : ok(result as Partial<Infer<Schema>>);
+    try {
+      return ok(partial.parse(data) as Partial<Infer<Schema>>);
+    } catch (error) {
+      return err(toDbError(error));
+    }
   };
 
   const resolveId = (
