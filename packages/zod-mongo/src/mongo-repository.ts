@@ -71,6 +71,14 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
     return ok((resolved.value.inject ? { ...base, _id: resolved.value.id } : { ...base }) as TDoc);
   };
 
+  const buildReplacement = (validated: Infer<Schema>): WithoutId<TDoc> => {
+    const resolved = resolveId(validated);
+    const base = validated as object;
+    return (
+      resolved.ok && resolved.value.inject ? { ...base, _id: resolved.value.id } : base
+    ) as WithoutId<TDoc>;
+  };
+
   return {
     findById: (id) =>
       runSafe(() =>
@@ -145,19 +153,16 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
     upsertOne: async (filter, data) => {
       const parsed = parseSchema(data);
       if (!parsed.ok) return parsed as Result<TDoc>;
-      const resolved = resolveId(parsed.value);
-      if (!resolved.ok) return resolved as Result<TDoc>;
-      const replacement = (
-        resolved.value.inject
-          ? { ...(parsed.value as object), _id: resolved.value.id }
-          : parsed.value
-      ) as WithoutId<TDoc>;
-      return runSafe(() =>
-        findOneAndModify(coll, filter, { kind: 'upsert', replacement }).then((found) => {
-          if (isNullish(found)) throw new NotFoundError('upsert returned null after write');
-          return found as TDoc;
-        }),
-      );
+      return runSafe(async () => {
+        const existing = await coll.findOne(filter);
+        // ponytail: preserve existing _id on replace-path; generate per strategy only on insert-path
+        const replacement = isNullish(existing)
+          ? buildReplacement(parsed.value)
+          : ({ ...(parsed.value as object), _id: existing._id } as WithoutId<TDoc>);
+        const found = await findOneAndModify(coll, filter, { kind: 'upsert', replacement });
+        if (isNullish(found)) throw new NotFoundError('upsert returned null after write');
+        return found as TDoc;
+      });
     },
 
     updateById: async (id, patch) => {
