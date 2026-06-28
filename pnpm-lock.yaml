@@ -347,7 +347,7 @@ importers:
   packages/zod-mongo:
     dependencies:
       mongodb:
-        specifier: '>=6.0.0'
+        specifier: '>=5.0.0'
         version: 6.21.0(socks@2.8.7)
       radashi:
         specifier: ^12.1.0
