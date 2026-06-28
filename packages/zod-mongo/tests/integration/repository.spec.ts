@@ -484,13 +484,18 @@ describe('upsertById and upsertOne', () => {
     expect(result.value._id).toBe(inserted.value._id);
   });
 
-  it('upsertOne inserts when no document matches filter', async () => {
+  it('upsertOne inserts when no document matches filter and assigns id per strategy', async () => {
     const { repo } = setup('test-upsertone-insert');
     const result = await repo.upsertOne({ slug: 'ghost' }, { slug: 'ghost', title: 'Ghost' });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.slug).toBe('ghost');
     expect(result.value.title).toBe('Ghost');
+    // uuid strategy — _id must be a valid UUID string, not a MongoDB ObjectId
+    expect(typeof result.value._id).toBe('string');
+    expect(result.value._id).toMatch(
+      /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i,
+    );
   });
 
   it('upsertOne replaces when document matches filter', async () => {
