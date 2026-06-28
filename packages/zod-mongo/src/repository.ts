@@ -11,7 +11,7 @@ import { isNullish, shake, tryit } from 'radashi';
 import type { CollectionDef, Doc } from './collection.js';
 import { findOneAndModify } from './compat/driver.js';
 import type { Infer, ZodCompat } from './compat/zod.js';
-import { toDbError } from './errors.js';
+import { NotFoundError, toDbError } from './errors.js';
 import { generateId } from './id.js';
 import type { IdStrategy, InferIdType } from './id.js';
 import { err, ok } from './result.js';
@@ -166,7 +166,7 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
           kind: 'upsert',
           replacement,
         }).then((found) => {
-          if (isNullish(found)) throw new Error('upsert returned null after write');
+          if (isNullish(found)) throw new NotFoundError('upsert returned null after write');
           return found as TDoc;
         }),
       );
@@ -184,7 +184,7 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
       ) as WithoutId<TDoc>;
       return runSafe(() =>
         findOneAndModify(coll, filter, { kind: 'upsert', replacement }).then((found) => {
-          if (isNullish(found)) throw new Error('upsert returned null after write');
+          if (isNullish(found)) throw new NotFoundError('upsert returned null after write');
           return found as TDoc;
         }),
       );

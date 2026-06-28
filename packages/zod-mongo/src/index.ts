@@ -1,5 +1,5 @@
 export type { DbError, DbErrorKind } from './errors.js';
-export { toDbError } from './errors.js';
+export { NotFoundError, toDbError } from './errors.js';
 export type { Err, Ok, Result } from './result.js';
 export { err, isErr, isOk, ok } from './result.js';
 export type { Infer, ZodCompat } from './compat/zod.js';
