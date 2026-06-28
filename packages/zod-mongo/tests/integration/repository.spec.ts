@@ -528,3 +528,61 @@ describe('upsertById and upsertOne', () => {
     expect(result.error.kind).toBe('validation');
   });
 });
+
+describe('composite _id via custom ZodCompat schema', () => {
+  let container: StartedMongoDBContainer;
+  let client: MongoClient;
+
+  const CompositeId = z.object({ tenantId: z.string(), slug: z.string() });
+
+  const ArticleCollection = defineCollection({
+    name: 'articles',
+    schema: z.object({ _id: CompositeId, title: z.string() }),
+    id: CompositeId,
+  });
+
+  beforeAll(async () => {
+    container = await new MongoDBContainer('mongo:7').start();
+    client = new MongoClient(container.getConnectionString(), { directConnection: true });
+    await client.connect();
+  }, 90_000);
+
+  afterAll(async () => {
+    await client.close();
+    await container.stop();
+  });
+
+  const setup = (databaseName: string) => ({
+    repo: createRepository(ArticleCollection, client.db(databaseName)),
+  });
+
+  it('inserts a document with a composite _id', async () => {
+    const { repo } = setup('test-composite-insert');
+    const result = await repo.insert({ _id: { tenantId: 'acme', slug: 'hello' }, title: 'Hello' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value._id).toEqual({ tenantId: 'acme', slug: 'hello' });
+    expect(result.value.title).toBe('Hello');
+  });
+
+  it('finds a document by composite _id', async () => {
+    const { repo } = setup('test-composite-find');
+    await repo.insert({ _id: { tenantId: 'acme', slug: 'hello' }, title: 'Hello' });
+
+    const found = await repo.findById({ tenantId: 'acme', slug: 'hello' });
+    expect(found.ok).toBe(true);
+    if (!found.ok) return;
+    expect(found.value?.title).toBe('Hello');
+  });
+
+  it('rejects invalid composite _id', async () => {
+    const { repo } = setup('test-composite-validation');
+    const result = await repo.insert({
+      _id: { tenantId: 'acme', slug: 123 as never },
+      title: 'Bad',
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+  });
+});

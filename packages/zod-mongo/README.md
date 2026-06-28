@@ -433,7 +433,7 @@ if (result.ok) {
 await countries.upsertOne({ _id: 'AR' }, { _id: 'AR', name: 'Argentina', population: 46_500_000 });
 ```
 
-### Custom Zod schema
+### Custom Zod schema — branded type
 
 Pass any Zod schema as the `id` value. The `_id` type is inferred from the schema output. Include
 `_id` in the data — the library validates it through the schema.
@@ -455,6 +455,43 @@ const id = 'order_123' as z.infer<typeof OrderId>;
 const result = await orders.insert({ _id: id, total: 99.9, status: 'pending' });
 if (result.ok) {
   result.value._id; // string & Brand<'OrderId'>
+}
+```
+
+### Custom Zod schema — composite (multi-field) `_id`
+
+Use a Zod object schema as `id` to get a composite `_id`. MongoDB treats the whole object as the
+document identifier — uniqueness is enforced across the combination of all fields.
+
+```typescript
+import * as z from 'zod';
+
+const TenantSlugId = z.object({ tenantId: z.string(), slug: z.string() });
+
+const ArticleCollection = defineCollection({
+  name: 'articles',
+  schema: z.object({ _id: TenantSlugId, title: z.string() }),
+  id: TenantSlugId,
+});
+
+const articles = createRepository(ArticleCollection, db);
+
+// _id is validated and typed as { tenantId: string; slug: string }
+const result = await articles.insert({
+  _id: { tenantId: 'acme', slug: 'hello-world' },
+  title: 'Hello World',
+});
+if (result.ok) {
+  result.value._id; // { tenantId: string; slug: string }
+}
+
+// findById takes the full composite object
+const found = await articles.findById({ tenantId: 'acme', slug: 'hello-world' });
+
+// Invalid _id shape → kind: 'validation', no DB call made
+const bad = await articles.insert({ _id: { tenantId: 'acme', slug: 123 as never }, title: 'Bad' });
+if (!bad.ok) {
+  bad.error.kind; // 'validation'
 }
 ```
 
