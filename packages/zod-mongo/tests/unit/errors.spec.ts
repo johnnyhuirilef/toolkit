@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 
-import { toDbError } from '../../src/errors.js';
+import { NotFoundError, toDbError } from '../../src/errors.js';
 
 const makeZodError = (): unknown => {
   try {
@@ -54,6 +54,26 @@ describe('toDbError()', () => {
       const error = makeDuplicateKeyError();
       const result = toDbError(error);
       expect(result.message).toBe(error.message);
+    });
+  });
+
+  describe('NotFoundError → not-found', () => {
+    it('maps NotFoundError to kind: not-found', () => {
+      const error = new NotFoundError('document missing');
+      const result = toDbError(error);
+      expect(result.kind).toBe('not-found');
+    });
+
+    it('carries the original error as cause', () => {
+      const error = new NotFoundError('document missing');
+      const result = toDbError(error);
+      expect(result.cause).toBe(error);
+    });
+
+    it('preserves the message', () => {
+      const error = new NotFoundError('document missing');
+      const result = toDbError(error);
+      expect(result.message).toBe('document missing');
     });
   });
 

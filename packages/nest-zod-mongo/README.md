@@ -105,6 +105,21 @@ export class UserService {
   async create(name: string, email: string) {
     return this.users.insert({ name, email, createdAt: new Date() });
   }
+
+  async exists(email: string) {
+    const result = await this.users.exists({ email });
+    return result.ok ? result.value : false;
+  }
+
+  async count() {
+    const result = await this.users.count();
+    return result.ok ? result.value : 0;
+  }
+
+  async upsert(id: string, name: string, email: string) {
+    // Insert if not found, replace if found — _id always preserved
+    return this.users.upsertById(id, { name, email, createdAt: new Date() });
+  }
 }
 ```
 
@@ -346,7 +361,7 @@ For convenience, the following are re-exported so you don't need to install `@we
 for common types:
 
 ```typescript
-import { defineCollection, ok, err, isOk, isErr } from '@wenu/nest-mongo';
+import { defineCollection, ok, err, isOk, isErr, NotFoundError } from '@wenu/nest-mongo';
 import type { Repository, CollectionDef, Doc, Result, DbError } from '@wenu/nest-mongo';
 ```
 
