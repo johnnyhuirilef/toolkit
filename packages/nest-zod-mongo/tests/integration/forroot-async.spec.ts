@@ -2,7 +2,8 @@ import type { Db, MongoClient } from 'mongodb';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
-import { establishConnection } from '../../src/zod-mongo.providers';
+import type { MongoAsyncOptions } from '../../src/zod-mongo.interfaces';
+import { establishConnection, createAsyncConnectionProviders } from '../../src/zod-mongo.providers';
 
 let database: Db;
 let client: MongoClient;
@@ -10,7 +11,6 @@ let client: MongoClient;
 describe('establishConnection via useFactory (forRootAsync integration)', () => {
   beforeAll(async () => {
     await startContainer();
-    // Simulate forRootAsync: useFactory resolves options, then establishConnection is called
     const useFactory = vi.fn(() => ({ uri: getUri(), databaseName: 'test_async', clientOptions }));
     const options = useFactory();
     const result = await establishConnection(options);
@@ -36,5 +36,52 @@ describe('establishConnection via useFactory (forRootAsync integration)', () => 
     expect(result['ok']).toBe(1);
     expect(factory).toHaveBeenCalledTimes(1);
     await wrapper.client.close();
+  });
+});
+
+describe('createAsyncConnectionProviders with cross-provider inject', () => {
+  beforeAll(startContainer, 90_000);
+  afterAll(stopContainer);
+
+  it('useFactory receives injected dependencies and resolves options', async () => {
+    // Simulate a ConfigService-like provider injected via `inject`
+    const CONFIG_SERVICE = 'CONFIG_SERVICE';
+    const configService = { get: (key: string) => (key === 'MONGO_URI' ? getUri() : 'test_cross') };
+
+    const asyncOptions: MongoAsyncOptions = {
+      inject: [CONFIG_SERVICE],
+      useFactory: (config: typeof configService) => ({
+        uri: config.get('MONGO_URI'),
+        databaseName: config.get('MONGO_DB'),
+        clientOptions,
+      }),
+    };
+
+    const providers = createAsyncConnectionProviders(asyncOptions);
+    // The establish provider is always the first one
+    const establishProvider = providers[0] as {
+      useFactory: (
+        ...arguments_: unknown[]
+      ) => Promise<{ db: Db; wrapper: { client: MongoClient } }>;
+    };
+
+    const { db, wrapper } = await establishProvider.useFactory(configService);
+    const result = await db.command({ ping: 1 });
+    expect(result['ok']).toBe(1);
+    await wrapper.client.close();
+  });
+
+  it('useFactory inject array is forwarded to the establish provider', () => {
+    const TOKEN_A = 'TOKEN_A';
+    const TOKEN_B = Symbol('TOKEN_B');
+
+    const asyncOptions: MongoAsyncOptions = {
+      inject: [TOKEN_A, TOKEN_B],
+      useFactory: () => ({ uri: 'mongodb://localhost', databaseName: 'x' }),
+    };
+
+    const providers = createAsyncConnectionProviders(asyncOptions);
+    const establishProvider = providers[0] as { inject: unknown[] };
+    expect(establishProvider.inject).toEqual([TOKEN_A, TOKEN_B]);
   });
 });
