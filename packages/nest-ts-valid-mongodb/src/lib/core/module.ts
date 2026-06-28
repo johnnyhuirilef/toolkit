@@ -152,29 +152,24 @@ export class TsValidMongoModule implements OnApplicationShutdown {
   static forRootAsync(options: TsValidMongoModuleAsyncOptions): DynamicModule {
     const connectionToken = options.connectionName ?? DEFAULT_CONNECTION_NAME;
 
-    const connectionProvider: Provider = {
-      provide: connectionToken,
-      useFactory: async (...arguments_: unknown[]) => {
-        const config = await options.useFactory(...arguments_);
-        return await this.createConnectionWrapper(config);
-      },
+    const optionsProvider: Provider = {
+      provide: TS_VALID_MONGO_MODULE_OPTIONS,
+      useFactory: options.useFactory,
       inject: options.inject ?? [],
     };
 
-    const optionsProvider: Provider = {
-      provide: TS_VALID_MONGO_MODULE_OPTIONS,
-      useFactory: async (...arguments_: unknown[]) => {
-        return await options.useFactory(...arguments_);
-      },
-      inject: options.inject ?? [],
+    const connectionProvider: Provider = {
+      provide: connectionToken,
+      useFactory: (config: TsValidMongoConnectionOptions) => this.createConnectionWrapper(config),
+      inject: [TS_VALID_MONGO_MODULE_OPTIONS],
     };
 
     return {
       module: TsValidMongoModule,
       imports: options.imports ?? [],
       providers: [
-        connectionProvider,
         optionsProvider,
+        connectionProvider,
         {
           provide: TS_VALID_MONGO_CONNECTION_TOKENS,
           useValue: [connectionToken],
@@ -255,15 +250,24 @@ export class TsValidMongoModule implements OnApplicationShutdown {
     };
   }
 
-  /**
-   * Internal helper to create and establish a MongoDB connection.
-   *
-   * @param options - Connection configuration
-   * @returns A wrapped MongoDB client with connection management
-   * @throws {TsValidMongoConfigurationError} When neither uri nor mongoClient is provided
-   * @throws {TsValidMongoConnectionError} When connection establishment fails
-   * @private
-   */
+  /** @throws {TsValidMongoConfigurationError} When neither uri nor mongoClient is provided */
+  private static createDatabaseInstance(options: TsValidMongoConnectionOptions): TsValidMongoDb {
+    const factory = getTsValidMongoDatabaseFactory();
+
+    if (options.uri) {
+      return factory.create(options.uri, options.databaseName, options.clientOptions);
+    }
+
+    if (options.mongoClient) {
+      return factory.createWithClient(options.mongoClient, options.databaseName);
+    }
+
+    throw new TsValidMongoConfigurationError(
+      'TsValidMongoModule requires either "mongoClient" or "uri" to be provided.',
+    );
+  }
+
+  /** @throws {TsValidMongoConnectionError} When connection establishment fails */
   private static async createConnectionWrapper(
     options: TsValidMongoConnectionOptions,
   ): Promise<MongoDatabaseClientWrapper> {
@@ -272,38 +276,16 @@ export class TsValidMongoModule implements OnApplicationShutdown {
       'TsValidMongoModule',
     );
 
-    let databaseInstance: TsValidMongoDb;
-    const TsValidMongoDatabaseClass = getTsValidMongoDatabaseFactory();
-
-    if (options.uri) {
-      databaseInstance = TsValidMongoDatabaseClass.create(
-        options.uri,
-        options.databaseName,
-        options.clientOptions,
-      );
-    } else if (options.mongoClient) {
-      databaseInstance = TsValidMongoDatabaseClass.createWithClient(
-        options.mongoClient,
-        options.databaseName,
-      );
-    } else {
-      throw new TsValidMongoConfigurationError(
-        'TsValidMongoModule requires either "mongoClient" or "uri" to be provided.',
-      );
-    }
+    const databaseInstance = this.createDatabaseInstance(options);
 
     try {
-      // .connect() returns the native MongoClient!
       const nativeClient = await databaseInstance.connect();
       Logger.log(`✅ MongoDB Connected to ${options.databaseName}`, 'TsValidMongoModule');
 
-      // Return the wrapper with the instance and the close method using the native client we just got
       return {
         client: databaseInstance,
         close: async (force?: boolean) => {
-          // Use provided force parameter, fallback to options, then default to false
-          const shouldForce = force ?? options.forceShutdown ?? false;
-          await nativeClient.close(shouldForce);
+          await nativeClient.close(force ?? options.forceShutdown ?? false);
         },
       };
     } catch (error) {

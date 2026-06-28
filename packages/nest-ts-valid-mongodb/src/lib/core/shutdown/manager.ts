@@ -2,47 +2,33 @@ import { Logger } from '@nestjs/common';
 import type { ModuleRef } from '@nestjs/core';
 
 import type { ShutdownConfig } from './utilities';
-import {
-  withRetry,
-  withTimeout,
-  isValidConnectionWrapper,
-  ShutdownTimeoutError,
-} from './utilities';
+import { withRetry, withTimeout, isValidConnectionWrapper } from './utilities';
 import { SHUTDOWN_EVENTS } from '../../constants/shutdown';
 import type { MongoDatabaseClientWrapper } from '../client';
 
 const LOGGER_CONTEXT = 'TsValidMongoModule';
 
-type ShutdownSummary = {
+type ConnectionResult = {
+  readonly token: string;
+  readonly outcome: 'closed' | 'failed';
+  readonly durationMs: number;
+  readonly error?: string;
+};
+
+export type ShutdownSummary = {
+  readonly event: string;
   readonly totalConnections: number;
   readonly successCount: number;
   readonly failureCount: number;
   readonly durationMs: number;
+  readonly connections: readonly ConnectionResult[];
 };
-
-// --- LOGGING HELPERS ---
-
-const logEvent = (event: string, data: Record<string, unknown>) => {
-  Logger.log(
-    JSON.stringify({ event, ...data, timestamp: new Date().toISOString() }, null, 2),
-    LOGGER_CONTEXT,
-  );
-};
-
-const logError = (event: string, data: Record<string, unknown>) => {
-  Logger.error(
-    JSON.stringify({ event, ...data, timestamp: new Date().toISOString() }, null, 2),
-    LOGGER_CONTEXT,
-  );
-};
-
-// --- CORE LOGIC ---
 
 const closeOneConnection = async (
   token: string | symbol,
   moduleReference: ModuleRef,
   config: ShutdownConfig,
-): Promise<boolean> => {
+): Promise<ConnectionResult> => {
   const tokenString = String(token);
   const start = Date.now();
 
@@ -50,81 +36,64 @@ const closeOneConnection = async (
     const wrapper = moduleReference.get<MongoDatabaseClientWrapper>(token);
 
     if (!isValidConnectionWrapper(wrapper)) {
-      throw new Error('Invalid or missing wrapper');
+      throw new Error(`Invalid or missing connection wrapper for token: ${tokenString}`);
     }
 
-    const closeOp = async () => {
-      await wrapper.close(config.forceClose);
-    };
+    await withTimeout(
+      withRetry(() => wrapper.close(config.forceClose), config.retryAttempts),
+      config.timeoutMs,
+      `close ${tokenString}`,
+    );
 
-    const retryOp = () => withRetry(closeOp, config.retryAttempts);
-
-    await withTimeout(retryOp(), config.timeoutMs, `close ${tokenString}`);
-
-    logEvent(SHUTDOWN_EVENTS.CONNECTION_CLOSED, {
-      token: tokenString,
-      durationMs: Date.now() - start,
-    });
-
-    return true;
+    return { token: tokenString, outcome: 'closed', durationMs: Date.now() - start };
   } catch (error) {
-    const errorObject = error instanceof Error ? error : new Error(String(error));
-    logError(SHUTDOWN_EVENTS.CONNECTION_FAILED, {
+    return {
       token: tokenString,
-      error: errorObject.message,
-      stack: errorObject.stack,
+      outcome: 'failed',
       durationMs: Date.now() - start,
-    });
-    return false;
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 };
 
+const EMPTY_SUMMARY: ShutdownSummary = {
+  event: SHUTDOWN_EVENTS.SHUTDOWN,
+  totalConnections: 0,
+  successCount: 0,
+  failureCount: 0,
+  durationMs: 0,
+  connections: [],
+};
+
 export const executeShutdown = async (
-  tokens: (string | symbol)[],
+  tokens: readonly (string | symbol)[],
   moduleReference: ModuleRef,
   config: ShutdownConfig,
 ): Promise<ShutdownSummary> => {
+  if (tokens.length === 0) return EMPTY_SUMMARY;
+
   const start = Date.now();
 
-  if (tokens.length === 0) {
-    return { totalConnections: 0, successCount: 0, failureCount: 0, durationMs: 0 };
+  const connections = await Promise.all(
+    tokens.map((token) => closeOneConnection(token, moduleReference, config)),
+  );
+
+  const summary: ShutdownSummary = {
+    event: SHUTDOWN_EVENTS.SHUTDOWN,
+    totalConnections: tokens.length,
+    successCount: connections.filter((c) => c.outcome === 'closed').length,
+    failureCount: connections.filter((c) => c.outcome === 'failed').length,
+    durationMs: Date.now() - start,
+    connections,
+  };
+
+  const message = JSON.stringify({ ...summary, timestamp: new Date().toISOString() }, null, 2);
+
+  if (summary.failureCount > 0) {
+    Logger.error(message, LOGGER_CONTEXT);
+    return summary;
   }
 
-  logEvent(SHUTDOWN_EVENTS.START, { connectionCount: tokens.length });
-
-  try {
-    // We wrap the whole batch in a global timeout safety net as well,
-    // though individual timeouts should handle it.
-    // Ideally, we trust individual timeouts.
-
-    const results = await Promise.all(
-      tokens.map((token) => closeOneConnection(token, moduleReference, config)),
-    );
-
-    const successCount = results.filter(Boolean).length;
-    const failureCount = tokens.length - successCount;
-    const durationMs = Date.now() - start;
-
-    logEvent(SHUTDOWN_EVENTS.COMPLETE, {
-      totalConnections: tokens.length,
-      successCount,
-      failureCount,
-      durationMs,
-    });
-
-    return { totalConnections: tokens.length, successCount, failureCount, durationMs };
-  } catch (error) {
-    const durationMs = Date.now() - start;
-    if (error instanceof ShutdownTimeoutError) {
-      logError(SHUTDOWN_EVENTS.TIMEOUT, { timeoutMs: config.timeoutMs });
-    }
-
-    // In case of catastrophic failure (shouldn't happen with Promise.all and catching inside map)
-    return {
-      totalConnections: tokens.length,
-      successCount: 0,
-      failureCount: tokens.length,
-      durationMs,
-    };
-  }
+  Logger.log(message, LOGGER_CONTEXT);
+  return summary;
 };

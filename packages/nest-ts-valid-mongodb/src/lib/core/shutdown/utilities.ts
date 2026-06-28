@@ -10,30 +10,25 @@ export type ShutdownConfig = {
   readonly forceClose: boolean;
 };
 
-export const resolveShutdownConfig = (options?: TsValidMongoConnectionOptions): ShutdownConfig => {
-  const userTimeout = options?.shutdownTimeout;
-  const timeoutMs =
-    typeof userTimeout === 'number' && userTimeout >= 0 && Number.isFinite(userTimeout)
-      ? userTimeout
-      : SHUTDOWN_DEFAULTS.TIMEOUT_MS;
-
-  const retryAttempts = SHUTDOWN_DEFAULTS.RETRY_ATTEMPTS;
-  const forceClose = options?.forceShutdown ?? SHUTDOWN_DEFAULTS.FORCE_CLOSE;
-
-  return { timeoutMs, retryAttempts, forceClose };
-};
+export const resolveShutdownConfig = (options?: TsValidMongoConnectionOptions): ShutdownConfig => ({
+  timeoutMs:
+    typeof options?.shutdownTimeout === 'number' &&
+    options.shutdownTimeout >= 0 &&
+    Number.isFinite(options.shutdownTimeout)
+      ? options.shutdownTimeout
+      : SHUTDOWN_DEFAULTS.TIMEOUT_MS,
+  retryAttempts: SHUTDOWN_DEFAULTS.RETRY_ATTEMPTS,
+  forceClose: options?.forceShutdown ?? SHUTDOWN_DEFAULTS.FORCE_CLOSE,
+});
 
 // --- GUARDS ---
 
-export const isValidConnectionWrapper = (value: unknown): value is MongoDatabaseClientWrapper => {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'close' in value &&
-    typeof (value as { close: unknown }).close === 'function' &&
-    'client' in value
-  );
-};
+export const isValidConnectionWrapper = (value: unknown): value is MongoDatabaseClientWrapper =>
+  typeof value === 'object' &&
+  value !== null &&
+  'close' in value &&
+  typeof (value as { close: unknown }).close === 'function' &&
+  'client' in value;
 
 // --- TIMEOUT ---
 
@@ -49,36 +44,34 @@ export const withTimeout = <T>(
   timeoutMs: number,
   operation: string,
 ): Promise<T> => {
-  const timeoutPromise = new Promise<never>((_resolve, reject) => {
-    setTimeout(() => {
-      reject(new ShutdownTimeoutError(operation, timeoutMs));
-    }, timeoutMs);
-  });
+  let timerId: ReturnType<typeof setTimeout>;
 
-  return Promise.race([promise, timeoutPromise]);
+  return Promise.race([
+    promise,
+    new Promise<never>((_resolve, reject) => {
+      timerId = setTimeout(() => {
+        reject(new ShutdownTimeoutError(operation, timeoutMs));
+      }, timeoutMs);
+    }),
+  ]).finally(() => {
+    clearTimeout(timerId);
+  });
 };
 
 // --- RETRY ---
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export const withRetry = async <T>(
   operation: () => Promise<T>,
-  maxAttempts: number,
-): Promise<{ success: boolean; value?: T; error?: Error }> => {
-  let lastError: Error | undefined;
-  const delayMs = SHUTDOWN_DEFAULTS.RETRY_DELAY_MS;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      const value = await operation();
-      return { success: true, value };
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      if (attempt === maxAttempts - 1) break;
-      await delay(delayMs * Math.pow(2, attempt));
-    }
+  remainingAttempts: number,
+  delayMs = SHUTDOWN_DEFAULTS.RETRY_DELAY_MS,
+): Promise<T> => {
+  try {
+    return await operation();
+  } catch (error) {
+    if (remainingAttempts <= 1) throw error;
+    await delay(delayMs);
+    return withRetry(operation, remainingAttempts - 1, delayMs * 2);
   }
-
-  return { success: false, error: lastError };
 };

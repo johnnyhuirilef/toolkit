@@ -48,28 +48,23 @@ describe('Shutdown Utils', () => {
   });
 
   describe('withRetry', () => {
-    it('should return success on first try', async () => {
+    it('should return value on first try', async () => {
       const op = vi.fn().mockResolvedValue('ok');
       const result = await withRetry(op, 3);
-      expect(result.success).toBe(true);
-      expect(result.value).toBe('ok');
+      expect(result).toBe('ok');
       expect(op).toHaveBeenCalledTimes(1);
     });
 
-    it('should retry on failure', async () => {
+    it('should retry on failure and return value on success', async () => {
       const op = vi.fn().mockRejectedValueOnce(new Error('fail 1')).mockResolvedValue('ok');
-
       const result = await withRetry(op, 3);
-      expect(result.success).toBe(true);
-      expect(result.value).toBe('ok');
+      expect(result).toBe('ok');
       expect(op).toHaveBeenCalledTimes(2);
     });
 
-    it('should return failure after max attempts', async () => {
+    it('should throw after exhausting all attempts', async () => {
       const op = vi.fn().mockRejectedValue(new Error('fail always'));
-      const result = await withRetry(op, 2);
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
+      await expect(withRetry(op, 2)).rejects.toThrow('fail always');
       expect(op).toHaveBeenCalledTimes(2);
     });
   });
