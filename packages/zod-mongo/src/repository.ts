@@ -48,9 +48,6 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
   database: Db,
 ): Repository<Schema, Id> => {
   type TDoc = Doc<Schema, Id>;
-  // ponytail: Doc<Schema, Id> has a typed _id: InferIdType<Id> which conflicts with MongoDB's
-  // internal WithId<T> wrapper. We narrow via explicit cast at each read site rather than widening
-  // the collection type. The cast is safe: the driver returns the shape we inserted.
   const coll = database.collection<TDoc>(collection.name);
   const schema = collection.schema;
   const idStrategy = collection.id;
@@ -65,8 +62,7 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
 
   const parsePartialSchema = (data: unknown): Result<Partial<Infer<Schema>>> => {
     try {
-      // ponytail: ZodCompat only guarantees parse() at the type level; partial() exists at runtime
-      // for all Zod schemas. The defensive check avoids a hard dependency on Zod internals.
+      // ponytail: ZodCompat doesn't expose partial() — probe at runtime to avoid hard Zod dependency.
       const partial =
         'partial' in schema && typeof (schema as { partial?: unknown }).partial === 'function'
           ? (schema as { partial: () => ZodCompat }).partial()
@@ -77,16 +73,27 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
     }
   };
 
-  const buildDoc = (validated: Infer<Schema>): TDoc => {
-    if (idStrategy === 'objectid' || idStrategy === 'uuid') {
-      const id = generateId(idStrategy);
-      // ponytail: Infer<Schema> is structurally unknown at this level; spreading requires a cast to object.
-      // The result is Doc<Schema, Id> by construction (_id + validated fields).
-      return { ...(validated as object), _id: id } as TDoc;
+  const resolveId = (
+    validated: Infer<Schema>,
+  ): Result<{ inject: false } | { inject: true; id: InferIdType<Id> }> => {
+    if (idStrategy === 'objectid' || idStrategy === 'uuid')
+      return ok({ inject: true, id: generateId(idStrategy) as InferIdType<Id> });
+    if (typeof idStrategy === 'object') {
+      const [error, id] = tryit(() =>
+        idStrategy.parse((validated as Record<string, unknown>)['_id']),
+      )();
+      return isNullish(error)
+        ? ok({ inject: true, id: id as InferIdType<Id> })
+        : err(toDbError(error));
     }
-    // ponytail: for 'string'/'custom' strategies the caller embeds _id in data —
-    // validated already satisfies TDoc structurally; single cast via object is sufficient.
-    return { ...(validated as object) } as TDoc;
+    return ok({ inject: false });
+  };
+
+  const buildDoc = (validated: Infer<Schema>): Result<TDoc> => {
+    const resolved = resolveId(validated);
+    if (!resolved.ok) return resolved;
+    const base = validated as object;
+    return ok((resolved.value.inject ? { ...base, _id: resolved.value.id } : { ...base }) as TDoc);
   };
 
   return {
@@ -113,10 +120,11 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
     insert: async (data) => {
       const parsed = parseSchema(data);
       if (!parsed.ok) return parsed as Result<TDoc>;
+      const record = buildDoc(parsed.value);
+      if (!record.ok) return record;
       return runSafe(async () => {
-        const record = buildDoc(parsed.value);
-        await coll.insertOne(record as OptionalUnlessRequiredId<TDoc>);
-        return record;
+        await coll.insertOne(record.value as OptionalUnlessRequiredId<TDoc>);
+        return record.value;
       });
     },
 
@@ -127,8 +135,11 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
         if (!result.ok) return result as Result<TDoc[]>;
         parsedItems.push(result.value);
       }
+      const built = parsedItems.map((item) => buildDoc(item));
+      const failed = built.find((r) => !r.ok);
+      if (failed) return failed as Result<TDoc[]>;
+      const records = (built as { ok: true; value: TDoc }[]).map((r) => r.value);
       return runSafe(async () => {
-        const records = parsedItems.map((item) => buildDoc(item));
         await coll.insertMany(records as OptionalUnlessRequiredId<TDoc>[]);
         return records;
       });
