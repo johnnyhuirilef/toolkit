@@ -585,4 +585,56 @@ describe('composite _id via custom ZodCompat schema', () => {
     if (result.ok) return;
     expect(result.error.kind).toBe('validation');
   });
+
+  it('updateById patches a document by composite _id', async () => {
+    const { repo } = setup('test-composite-update');
+    await repo.insert({ _id: { tenantId: 'acme', slug: 'update-me' }, title: 'Before' });
+
+    const result = await repo.updateById(
+      { tenantId: 'acme', slug: 'update-me' },
+      { title: 'After' },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value?.title).toBe('After');
+    expect(result.value?._id).toEqual({ tenantId: 'acme', slug: 'update-me' });
+  });
+
+  it('deleteById removes a document by composite _id', async () => {
+    const { repo } = setup('test-composite-delete');
+    await repo.insert({ _id: { tenantId: 'acme', slug: 'delete-me' }, title: 'Gone' });
+
+    const result = await repo.deleteById({ tenantId: 'acme', slug: 'delete-me' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value?._id).toEqual({ tenantId: 'acme', slug: 'delete-me' });
+
+    const gone = await repo.findById({ tenantId: 'acme', slug: 'delete-me' });
+    expect(gone.ok).toBe(true);
+    if (!gone.ok) return;
+    expect(gone.value).toBeNull();
+  });
+
+  it('upsertById inserts with composite _id on insert-path', async () => {
+    const { repo } = setup('test-composite-upsert-insert');
+    const id = { tenantId: 'acme', slug: 'new-article' };
+
+    const result = await repo.upsertById(id, { _id: id, title: 'New' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value._id).toEqual(id);
+    expect(result.value.title).toBe('New');
+  });
+
+  it('upsertOne inserts with composite _id from data on insert-path', async () => {
+    const { repo } = setup('test-composite-upsertone-insert');
+    const id = { tenantId: 'acme', slug: 'auto-article' };
+
+    // filter by the full _id object — exact match required for composite _id
+    const result = await repo.upsertOne({ _id: id } as never, { _id: id, title: 'Auto' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value._id).toEqual(id);
+    expect(result.value.title).toBe('Auto');
+  });
 });
