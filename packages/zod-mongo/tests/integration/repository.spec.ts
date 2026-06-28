@@ -433,3 +433,94 @@ describe('count and exists', () => {
     expect(result.value).toBe(true);
   });
 });
+
+describe('upsertById and upsertOne', () => {
+  let container: StartedMongoDBContainer;
+  let client: MongoClient;
+
+  const UpsertCollection = defineCollection({
+    name: 'upserts',
+    schema: z.object({ slug: z.string(), title: z.string() }),
+    id: 'uuid' as const,
+  });
+
+  beforeAll(async () => {
+    container = await new MongoDBContainer('mongo:7').start();
+    client = new MongoClient(container.getConnectionString(), { directConnection: true });
+    await client.connect();
+  }, 90_000);
+
+  afterAll(async () => {
+    await client.close();
+    await container.stop();
+  });
+
+  const setup = (databaseName: string) => ({
+    repo: createRepository(UpsertCollection, client.db(databaseName)),
+  });
+
+  it('upsertById inserts when document does not exist', async () => {
+    const { repo } = setup('test-upsert-insert');
+    const inserted = await repo.insert({ slug: 'seed', title: 'Seed' });
+    expect(inserted.ok).toBe(true);
+    if (!inserted.ok) return;
+
+    const result = await repo.upsertById(inserted.value._id, { slug: 'seed', title: 'Updated' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.title).toBe('Updated');
+    expect(result.value._id).toBe(inserted.value._id);
+  });
+
+  it('upsertById replaces when document exists', async () => {
+    const { repo } = setup('test-upsert-replace');
+    const inserted = await repo.insert({ slug: 'old', title: 'Old' });
+    expect(inserted.ok).toBe(true);
+    if (!inserted.ok) return;
+
+    const result = await repo.upsertById(inserted.value._id, { slug: 'new', title: 'New' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.slug).toBe('new');
+    expect(result.value.title).toBe('New');
+  });
+
+  it('upsertOne inserts when no document matches filter', async () => {
+    const { repo } = setup('test-upsertone-insert');
+    const result = await repo.upsertOne({ slug: 'ghost' }, { slug: 'ghost', title: 'Ghost' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.slug).toBe('ghost');
+    expect(result.value.title).toBe('Ghost');
+  });
+
+  it('upsertOne replaces when document matches filter', async () => {
+    const { repo } = setup('test-upsertone-replace');
+    await repo.insert({ slug: 'existing', title: 'Before' });
+
+    const result = await repo.upsertOne({ slug: 'existing' }, { slug: 'existing', title: 'After' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.title).toBe('After');
+
+    const count = await repo.count();
+    expect(count.ok).toBe(true);
+    if (!count.ok) return;
+    expect(count.value).toBe(1);
+  });
+
+  it('upsertById returns validation error for invalid data', async () => {
+    const { repo } = setup('test-upsert-validation');
+    const inserted = await repo.insert({ slug: 'valid', title: 'Valid' });
+    expect(inserted.ok).toBe(true);
+    if (!inserted.ok) return;
+
+    const result = await repo.upsertById(inserted.value._id, {
+      slug: 123 as never,
+      title: 'Bad',
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+  });
+});

@@ -1,4 +1,11 @@
-import type { Db, Document, Filter, OptionalUnlessRequiredId, UpdateFilter } from 'mongodb';
+import type {
+  Db,
+  Document,
+  Filter,
+  OptionalUnlessRequiredId,
+  UpdateFilter,
+  WithoutId,
+} from 'mongodb';
 import { isNullish, shake, tryit } from 'radashi';
 
 import type { CollectionDef, Doc } from './collection.js';
@@ -18,6 +25,8 @@ export type Repository<Schema extends ZodCompat, Id extends IdStrategy> = {
   exists(filter: Filter<Doc<Schema, Id>>): Promise<Result<boolean>>;
   insert(data: Infer<Schema>): Promise<Result<Doc<Schema, Id>>>;
   insertMany(data: Infer<Schema>[]): Promise<Result<Doc<Schema, Id>[]>>;
+  upsertById(id: InferIdType<Id>, data: Infer<Schema>): Promise<Result<Doc<Schema, Id>>>;
+  upsertOne(filter: Filter<Doc<Schema, Id>>, data: Infer<Schema>): Promise<Result<Doc<Schema, Id>>>;
   updateById(
     id: InferIdType<Id>,
     patch: Partial<Infer<Schema>>,
@@ -146,6 +155,28 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
         await coll.insertMany(records as OptionalUnlessRequiredId<TDoc>[]);
         return records;
       });
+    },
+
+    upsertById: async (id, data) => {
+      const parsed = parseSchema(data);
+      if (!parsed.ok) return parsed as Result<TDoc>;
+      return runSafe(() =>
+        findOneAndModify(coll, { _id: id } as Filter<TDoc>, {
+          kind: 'upsert',
+          replacement: parsed.value as WithoutId<TDoc>,
+        }).then((found) => found as TDoc),
+      );
+    },
+
+    upsertOne: async (filter, data) => {
+      const parsed = parseSchema(data);
+      if (!parsed.ok) return parsed as Result<TDoc>;
+      return runSafe(() =>
+        findOneAndModify(coll, filter, {
+          kind: 'upsert',
+          replacement: parsed.value as WithoutId<TDoc>,
+        }).then((found) => found as TDoc),
+      );
     },
 
     updateById: async (id, patch) => {
