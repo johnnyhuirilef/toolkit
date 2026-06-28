@@ -53,24 +53,18 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
   const idStrategy = collection.id;
 
   const parseSchema = (data: unknown): Result<Infer<Schema>> => {
-    try {
-      return ok(schema.parse(data) as Infer<Schema>);
-    } catch (error) {
-      return err(toDbError(error));
-    }
+    const [error, value] = tryit(() => schema.parse(data) as Infer<Schema>)();
+    return isNullish(error) ? ok(value as Infer<Schema>) : err(toDbError(error));
   };
 
   const parsePartialSchema = (data: unknown): Result<Partial<Infer<Schema>>> => {
-    try {
-      // ponytail: ZodCompat doesn't expose partial() — probe at runtime to avoid hard Zod dependency.
-      const partial =
-        'partial' in schema && typeof (schema as { partial?: unknown }).partial === 'function'
-          ? (schema as { partial: () => ZodCompat }).partial()
-          : schema;
-      return ok(partial.parse(data) as Partial<Infer<Schema>>);
-    } catch (error) {
-      return err(toDbError(error));
-    }
+    // ponytail: ZodCompat doesn't expose partial() — probe at runtime to avoid hard Zod dependency.
+    const partial =
+      'partial' in schema && typeof (schema as { partial?: unknown }).partial === 'function'
+        ? (schema as { partial: () => ZodCompat }).partial()
+        : schema;
+    const [error, value] = tryit(() => partial.parse(data) as Partial<Infer<Schema>>)();
+    return isNullish(error) ? ok(value as Partial<Infer<Schema>>) : err(toDbError(error));
   };
 
   const resolveId = (
