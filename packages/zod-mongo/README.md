@@ -487,10 +487,10 @@ if (result.ok) {
 
 // findById and upsertOne require the full _id object — dot notation ('_id.tenantId') does not match
 const found = await articles.findById({ tenantId: 'acme', slug: 'hello-world' });
-await articles.upsertOne({ _id: { tenantId: 'acme', slug: 'hello-world' } } as never, {
-  _id: { tenantId: 'acme', slug: 'hello-world' },
-  title: 'Updated',
-});
+
+// annotate with z.infer so TypeScript resolves the filter type correctly
+const compositeId: z.infer<typeof TenantSlugId> = { tenantId: 'acme', slug: 'hello-world' };
+await articles.upsertOne({ _id: compositeId }, { _id: compositeId, title: 'Updated' });
 
 // Invalid _id shape → kind: 'validation', no DB call made
 const bad = await articles.insert({ _id: { tenantId: 'acme', slug: 123 as never }, title: 'Bad' });

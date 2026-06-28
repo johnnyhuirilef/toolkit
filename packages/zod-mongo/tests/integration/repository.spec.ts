@@ -628,10 +628,10 @@ describe('composite _id via custom ZodCompat schema', () => {
 
   it('upsertOne inserts with composite _id from data on insert-path', async () => {
     const { repo } = setup('test-composite-upsertone-insert');
-    const id = { tenantId: 'acme', slug: 'auto-article' };
+    const id: z.infer<typeof CompositeId> = { tenantId: 'acme', slug: 'auto-article' };
 
     // filter by the full _id object — exact match required for composite _id
-    const result = await repo.upsertOne({ _id: id } as never, { _id: id, title: 'Auto' });
+    const result = await repo.upsertOne({ _id: id }, { _id: id, title: 'Auto' });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value._id).toEqual(id);
