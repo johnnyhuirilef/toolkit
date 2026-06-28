@@ -15,4 +15,4 @@ export type { MongoOptions, MongoAsyncOptions, MongoClientWrapper } from './zod-
 
 // Re-exports from @wenu/mongo for DX
 export type { Repository, CollectionDef, Doc, Result, DbError } from '@wenu/mongo';
-export { defineCollection, ok, err, isOk, isErr } from '@wenu/mongo';
+export { defineCollection, ok, err, isOk, isErr, NotFoundError } from '@wenu/mongo';

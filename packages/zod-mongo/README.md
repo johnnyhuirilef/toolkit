@@ -30,6 +30,9 @@ ESM/CJS. MongoDB 5/6/7 compatible. Zod 3 and 4 compatible.
 - **Pluggable ID strategies** — `objectid` (default), `uuid`, `string`, or any Zod schema for custom
   types
 - **Zod validation on write** — inserts and updates are validated before touching the database
+- **Upsert with id strategy** — `upsertById` and `upsertOne` generate `_id` per strategy on
+  insert-path; preserve existing `_id` on replace-path
+- **Domain errors** — `NotFoundError`, `duplicate-key`, `validation` — no raw driver errors leaked
 - **Immutable collection definitions** — `defineCollection()` returns a frozen, reusable descriptor
 - **Index management** — declare indexes alongside the schema, sync or generate migrate-mongo
   scripts
@@ -204,6 +207,21 @@ const all = await users.find({ name: /alice/i });
 const everyone = await users.find();
 ```
 
+### Count and Exists
+
+```typescript
+// Count all documents
+const total = await users.count();
+if (total.ok) console.log(total.value); // number
+
+// Count matching a filter
+const admins = await users.count({ role: 'admin' });
+
+// Check existence — cheaper than count (uses limit: 1 internally)
+const hasAdmin = await users.exists({ role: 'admin' });
+if (hasAdmin.ok) console.log(hasAdmin.value); // boolean
+```
+
 ### Insert
 
 ```typescript
@@ -219,6 +237,34 @@ const many = await users.insertMany([
   { name: 'Carol', email: 'carol@example.com', createdAt: new Date() },
   { name: 'Dave', email: 'dave@example.com', createdAt: new Date() },
 ]);
+```
+
+### Upsert
+
+`upsertById` always uses the caller-supplied `id` — on insert-path it becomes the document's `_id`.
+`upsertOne` matches by filter — on insert-path it generates a new `_id` per the collection's id
+strategy; on replace-path it preserves the existing `_id`.
+
+```typescript
+// Insert or replace by explicit ID (uuid strategy)
+const result = await products.upsertById('sku-123', {
+  sku: 'sku-123',
+  name: 'Widget',
+  price: 9.99,
+  tags: [],
+});
+if (result.ok) {
+  console.log(result.value._id); // 'sku-123'
+}
+
+// Insert or replace by filter — _id auto-generated on insert, preserved on replace
+const bySlug = await products.upsertOne(
+  { sku: 'sku-456' },
+  { sku: 'sku-456', name: 'Gadget', price: 19.99, tags: ['new'] },
+);
+if (!bySlug.ok && bySlug.error.kind === 'not-found') {
+  // driver returned null after write — extremely rare
+}
 ```
 
 ### Update
@@ -269,7 +315,7 @@ import type { DbError, DbErrorKind } from '@wenu/mongo';
 type DbErrorKind =
   | 'validation' // Zod parse failed (insert/update input) — no DB call was made
   | 'duplicate-key' // MongoDB error code 11000 (unique index violation)
-  | 'not-found' // reserved for future use
+  | 'not-found' // upsert returned null after write (NotFoundError)
   | 'connection' // reserved for future use
   | 'unknown'; // any other driver error
 ```
@@ -289,12 +335,22 @@ if (!result.ok) {
 }
 ```
 
-You can also convert any caught value into a `DbError` using `toDbError`:
+You can also convert any caught value into a `DbError` using `toDbError`, or catch a specific domain
+error class directly:
 
 ```typescript
-import { toDbError } from '@wenu/mongo';
+import { toDbError, NotFoundError } from '@wenu/mongo';
 
 const dbError = toDbError(caughtError);
+
+// Catch domain errors directly
+try {
+  // ...
+} catch (error) {
+  if (error instanceof NotFoundError) {
+    // kind: 'not-found'
+  }
+}
 ```
 
 ---
@@ -477,7 +533,8 @@ Creates an immutable `CollectionDef` descriptor.
 
 ### `createRepository(collection, db)`
 
-Returns a `Repository<Schema, Id>` bound to the collection definition and database.
+Returns a `Repository<Schema, Id>` bound to the collection definition and database. The `Repository`
+contract is defined in `repository.ts`; the MongoDB implementation lives in `mongo-repository.ts`.
 
 ### `Repository<Schema, Id>` methods
 
@@ -486,8 +543,12 @@ Returns a `Repository<Schema, Id>` bound to the collection definition and databa
 | `findById(id)`                      | `Promise<Result<Doc \| null>>`               |
 | `findOne(filter)`                   | `Promise<Result<Doc \| null>>`               |
 | `find(filter?)`                     | `Promise<Result<Doc[]>>`                     |
+| `count(filter?)`                    | `Promise<Result<number>>`                    |
+| `exists(filter)`                    | `Promise<Result<boolean>>`                   |
 | `insert(data)`                      | `Promise<Result<Doc>>`                       |
 | `insertMany(data)`                  | `Promise<Result<Doc[]>>`                     |
+| `upsertById(id, data)`              | `Promise<Result<Doc>>`                       |
+| `upsertOne(filter, data)`           | `Promise<Result<Doc>>`                       |
 | `updateById(id, patch)`             | `Promise<Result<Doc \| null>>`               |
 | `updateOne(filter, patch)`          | `Promise<Result<Doc \| null>>`               |
 | `updateMany(filter, patch)`         | `Promise<Result<{ modifiedCount: number }>>` |
@@ -511,13 +572,14 @@ Returns a migrate-mongo compatible JS migration string (`up` / `down`) for the c
 
 ### Result helpers
 
-| Export      | Signature                                | Description                       |
-| ----------- | ---------------------------------------- | --------------------------------- |
-| `ok`        | `<T>(value: T) => Ok<T>`                 | Construct a success result        |
-| `err`       | `<E>(error: E) => Err<E>`                | Construct an error result         |
-| `isOk`      | `<T, E>(r: Result<T, E>) => r is Ok<T>`  | Type guard for success            |
-| `isErr`     | `<T, E>(r: Result<T, E>) => r is Err<E>` | Type guard for error              |
-| `toDbError` | `(e: unknown) => DbError`                | Map any thrown value to `DbError` |
+| Export          | Signature                                | Description                        |
+| --------------- | ---------------------------------------- | ---------------------------------- |
+| `ok`            | `<T>(value: T) => Ok<T>`                 | Construct a success result         |
+| `err`           | `<E>(error: E) => Err<E>`                | Construct an error result          |
+| `isOk`          | `<T, E>(r: Result<T, E>) => r is Ok<T>`  | Type guard for success             |
+| `isErr`         | `<T, E>(r: Result<T, E>) => r is Err<E>` | Type guard for error               |
+| `toDbError`     | `(e: unknown) => DbError`                | Map any thrown value to `DbError`  |
+| `NotFoundError` | `class extends Error`                    | Domain error → `kind: 'not-found'` |
 
 ### ID Strategies at a glance
 
