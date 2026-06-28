@@ -160,11 +160,15 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
     upsertById: async (id, data) => {
       const parsed = parseSchema(data);
       if (!parsed.ok) return parsed as Result<TDoc>;
+      const replacement = { ...(parsed.value as object), _id: id } as WithoutId<TDoc>;
       return runSafe(() =>
         findOneAndModify(coll, { _id: id } as Filter<TDoc>, {
           kind: 'upsert',
-          replacement: parsed.value as WithoutId<TDoc>,
-        }).then((found) => found as TDoc),
+          replacement,
+        }).then((found) => {
+          if (isNullish(found)) throw new Error('upsert returned null after write');
+          return found as TDoc;
+        }),
       );
     },
 
@@ -175,7 +179,10 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
         findOneAndModify(coll, filter, {
           kind: 'upsert',
           replacement: parsed.value as WithoutId<TDoc>,
-        }).then((found) => found as TDoc),
+        }).then((found) => {
+          if (isNullish(found)) throw new Error('upsert returned null after write');
+          return found as TDoc;
+        }),
       );
     },
 

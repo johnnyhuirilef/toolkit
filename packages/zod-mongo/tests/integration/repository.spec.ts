@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { MongoDBContainer, type StartedMongoDBContainer } from '@testcontainers/mongodb';
 import type { Db } from 'mongodb';
 import { MongoClient, ObjectId } from 'mongodb';
@@ -459,8 +461,18 @@ describe('upsertById and upsertOne', () => {
     repo: createRepository(UpsertCollection, client.db(databaseName)),
   });
 
-  it('upsertById inserts when document does not exist', async () => {
-    const { repo } = setup('test-upsert-insert');
+  it('upsertById inserts document at given id when it does not exist', async () => {
+    const { repo } = setup('test-upsert-true-insert');
+    const id = randomUUID();
+    const result = await repo.upsertById(id, { slug: 'new', title: 'New' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value._id).toBe(id);
+    expect(result.value.slug).toBe('new');
+  });
+
+  it('upsertById replaces document at given id when it already exists', async () => {
+    const { repo } = setup('test-upsert-replace-existing');
     const inserted = await repo.insert({ slug: 'seed', title: 'Seed' });
     expect(inserted.ok).toBe(true);
     if (!inserted.ok) return;
@@ -470,19 +482,6 @@ describe('upsertById and upsertOne', () => {
     if (!result.ok) return;
     expect(result.value.title).toBe('Updated');
     expect(result.value._id).toBe(inserted.value._id);
-  });
-
-  it('upsertById replaces when document exists', async () => {
-    const { repo } = setup('test-upsert-replace');
-    const inserted = await repo.insert({ slug: 'old', title: 'Old' });
-    expect(inserted.ok).toBe(true);
-    if (!inserted.ok) return;
-
-    const result = await repo.upsertById(inserted.value._id, { slug: 'new', title: 'New' });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value.slug).toBe('new');
-    expect(result.value.title).toBe('New');
   });
 
   it('upsertOne inserts when no document matches filter', async () => {
