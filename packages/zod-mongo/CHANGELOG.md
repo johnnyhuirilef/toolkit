@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.0](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.3.0...mongo-v0.4.0) (2026-06-29)
+
+
+### Features
+
+* **zod-mongo:** add FindOptions to reads and driver options to updates ([#42](https://github.com/johnnyhuirilef/toolkit/issues/42) [#45](https://github.com/johnnyhuirilef/toolkit/issues/45)) ([#48](https://github.com/johnnyhuirilef/toolkit/issues/48)) ([a0cebca](https://github.com/johnnyhuirilef/toolkit/commit/a0cebca7076afbc20724030062585508daa5757c))
+* **zod-mongo:** add query() composable read builder ([#44](https://github.com/johnnyhuirilef/toolkit/issues/44)) ([#51](https://github.com/johnnyhuirilef/toolkit/issues/51)) ([d3debd5](https://github.com/johnnyhuirilef/toolkit/commit/d3debd5f410830a7d7fd80c2dfe34ebe343349ea))
+* **zod-mongo:** add session() proxy for ClientSession threading ([#46](https://github.com/johnnyhuirilef/toolkit/issues/46)) ([#52](https://github.com/johnnyhuirilef/toolkit/issues/52)) ([396ebfc](https://github.com/johnnyhuirilef/toolkit/commit/396ebfcfd8ba1411842a790cd8d1c91919e58d14))
+* **zod-mongo:** add updateRaw for atomic MongoDB operations ([#50](https://github.com/johnnyhuirilef/toolkit/issues/50)) ([119354f](https://github.com/johnnyhuirilef/toolkit/commit/119354f693593529bad20fe78e694d255fac960b))
+
+
+### Documentation
+
+* update READMEs — badges, Node 22, Acknowledgements, legacy package ([#56](https://github.com/johnnyhuirilef/toolkit/issues/56)) ([3af9517](https://github.com/johnnyhuirilef/toolkit/commit/3af9517a3b00730b0247ddedae767a078c02dc21))
+
 ## [0.3.0](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.2.4...mongo-v0.3.0) (2026-06-28)
 
 
