@@ -1,4 +1,11 @@
-import type { Collection, Db, FindOneAndUpdateOptions, FindOptions, UpdateOptions } from 'mongodb';
+import type {
+  Collection,
+  Db,
+  FindOneAndUpdateOptions,
+  FindOptions,
+  UpdateFilter,
+  UpdateOptions,
+} from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import * as z from 'zod';
 
@@ -207,5 +214,54 @@ describe('updateMany', () => {
       expect.objectContaining({ $set: expect.anything() }),
       undefined,
     );
+  });
+});
+
+describe('updateRaw', () => {
+  it('should pass the update filter directly to the driver without $set wrapping', async () => {
+    // Arrange
+    const { coll, repo } = setup({
+      updateMany: vi.fn().mockResolvedValue({ modifiedCount: 3 }),
+    });
+    const update: UpdateFilter<{ _id: string; name: string }> = { $inc: { name: 1 } as never };
+
+    // Act
+    const result = await repo.updateRaw({}, update);
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.modifiedCount).toBe(3);
+    expect(coll.updateMany).toHaveBeenCalledWith({}, update, undefined);
+  });
+
+  it('should forward options to the driver when provided', async () => {
+    // Arrange
+    const { coll, repo } = setup({
+      updateMany: vi.fn().mockResolvedValue({ modifiedCount: 1 }),
+    });
+    const update: UpdateFilter<{ _id: string; name: string }> = { $set: { name: 'raw' } };
+    const options: UpdateOptions = { comment: 'raw-update' };
+
+    // Act
+    await repo.updateRaw({ name: 'old' }, update, options);
+
+    // Assert
+    expect(coll.updateMany).toHaveBeenCalledWith({ name: 'old' }, update, options);
+  });
+
+  it('should return modifiedCount zero when no documents match', async () => {
+    // Arrange
+    const { repo } = setup({
+      updateMany: vi.fn().mockResolvedValue({ modifiedCount: 0 }),
+    });
+
+    // Act
+    const result = await repo.updateRaw({ name: 'ghost' }, { $set: { name: 'x' } });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.modifiedCount).toBe(0);
   });
 });

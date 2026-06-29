@@ -37,6 +37,10 @@ ESM/CJS. MongoDB 5/6/7 compatible. Zod 3 and 4 compatible.
 - **Index management** — declare indexes alongside the schema, sync or generate migrate-mongo
   scripts
 - **Typed aggregation** — `aggregate()` accepts an output schema and returns `Result<Infer<Out>[]>`
+- **Driver options passthrough** — `find`, `findOne`, `findById` accept `FindOptions`; `updateById`,
+  `updateOne` accept `FindOneAndUpdateOptions`; `updateMany` accepts `UpdateOptions`
+- **Atomic operations escape hatch** — `updateRaw` passes any `UpdateFilter` directly to the driver
+  for `$inc`, `$push`, `$pull`, `$unset`, and other operators not expressible as a validated patch
 - **Dual ESM/CJS** — works in Node ESM projects and CommonJS consumers alike
 
 ---
@@ -285,6 +289,50 @@ if (bulk.ok) {
   console.log(`Updated ${bulk.value.modifiedCount} documents`);
 }
 ```
+
+All update methods accept an optional `options` parameter forwarded directly to the MongoDB driver:
+
+```typescript
+// FindOneAndUpdateOptions on updateById / updateOne
+await users.updateById(id, { name: 'Alice' }, { comment: 'profile-update' });
+
+// UpdateOptions on updateMany
+await users.updateMany({ role: 'guest' }, { role: 'user' }, { writeConcern: { w: 'majority' } });
+```
+
+### Atomic operations — `updateRaw`
+
+When you need MongoDB atomic operators that cannot be expressed as a validated `Partial<Schema>`,
+use `updateRaw`. It passes an `UpdateFilter` directly to the driver without `$set` wrapping or
+schema validation on the update itself:
+
+```typescript
+// Increment a counter
+await users.updateRaw({ tag: 'active' }, { $inc: { loginCount: 1 } });
+
+// Push to an array
+await users.updateRaw({ _id: id }, { $push: { tags: 'premium' } });
+
+// Pull from an array
+await users.updateRaw({ _id: id }, { $pull: { tags: 'trial' } });
+
+// Unset a field
+await users.updateRaw({ _id: id }, { $unset: { legacyField: '' } });
+
+// With options
+const result = await users.updateRaw(
+  { status: 'inactive' },
+  { $set: { archivedAt: new Date() } },
+  { writeConcern: { w: 'majority' } },
+);
+if (result.ok) {
+  console.log(`Archived ${result.value.modifiedCount} users`);
+}
+```
+
+> `updateRaw` matches all documents — equivalent to `updateMany` in scope. Use it when atomic
+> operators are required. For validated partial updates, prefer `updateById`, `updateOne`, or
+> `updateMany`.
 
 ### Delete
 
@@ -629,24 +677,35 @@ contract is defined in `repository.ts`; the MongoDB implementation lives in `mon
 
 ### `Repository<Schema, Id>` methods
 
-| Method                              | Returns                                      |
-| ----------------------------------- | -------------------------------------------- |
-| `findById(id)`                      | `Promise<Result<Doc \| null>>`               |
-| `findOne(filter)`                   | `Promise<Result<Doc \| null>>`               |
-| `find(filter?)`                     | `Promise<Result<Doc[]>>`                     |
-| `count(filter?)`                    | `Promise<Result<number>>`                    |
-| `exists(filter)`                    | `Promise<Result<boolean>>`                   |
-| `insert(data)`                      | `Promise<Result<Doc>>`                       |
-| `insertMany(data)`                  | `Promise<Result<Doc[]>>`                     |
-| `upsertById(id, data)`              | `Promise<Result<Doc>>`                       |
-| `upsertOne(filter, data)`           | `Promise<Result<Doc>>`                       |
-| `updateById(id, patch)`             | `Promise<Result<Doc \| null>>`               |
-| `updateOne(filter, patch)`          | `Promise<Result<Doc \| null>>`               |
-| `updateMany(filter, patch)`         | `Promise<Result<{ modifiedCount: number }>>` |
-| `deleteById(id)`                    | `Promise<Result<Doc \| null>>`               |
-| `deleteOne(filter)`                 | `Promise<Result<Doc \| null>>`               |
-| `deleteMany(filter?)`               | `Promise<Result<{ deletedCount: number }>>`  |
-| `aggregate(pipeline, outputSchema)` | `Promise<Result<Infer<Out>[]>>`              |
+| Method                                | Returns                                      |
+| ------------------------------------- | -------------------------------------------- |
+| `findById(id, options?)`              | `Promise<Result<Doc \| null>>`               |
+| `findOne(filter, options?)`           | `Promise<Result<Doc \| null>>`               |
+| `find(filter?, options?)`             | `Promise<Result<Doc[]>>`                     |
+| `count(filter?)`                      | `Promise<Result<number>>`                    |
+| `exists(filter)`                      | `Promise<Result<boolean>>`                   |
+| `insert(data)`                        | `Promise<Result<Doc>>`                       |
+| `insertMany(data)`                    | `Promise<Result<Doc[]>>`                     |
+| `upsertById(id, data)`                | `Promise<Result<Doc>>`                       |
+| `upsertOne(filter, data)`             | `Promise<Result<Doc>>`                       |
+| `updateById(id, patch, options?)`     | `Promise<Result<Doc \| null>>`               |
+| `updateOne(filter, patch, options?)`  | `Promise<Result<Doc \| null>>`               |
+| `updateMany(filter, patch, options?)` | `Promise<Result<{ modifiedCount: number }>>` |
+| `updateRaw(filter, update, options?)` | `Promise<Result<{ modifiedCount: number }>>` |
+| `deleteById(id)`                      | `Promise<Result<Doc \| null>>`               |
+| `deleteOne(filter)`                   | `Promise<Result<Doc \| null>>`               |
+| `deleteMany(filter?)`                 | `Promise<Result<{ deletedCount: number }>>`  |
+| `aggregate(pipeline, outputSchema)`   | `Promise<Result<Infer<Out>[]>>`              |
+
+**`options` types by method:**
+
+| Method group                  | `options` type            |
+| ----------------------------- | ------------------------- |
+| `findById`, `findOne`, `find` | `FindOptions<Doc>`        |
+| `updateById`, `updateOne`     | `FindOneAndUpdateOptions` |
+| `updateMany`, `updateRaw`     | `UpdateOptions`           |
+
+All types are imported from `mongodb` — no custom wrappers.
 
 ### `index(spec, options?)`
 
