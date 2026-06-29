@@ -17,6 +17,7 @@ MongoDB 5/6/7 compatible. NestJS 10/11 compatible.
 - [Index Synchronization](#index-synchronization)
 - [Graceful Shutdown](#graceful-shutdown)
 - [Health Checks](#health-checks)
+- [Transactions](#transactions)
 - [Error Types](#error-types)
 - [API Reference](#api-reference)
 
@@ -364,6 +365,87 @@ The indicator calls `db.command({ ping: 1 })` and returns `{ status: 'up' }` on 
 
 ---
 
+## Transactions
+
+`MongoTransactionModule` provides `MongoTransactionService` for executing multi-document operations
+within a MongoDB transaction. This is an opt-in module — it is NOT registered automatically by
+`MongoModule.forRoot()`.
+
+> **Requirement**: transactions require a MongoDB replica set (or sharded cluster). They will not
+> work against a standalone `mongod` instance.
+
+### Module Registration
+
+Register `MongoTransactionModule.forFeature()` in the feature module that needs transactional
+operations.
+
+```typescript
+// transfer.module.ts
+import { Module } from '@nestjs/common';
+import { MongoModule, MongoTransactionModule } from '@wenu/nest-mongo';
+
+import { AccountCollection } from './account.collection';
+import { LedgerCollection } from './ledger.collection';
+import { TransferService } from './transfer.service';
+
+@Module({
+  imports: [
+    MongoModule.forFeature([AccountCollection, LedgerCollection]),
+    MongoTransactionModule.forFeature(), // default connection
+  ],
+  providers: [TransferService],
+})
+export class TransferModule {}
+```
+
+For a named connection, pass the `connectionName` option:
+
+```typescript
+MongoTransactionModule.forFeature({ connectionName: 'primary' });
+```
+
+### Using `MongoTransactionService`
+
+Inject `MongoTransactionService` and call `run(fn)`. The callback receives a `ClientSession` that is
+automatically enlisted in the transaction. The method returns `Result<T>` — it never throws.
+
+```typescript
+// transfer.service.ts
+import { Injectable } from '@nestjs/common';
+import { InjectRepository, MongoTransactionService } from '@wenu/nest-mongo';
+import type { Repository } from '@wenu/nest-mongo';
+import type { ClientSession } from 'mongodb';
+
+import { AccountCollection } from './account.collection';
+import { LedgerCollection } from './ledger.collection';
+
+type AccountRepo = Repository<typeof AccountCollection.schema, 'objectid'>;
+type LedgerRepo = Repository<typeof LedgerCollection.schema, 'objectid'>;
+
+@Injectable()
+export class TransferService {
+  constructor(
+    @InjectRepository(AccountCollection) private readonly accounts: AccountRepo,
+    @InjectRepository(LedgerCollection) private readonly ledger: LedgerRepo,
+    private readonly transactions: MongoTransactionService,
+  ) {}
+
+  async transfer(fromId: string, toId: string, amount: number) {
+    return this.transactions.run(async (session: ClientSession) => {
+      await this.accounts.updateRaw({ _id: fromId }, { $inc: { balance: -amount } }, { session });
+      await this.accounts.updateRaw({ _id: toId }, { $inc: { balance: amount } }, { session });
+      await this.ledger.insert({ fromId, toId, amount, createdAt: new Date() }, { session });
+    });
+  }
+}
+```
+
+If the callback throws, `run` catches the error and returns `{ ok: false, error: DbError }`. If the
+MongoDB driver itself rejects (e.g., network failure), the result is also `{ ok: false }`. On
+success the result is `{ ok: true, value: T }`.
+
+---
+
 ## Error Types
 
 | Error                     | When thrown                                         |
@@ -416,6 +498,23 @@ getConnectionToken('analytics'); // 'analytics'
 | `MongoHealthIndicator` | Injectable indicator — call `isHealthy(key, db)` in a health check |
 
 Requires `@nestjs/terminus >=10.0.0` as an optional peer dependency.
+
+### MongoTransactionModule
+
+| Export                    | Description                                                                        |
+| ------------------------- | ---------------------------------------------------------------------------------- |
+| `MongoTransactionModule`  | Opt-in NestJS module — call `forFeature(options?)` in the consuming feature module |
+| `MongoTransactionService` | Injectable service — call `run(fn)` to execute a callback inside a transaction     |
+
+`forFeature` options:
+
+| Option           | Type               | Default     | Description                                    |
+| ---------------- | ------------------ | ----------- | ---------------------------------------------- |
+| `connectionName` | `string \| symbol` | `'default'` | Matches the `connectionName` used in `forRoot` |
+
+`run<T>(fn: (session: ClientSession) => Promise<T>): Promise<Result<T>>`
+
+Requires a MongoDB replica set or sharded cluster.
 
 ### Re-exports from @wenu/mongo
 
