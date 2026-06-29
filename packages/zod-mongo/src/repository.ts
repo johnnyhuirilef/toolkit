@@ -10,6 +10,7 @@ import type {
 import type { Doc } from './collection.js';
 import type { Infer, ZodCompat } from './compat/zod.js';
 import type { IdStrategy, InferIdType } from './id.js';
+import type { QueryBuilder } from './query-builder.js';
 import type { Result } from './result.js';
 
 export type Repository<Schema extends ZodCompat, Id extends IdStrategy> = {
@@ -25,6 +26,7 @@ export type Repository<Schema extends ZodCompat, Id extends IdStrategy> = {
     filter?: Filter<Doc<Schema, Id>>,
     options?: FindOptions<Doc<Schema, Id>>,
   ): Promise<Result<Doc<Schema, Id>[]>>;
+  query(): QueryBuilder<Schema, Id>;
   count(filter?: Filter<Doc<Schema, Id>>): Promise<Result<number>>;
   exists(filter: Filter<Doc<Schema, Id>>): Promise<Result<boolean>>;
   insert(data: Infer<Schema>): Promise<Result<Doc<Schema, Id>>>;

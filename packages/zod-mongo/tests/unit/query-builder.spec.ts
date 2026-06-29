@@ -1,7 +1,6 @@
 import type { Collection } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 
-// eslint-disable-next-line import/no-unresolved -- module created in GREEN phase (TDD red)
 import { createQueryBuilder } from '../../src/query-builder.js';
 
 type TestDoc = { _id: string; name: string; score?: number };
