@@ -543,6 +543,10 @@ describe('session()', () => {
       expect.anything(),
       expect.objectContaining({ session, upsert: true, returnDocument: 'after' }),
     );
+    expect(coll.findOne).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ session }),
+    );
   });
 
   // TASK-04: deletes + aggregate + query() thread session
@@ -625,5 +629,24 @@ describe('session()', () => {
 
     // Assert
     expect(coll.find).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ session }));
+  });
+
+  it('session(s2) on a session-bound repo replaces s1 with s2', async () => {
+    const s1 = { id: 'session-1' } as unknown as ClientSession;
+    const s2 = { id: 'session-2' } as unknown as ClientSession;
+    const { coll, repo } = setup({
+      findOne: vi.fn().mockResolvedValue(null),
+    });
+
+    await repo.session(s1).session(s2).findById('uuid-1');
+
+    expect(coll.findOne).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ session: s2 }),
+    );
+    expect(coll.findOne).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ session: s1 }),
+    );
   });
 });

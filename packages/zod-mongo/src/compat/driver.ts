@@ -1,8 +1,8 @@
 import type {
-  ClientSession,
   Collection,
   Filter,
   FindOneAndDeleteOptions,
+  FindOneAndReplaceOptions,
   FindOneAndUpdateOptions,
   ModifyResult,
   UpdateFilter,
@@ -21,7 +21,7 @@ const MONGO_MAJOR = (() => {
 type FindOneAndModifyOp<T> =
   | { kind: 'update'; update: UpdateFilter<T>; options?: FindOneAndUpdateOptions }
   | { kind: 'delete'; options?: FindOneAndDeleteOptions }
-  | { kind: 'upsert'; replacement: WithoutId<T>; options?: { session?: ClientSession } };
+  | { kind: 'upsert'; replacement: WithoutId<T>; options?: FindOneAndReplaceOptions };
 
 // ponytail: v5 returns ModifyResult<T> ({ value: WithId<T> | null, ... }); v6/7 returns WithId<T> | null directly.
 // ModifyResult<T> and WithId<T> don't overlap, so we go through unknown for the v5 branch only.

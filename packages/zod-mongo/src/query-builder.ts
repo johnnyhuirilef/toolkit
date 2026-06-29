@@ -36,6 +36,7 @@ export const createQueryBuilder = <Schema extends ZodCompat, Id extends IdStrate
 ): QueryBuilder<Schema, Id> => {
   const resolvedState = state ?? defaultState<Doc<Schema, Id>>(internal);
   return {
+    // ponytail: internal omitted in chain calls — session is already baked into resolvedState.options by defaultState()
     filter: (f) => createQueryBuilder(coll, { ...resolvedState, filter: f }),
     sort: (sort) =>
       createQueryBuilder(coll, {
