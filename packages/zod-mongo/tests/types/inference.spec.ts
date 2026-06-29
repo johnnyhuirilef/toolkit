@@ -6,6 +6,9 @@ import type { CollectionDef, Doc } from '../../src/collection.js';
 import { defineCollection } from '../../src/collection.js';
 import type { Infer } from '../../src/compat/zod.js';
 import type { InferIdType } from '../../src/id.js';
+import type { createRepository } from '../../src/mongo-repository.js';
+import type { QueryBuilder } from '../../src/query-builder.js';
+import type { Result } from '../../src/result.js';
 
 describe('InferIdType — type-level assertions', () => {
   it('InferIdType objectid → ObjectId', () => {
@@ -74,5 +77,47 @@ describe('defineCollection — type-level assertions', () => {
     type NameSchema = z.ZodObject<{ name: z.ZodString }>;
     type Col = CollectionDef<NameSchema, 'uuid'>;
     expectTypeOf<Col['id']>().toEqualTypeOf<'uuid'>();
+  });
+});
+
+describe('QueryBuilder — type-level assertions', () => {
+  const Schema = z.object({ name: z.string(), score: z.number() });
+  type Schema = typeof Schema;
+  type Id = 'uuid';
+
+  it('repo.query() returns QueryBuilder<Schema, Id>', () => {
+    type Repo = ReturnType<typeof createRepository<Schema, Id>>;
+    type QB = ReturnType<Repo['query']>;
+    expectTypeOf<QB>().toEqualTypeOf<QueryBuilder<Schema, Id>>();
+  });
+
+  it('query().where({}) returns QueryBuilder<Schema, Id>', () => {
+    type Repo = ReturnType<typeof createRepository<Schema, Id>>;
+    type QB = ReturnType<Repo['query']>;
+    expectTypeOf<ReturnType<QB['where']>>().toEqualTypeOf<QueryBuilder<Schema, Id>>();
+  });
+
+  it('query().sort({ name: 1 }) returns QueryBuilder<Schema, Id>', () => {
+    type Repo = ReturnType<typeof createRepository<Schema, Id>>;
+    type QB = ReturnType<Repo['query']>;
+    expectTypeOf<ReturnType<QB['sort']>>().toEqualTypeOf<QueryBuilder<Schema, Id>>();
+  });
+
+  it('query().limit(1) returns QueryBuilder<Schema, Id>', () => {
+    type Repo = ReturnType<typeof createRepository<Schema, Id>>;
+    type QB = ReturnType<Repo['query']>;
+    expectTypeOf<ReturnType<QB['limit']>>().toEqualTypeOf<QueryBuilder<Schema, Id>>();
+  });
+
+  it('query().skip(1) returns QueryBuilder<Schema, Id>', () => {
+    type Repo = ReturnType<typeof createRepository<Schema, Id>>;
+    type QB = ReturnType<Repo['query']>;
+    expectTypeOf<ReturnType<QB['skip']>>().toEqualTypeOf<QueryBuilder<Schema, Id>>();
+  });
+
+  it('query().exec() returns Promise<Result<Doc<Schema, Id>[]>>', () => {
+    type Repo = ReturnType<typeof createRepository<Schema, Id>>;
+    type QB = ReturnType<Repo['query']>;
+    expectTypeOf<ReturnType<QB['exec']>>().toEqualTypeOf<Promise<Result<Doc<Schema, Id>[]>>>();
   });
 });
