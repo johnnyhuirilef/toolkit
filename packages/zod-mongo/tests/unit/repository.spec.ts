@@ -526,6 +526,25 @@ describe('session()', () => {
     );
   });
 
+  it('repo.session(s).upsertOne threads session', async () => {
+    // Arrange
+    const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
+    const { coll, repo } = setup({
+      findOne: vi.fn().mockResolvedValue(null),
+      findOneAndReplace: vi.fn().mockResolvedValue(document_),
+    });
+
+    // Act
+    await repo.session(session).upsertOne({ name: 'Alice' }, { name: 'Alice' });
+
+    // Assert
+    expect(coll.findOneAndReplace).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ session, upsert: true, returnDocument: 'after' }),
+    );
+  });
+
   // TASK-04: deletes + aggregate + query() thread session
   it('repo.session(s).deleteById threads session', async () => {
     // Arrange
