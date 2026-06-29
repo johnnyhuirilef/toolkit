@@ -220,7 +220,7 @@ complex read scenarios.
 
 ```typescript
 // Simple filter
-const active = await users.query().where({ status: 'active' }).exec();
+const active = await users.query().filter({ status: 'active' }).exec();
 
 // Sort descending
 const recent = await users.query().sort({ createdAt: -1 }).exec();
@@ -231,7 +231,7 @@ const page2 = await users.query().sort({ createdAt: -1 }).limit(10).skip(10).exe
 // Full chain — filter + sort + pagination
 const result = await users
   .query()
-  .where({ status: 'active' })
+  .filter({ status: 'active' })
   .sort({ createdAt: -1 })
   .limit(10)
   .skip(20)
@@ -247,13 +247,13 @@ if (result.ok) {
 **Immutability** — each chainable call returns a new builder; the original is never mutated:
 
 ```typescript
-const base = users.query().where({ status: 'active' });
+const base = users.query().filter({ status: 'active' });
 const page1 = base.limit(10).skip(0);
 const page2 = base.limit(10).skip(10); // independent from page1
 ```
 
 **Parity with `find(filter, options)`** — `repo.query().exec()` is equivalent to `repo.find({})`.
-`where` sets the filter, `sort`/`limit`/`skip` set the corresponding `FindOptions` fields.
+`filter` sets the filter, `sort`/`limit`/`skip` set the corresponding `FindOptions` fields.
 
 > `select()` (projection) is not available in v1. Use `find(filter, { projection: ... })` for
 > projection queries.
@@ -750,13 +750,13 @@ contract is defined in `repository.ts`; the MongoDB implementation lives in `mon
 Returned by `repo.query()`. Each method returns a new, independent builder — never mutates the
 receiver.
 
-| Method          | Parameter                 | Returns                    |
-| --------------- | ------------------------- | -------------------------- |
-| `where(filter)` | `Filter<Doc<Schema, Id>>` | `QueryBuilder<Schema, Id>` |
-| `sort(sort)`    | `Sort` (from `mongodb`)   | `QueryBuilder<Schema, Id>` |
-| `limit(n)`      | `number`                  | `QueryBuilder<Schema, Id>` |
-| `skip(n)`       | `number`                  | `QueryBuilder<Schema, Id>` |
-| `exec()`        | —                         | `Promise<Result<Doc[]>>`   |
+| Method           | Parameter                 | Returns                    |
+| ---------------- | ------------------------- | -------------------------- |
+| `filter(filter)` | `Filter<Doc<Schema, Id>>` | `QueryBuilder<Schema, Id>` |
+| `sort(sort)`     | `Sort` (from `mongodb`)   | `QueryBuilder<Schema, Id>` |
+| `limit(n)`       | `number`                  | `QueryBuilder<Schema, Id>` |
+| `skip(n)`        | `number`                  | `QueryBuilder<Schema, Id>` |
+| `exec()`         | —                         | `Promise<Result<Doc[]>>`   |
 
 `QueryBuilder` is exported as a type-only export from `@wenu/mongo`. `createQueryBuilder` (the
 internal factory) is not exported.

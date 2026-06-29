@@ -35,16 +35,17 @@ describe('QueryBuilder — unit', () => {
     expect(TestCollection.id).toBe('uuid');
   });
 
-  it('where(f).exec() calls coll.find with the given filter', async () => {
+  it('filter(f).exec() calls coll.find with the given filter', async () => {
     // Arrange
     const { coll, builder } = setup();
-    const filter = { name: 'Alice' };
+    const f = { name: 'Alice' };
 
     // Act
-    await builder.where(filter).exec();
+    // eslint-disable-next-line unicorn/no-array-callback-reference
+    await builder.filter(f).exec();
 
     // Assert
-    expect(coll.find).toHaveBeenCalledWith(filter, expect.objectContaining({}));
+    expect(coll.find).toHaveBeenCalledWith(f, expect.objectContaining({}));
   });
 
   it('sort(s).exec() passes sort in FindOptions second arg', async () => {
@@ -87,15 +88,16 @@ describe('QueryBuilder — unit', () => {
   it('full chain passes all accumulated state in a single coll.find call', async () => {
     // Arrange
     const { coll, builder } = setup();
-    const filter = { name: 'Bob' };
+    const f = { name: 'Bob' };
     const sort = { score: -1 } as const;
 
     // Act
-    await builder.where(filter).sort(sort).limit(10).skip(5).exec();
+    // eslint-disable-next-line unicorn/no-array-callback-reference
+    await builder.filter(f).sort(sort).limit(10).skip(5).exec();
 
     // Assert
     expect(coll.find).toHaveBeenCalledTimes(1);
-    expect(coll.find).toHaveBeenCalledWith(filter, { sort, limit: 10, skip: 5 });
+    expect(coll.find).toHaveBeenCalledWith(f, { sort, limit: 10, skip: 5 });
   });
 
   it('immutability: two builders derived from the same base are independent', async () => {

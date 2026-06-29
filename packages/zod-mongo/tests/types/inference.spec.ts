@@ -91,10 +91,10 @@ describe('QueryBuilder — type-level assertions', () => {
     expectTypeOf<QB>().toEqualTypeOf<QueryBuilder<Schema, Id>>();
   });
 
-  it('query().where({}) returns QueryBuilder<Schema, Id>', () => {
+  it('query().filter({}) returns QueryBuilder<Schema, Id>', () => {
     type Repo = ReturnType<typeof createRepository<Schema, Id>>;
     type QB = ReturnType<Repo['query']>;
-    expectTypeOf<ReturnType<QB['where']>>().toEqualTypeOf<QueryBuilder<Schema, Id>>();
+    expectTypeOf<ReturnType<QB['filter']>>().toEqualTypeOf<QueryBuilder<Schema, Id>>();
   });
 
   it('query().sort({ name: 1 }) returns QueryBuilder<Schema, Id>', () => {

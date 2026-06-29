@@ -37,7 +37,7 @@ describe('QueryBuilder — integration', () => {
 
   const setup = () => ({ repo: createRepository(QbCollection, database) });
 
-  it('.where({ name }) returns only matching documents', async () => {
+  it('.filter({ name }) returns only matching documents', async () => {
     // Arrange
     const { repo } = setup();
     await repo.insertMany([
@@ -46,7 +46,7 @@ describe('QueryBuilder — integration', () => {
     ]);
 
     // Act
-    const result = await repo.query().where({ name: 'Bob' }).exec();
+    const result = await repo.query().filter({ name: 'Bob' }).exec();
 
     // Assert
     expect(result.ok).toBe(true);
@@ -124,7 +124,7 @@ describe('QueryBuilder — integration', () => {
     // Act — Alice docs sorted descending, skip first (score 5), take 1 → score 3
     const result = await repo
       .query()
-      .where({ name: 'Alice' })
+      .filter({ name: 'Alice' })
       .sort({ score: -1 })
       .skip(1)
       .limit(1)
@@ -137,13 +137,13 @@ describe('QueryBuilder — integration', () => {
     expect(result.value[0]?.score).toBe(3);
   });
 
-  it('.where({ name: "Nobody" }).exec() returns empty array, not an error', async () => {
+  it('.filter({ name: "Nobody" }).exec() returns empty array, not an error', async () => {
     // Arrange
     const { repo } = setup();
     await repo.insert({ name: 'Someone', score: 1 });
 
     // Act
-    const result = await repo.query().where({ name: 'Nobody' }).exec();
+    const result = await repo.query().filter({ name: 'Nobody' }).exec();
 
     // Assert
     expect(result.ok).toBe(true);

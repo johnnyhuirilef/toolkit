@@ -12,7 +12,7 @@ type QueryBuilderState<T extends Document> = {
 };
 
 export type QueryBuilder<Schema extends ZodCompat, Id extends IdStrategy> = {
-  where(filter: Filter<Doc<Schema, Id>>): QueryBuilder<Schema, Id>;
+  filter(filter: Filter<Doc<Schema, Id>>): QueryBuilder<Schema, Id>;
   sort(sort: Sort): QueryBuilder<Schema, Id>;
   limit(n: number): QueryBuilder<Schema, Id>;
   skip(n: number): QueryBuilder<Schema, Id>;
@@ -30,7 +30,7 @@ export const createQueryBuilder = <Schema extends ZodCompat, Id extends IdStrate
 ): QueryBuilder<Schema, Id> => {
   const resolvedState = state ?? defaultState<Doc<Schema, Id>>();
   return {
-    where: (filter) => createQueryBuilder(coll, { ...resolvedState, filter }),
+    filter: (f) => createQueryBuilder(coll, { ...resolvedState, filter: f }),
     sort: (sort) =>
       createQueryBuilder(coll, {
         ...resolvedState,
