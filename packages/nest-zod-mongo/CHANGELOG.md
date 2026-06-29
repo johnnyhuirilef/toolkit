@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/johnnyhuirilef/toolkit/compare/nest-mongo-v0.4.0...nest-mongo-v0.5.0) (2026-06-29)
+
+
+### Features
+
+* **nest-zod-mongo:** add MongoTransactionService and MongoTransactionModule ([#47](https://github.com/johnnyhuirilef/toolkit/issues/47)) ([#53](https://github.com/johnnyhuirilef/toolkit/issues/53)) ([b02e838](https://github.com/johnnyhuirilef/toolkit/commit/b02e838a7b41739cc96466f7d9ea22370c856f4c))
+
+
+### Documentation
+
+* update READMEs — badges, Node 22, Acknowledgements, legacy package ([#56](https://github.com/johnnyhuirilef/toolkit/issues/56)) ([3af9517](https://github.com/johnnyhuirilef/toolkit/commit/3af9517a3b00730b0247ddedae767a078c02dc21))
+
 ## [0.4.0](https://github.com/johnnyhuirilef/toolkit/compare/nest-mongo-v0.3.0...nest-mongo-v0.4.0) (2026-06-29)
 
 
