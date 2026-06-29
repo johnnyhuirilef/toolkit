@@ -1,4 +1,5 @@
 import type {
+  ClientSession,
   Db,
   Document,
   Filter,
@@ -20,14 +21,18 @@ import { err, ok } from './result.js';
 import type { Result } from './result.js';
 import { runSafe } from './run-safe.js';
 
+type RepositoryInternal = { session?: ClientSession };
+
 export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy>(
   collection: CollectionDef<Schema, Id>,
   database: Db,
+  internal: RepositoryInternal = {},
 ): Repository<Schema, Id> => {
   type TDoc = Doc<Schema, Id>;
   const coll = database.collection<TDoc>(collection.name);
   const schema = collection.schema;
   const idStrategy = collection.id;
+  const sessionOptions = shake({ session: internal.session });
 
   const parseSchema = (data: unknown): Result<Infer<Schema>> => {
     const [error, value] = tryit(() => schema.parse(data))();
@@ -77,35 +82,35 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
 
   return {
     findById: (id, options?) =>
-      runSafe(
-        () =>
-          coll
-            .findOne({ _id: id } as Filter<TDoc>, options)
-            .then((found) => (isNullish(found) ? null : found) as TDoc | null), // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
+      runSafe(() =>
+        coll
+          .findOne({ _id: id } as Filter<TDoc>, { ...sessionOptions, ...options })
+          .then((found) => (isNullish(found) ? null : found) as TDoc | null),
       ),
 
     findOne: (filter, options?) =>
-      runSafe(
-        () =>
-          coll
-            .findOne(filter, options)
-            .then((found) => (isNullish(found) ? null : found) as TDoc | null), // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
+      runSafe(() =>
+        coll
+          .findOne(filter, { ...sessionOptions, ...options })
+          .then((found) => (isNullish(found) ? null : found) as TDoc | null),
       ),
 
     find: (filter?, options?) =>
       runSafe(() => {
         // ponytail: Collection.find() is not Array.find() — unicorn cannot distinguish them.
         // eslint-disable-next-line unicorn/no-array-callback-reference, unicorn/no-array-method-this-argument
-        const cursor = coll.find(filter ?? {}, options);
+        const cursor = coll.find(filter ?? {}, { ...sessionOptions, ...options });
         return cursor.toArray().then((records) => records as TDoc[]);
       }),
 
-    query: () => createQueryBuilder<Schema, Id>(coll),
+    query: () => createQueryBuilder<Schema, Id>(coll, undefined, internal),
 
-    count: (filter) => runSafe(() => coll.countDocuments(filter ?? {})),
+    count: (filter) => runSafe(() => coll.countDocuments(filter ?? {}, sessionOptions)),
 
     exists: async (filter) => {
-      const result = await runSafe(() => coll.countDocuments(filter, { limit: 1 }));
+      const result = await runSafe(() =>
+        coll.countDocuments(filter, { ...sessionOptions, limit: 1 }),
+      );
       return result.ok ? { ok: true, value: result.value > 0 } : result;
     },
 
@@ -115,7 +120,7 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
       const record = buildDoc(parsed.value);
       if (!record.ok) return record;
       return runSafe(async () => {
-        await coll.insertOne(record.value as OptionalUnlessRequiredId<TDoc>);
+        await coll.insertOne(record.value as OptionalUnlessRequiredId<TDoc>, sessionOptions);
         return record.value;
       });
     },
@@ -132,7 +137,7 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
       if (failed) return failed as Result<TDoc[]>;
       const records = (built as { ok: true; value: TDoc }[]).map((r) => r.value);
       return runSafe(async () => {
-        await coll.insertMany(records as OptionalUnlessRequiredId<TDoc>[]);
+        await coll.insertMany(records as OptionalUnlessRequiredId<TDoc>[], sessionOptions);
         return records;
       });
     },
@@ -145,6 +150,7 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
         findOneAndModify(coll, { _id: id } as Filter<TDoc>, {
           kind: 'upsert',
           replacement,
+          options: sessionOptions,
         }).then((found) => {
           if (isNullish(found)) throw new NotFoundError('upsert returned null after write');
           return found as TDoc;
@@ -156,12 +162,16 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
       const parsed = parseSchema(data);
       if (!parsed.ok) return parsed as Result<TDoc>;
       return runSafe(async () => {
-        const existing = await coll.findOne(filter);
+        const existing = await coll.findOne(filter, sessionOptions);
         // ponytail: preserve existing _id on replace-path; generate per strategy only on insert-path
         const replacement = isNullish(existing)
           ? buildReplacement(parsed.value)
           : ({ ...(parsed.value as object), _id: existing._id } as WithoutId<TDoc>);
-        const found = await findOneAndModify(coll, filter, { kind: 'upsert', replacement });
+        const found = await findOneAndModify(coll, filter, {
+          kind: 'upsert',
+          replacement,
+          options: sessionOptions,
+        });
         if (isNullish(found)) throw new NotFoundError('upsert returned null after write');
         return found as TDoc;
       });
@@ -174,7 +184,7 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
         findOneAndModify(coll, { _id: id } as Filter<TDoc>, {
           kind: 'update',
           update: { $set: shake(parsed.value) } as UpdateFilter<TDoc>,
-          options,
+          options: { ...sessionOptions, ...options },
         }).then((found) => (isNullish(found) ? null : found) as TDoc | null),
       );
     },
@@ -186,7 +196,7 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
         findOneAndModify(coll, filter, {
           kind: 'update',
           update: { $set: shake(parsed.value) } as UpdateFilter<TDoc>,
-          options,
+          options: { ...sessionOptions, ...options },
         }).then((found) => (isNullish(found) ? null : found) as TDoc | null),
       );
     },
@@ -196,7 +206,10 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
       if (!parsed.ok) return parsed as Result<{ modifiedCount: number }>;
       return runSafe(() =>
         coll
-          .updateMany(filter, { $set: shake(parsed.value) } as UpdateFilter<TDoc>, options)
+          .updateMany(filter, { $set: shake(parsed.value) } as UpdateFilter<TDoc>, {
+            ...sessionOptions,
+            ...options,
+          })
           .then((result) => ({ modifiedCount: result.modifiedCount })),
       );
     },
@@ -204,35 +217,40 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
     updateRaw: (filter, update, options?) =>
       runSafe(() =>
         coll
-          .updateMany(filter, update, options)
+          .updateMany(filter, update, { ...sessionOptions, ...options })
           .then((result) => ({ modifiedCount: result.modifiedCount })),
       ),
 
     deleteById: (id) =>
       runSafe(() =>
-        findOneAndModify(coll, { _id: id } as Filter<TDoc>, { kind: 'delete' }).then(
-          (found) => (isNullish(found) ? null : found) as TDoc | null,
-        ),
+        findOneAndModify(coll, { _id: id } as Filter<TDoc>, {
+          kind: 'delete',
+          options: sessionOptions,
+        }).then((found) => (isNullish(found) ? null : found) as TDoc | null),
       ),
 
     deleteOne: (filter) =>
       runSafe(() =>
-        findOneAndModify(coll, filter, { kind: 'delete' }).then(
+        findOneAndModify(coll, filter, { kind: 'delete', options: sessionOptions }).then(
           (found) => (isNullish(found) ? null : found) as TDoc | null,
         ),
       ),
 
     deleteMany: (filter) =>
       runSafe(() =>
-        coll.deleteMany(filter).then((result) => ({ deletedCount: result.deletedCount })),
+        coll
+          .deleteMany(filter, sessionOptions)
+          .then((result) => ({ deletedCount: result.deletedCount })),
       ),
 
     aggregate: <Out extends ZodCompat>(pipeline: Document[], outputSchema: Out) =>
       runSafe(() =>
         coll
-          .aggregate(pipeline)
+          .aggregate(pipeline, sessionOptions)
           .toArray()
           .then((records) => records.map((r) => outputSchema.parse(r) as Infer<Out>)),
       ),
+
+    session: (clientSession) => createRepository(collection, database, { session: clientSession }),
   };
 };

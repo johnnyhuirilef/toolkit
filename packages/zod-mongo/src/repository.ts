@@ -1,4 +1,5 @@
 import type {
+  ClientSession,
   Document,
   Filter,
   FindOneAndUpdateOptions,
@@ -60,4 +61,5 @@ export type Repository<Schema extends ZodCompat, Id extends IdStrategy> = {
     pipeline: Document[],
     outputSchema: Out,
   ): Promise<Result<Infer<Out>[]>>;
+  session(clientSession: ClientSession): Repository<Schema, Id>;
 };

@@ -1,4 +1,5 @@
-import type { Collection, Document, Filter, FindOptions, Sort } from 'mongodb';
+import type { ClientSession, Collection, Document, Filter, FindOptions, Sort } from 'mongodb';
+import { shake } from 'radashi';
 
 import type { Doc } from './collection.js';
 import type { ZodCompat } from './compat/zod.js';
@@ -11,6 +12,8 @@ type QueryBuilderState<T extends Document> = {
   options: FindOptions<T>;
 };
 
+type QueryBuilderInternal = { session?: ClientSession };
+
 export type QueryBuilder<Schema extends ZodCompat, Id extends IdStrategy> = {
   filter(filter: Filter<Doc<Schema, Id>>): QueryBuilder<Schema, Id>;
   sort(sort: Sort): QueryBuilder<Schema, Id>;
@@ -19,16 +22,19 @@ export type QueryBuilder<Schema extends ZodCompat, Id extends IdStrategy> = {
   exec(): Promise<Result<Doc<Schema, Id>[]>>;
 };
 
-const defaultState = <T extends Document>(): QueryBuilderState<T> => ({
+const defaultState = <T extends Document>(
+  internal: QueryBuilderInternal = {},
+): QueryBuilderState<T> => ({
   filter: {},
-  options: {},
+  options: shake({ session: internal.session }) as FindOptions<T>,
 });
 
 export const createQueryBuilder = <Schema extends ZodCompat, Id extends IdStrategy>(
   coll: Collection<Doc<Schema, Id>>,
   state?: QueryBuilderState<Doc<Schema, Id>>,
+  internal: QueryBuilderInternal = {},
 ): QueryBuilder<Schema, Id> => {
-  const resolvedState = state ?? defaultState<Doc<Schema, Id>>();
+  const resolvedState = state ?? defaultState<Doc<Schema, Id>>(internal);
   return {
     filter: (f) => createQueryBuilder(coll, { ...resolvedState, filter: f }),
     sort: (sort) =>
