@@ -50,11 +50,14 @@ describe('createAsyncConnectionProviders with cross-provider inject', () => {
 
     const asyncOptions: MongoAsyncOptions = {
       inject: [CONFIG_SERVICE],
-      useFactory: (config: typeof configService) => ({
-        uri: config.get('MONGO_URI'),
-        databaseName: config.get('MONGO_DB'),
-        clientOptions,
-      }),
+      useFactory: (...arguments_: readonly unknown[]) => {
+        const config = arguments_[0] as typeof configService;
+        return {
+          uri: config.get('MONGO_URI'),
+          databaseName: config.get('MONGO_DB'),
+          clientOptions,
+        };
+      },
     };
 
     const providers = createAsyncConnectionProviders(asyncOptions);

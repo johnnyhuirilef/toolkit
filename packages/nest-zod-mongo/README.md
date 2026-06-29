@@ -1,7 +1,7 @@
 # @wenu/nest-mongo
 
 NestJS dynamic module for `@wenu/mongo` — typed MongoDB repository injection with graceful shutdown.
-MongoDB 6/7 compatible. NestJS 10/11 compatible.
+MongoDB 5/6/7 compatible. NestJS 10/11 compatible.
 
 ## Table of Contents
 
@@ -16,6 +16,7 @@ MongoDB 6/7 compatible. NestJS 10/11 compatible.
 - [Named Connections](#named-connections)
 - [Index Synchronization](#index-synchronization)
 - [Graceful Shutdown](#graceful-shutdown)
+- [Health Checks](#health-checks)
 - [Error Types](#error-types)
 - [API Reference](#api-reference)
 
@@ -31,6 +32,7 @@ MongoDB 6/7 compatible. NestJS 10/11 compatible.
   and retry
 - **Index sync** — optional `createIndexes()` on module init, driven by the `CollectionDef`
   declaration
+- **Health checks** — opt-in `MongoHealthModule` for `@nestjs/terminus` integration
 - **Global module** — providers registered once, available everywhere
 
 ---
@@ -311,6 +313,57 @@ MongoModule.forRoot({
 
 ---
 
+## Health Checks
+
+`MongoHealthModule` provides an opt-in `MongoHealthIndicator` that integrates with
+`@nestjs/terminus`. It requires `@nestjs/terminus >=10.0.0` as a peer dependency — only install it
+if you use health checks.
+
+```bash
+npm install @nestjs/terminus
+```
+
+```typescript
+// health/health.module.ts
+import { Module } from '@nestjs/common';
+import { TerminusModule } from '@nestjs/terminus';
+import { MongoHealthModule } from '@wenu/nest-mongo';
+
+@Module({
+  imports: [TerminusModule, MongoHealthModule],
+})
+export class HealthModule {}
+```
+
+```typescript
+// health/health.controller.ts
+import { Controller, Get } from '@nestjs/common';
+import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
+import { InjectConnection } from '@wenu/nest-mongo';
+import { MongoHealthIndicator } from '@wenu/nest-mongo';
+import type { Db } from 'mongodb';
+
+@Controller('health')
+export class HealthController {
+  constructor(
+    private readonly health: HealthCheckService,
+    private readonly mongoHealth: MongoHealthIndicator,
+    @InjectConnection() private readonly db: Db,
+  ) {}
+
+  @Get()
+  @HealthCheck()
+  check() {
+    return this.health.check([() => this.mongoHealth.isHealthy('mongodb', this.db)]);
+  }
+}
+```
+
+The indicator calls `db.command({ ping: 1 })` and returns `{ status: 'up' }` on success or
+`{ status: 'down', error }` on failure.
+
+---
+
 ## Error Types
 
 | Error                     | When thrown                                         |
@@ -355,6 +408,15 @@ getConnectionToken(); // DEFAULT_CONNECTION symbol
 getConnectionToken('analytics'); // 'analytics'
 ```
 
+### MongoHealthModule
+
+| Export                 | Description                                                        |
+| ---------------------- | ------------------------------------------------------------------ |
+| `MongoHealthModule`    | Opt-in NestJS module — import alongside `TerminusModule`           |
+| `MongoHealthIndicator` | Injectable indicator — call `isHealthy(key, db)` in a health check |
+
+Requires `@nestjs/terminus >=10.0.0` as an optional peer dependency.
+
 ### Re-exports from @wenu/mongo
 
 For convenience, the following are re-exported so you don't need to install `@wenu/mongo` separately
@@ -362,6 +424,7 @@ for common types:
 
 ```typescript
 import { defineCollection, ok, err, isOk, isErr, NotFoundError } from '@wenu/nest-mongo';
+import { MongoHealthIndicator, MongoHealthModule } from '@wenu/nest-mongo';
 import type { Repository, CollectionDef, Doc, Result, DbError } from '@wenu/nest-mongo';
 ```
 
