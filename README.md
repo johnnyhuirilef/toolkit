@@ -4,7 +4,7 @@ Personal monorepo of TypeScript libraries for production-grade MongoDB applicati
 
 Built with **Nx**, **pnpm**, and a strict no-throw, full-type-inference philosophy.
 
-## Packages
+## 📦 Packages
 
 | Package                                                         | Description                                                                                  | Version                                                                                                                       |
 | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -15,7 +15,7 @@ Built with **Nx**, **pnpm**, and a strict no-throw, full-type-inference philosop
 > [!NOTE] `@ioni/nest-ts-valid-mongodb` is the original package and is no longer actively developed.
 > New projects should use `@wenu/mongo` and `@wenu/nest-mongo`.
 
-## Development
+## 🛠️ Development
 
 **Prerequisites:** Node.js `>=22.0.0`, pnpm `>=9`
 
@@ -42,7 +42,7 @@ pnpm nx build nest-zod-mongo
 pnpm nx lint zod-mongo
 ```
 
-## Release
+## 🚀 Release
 
 Releases are managed with `nx release` and published to npm via GitHub Actions using OIDC Trusted
 Publishers — no long-lived tokens required.
