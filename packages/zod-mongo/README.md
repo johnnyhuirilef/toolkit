@@ -1,5 +1,8 @@
 # @wenu/mongo
 
+[![npm](https://img.shields.io/npm/v/@wenu/mongo)](https://www.npmjs.com/package/@wenu/mongo)
+[![node](https://img.shields.io/node/v/@wenu/mongo)](https://www.npmjs.com/package/@wenu/mongo)
+
 Declarative, immutable, type-safe MongoDB repository layer with Zod validation. Zero throws. Dual
 ESM/CJS. MongoDB 5/6/7 compatible. Zod 3 and 4 compatible.
 
@@ -72,7 +75,7 @@ npm install mongodb@^5   # or ^6 or ^7
 npm install zod@^3
 ```
 
-**Requirements:** Node `>=18.0.0`
+**Requirements:** Node `>=22.0.0`
 
 ---
 
@@ -846,6 +849,10 @@ Returns a migrate-mongo compatible JS migration string (`up` / `down`) for the c
 
 ---
 
-## License
+## Acknowledgements
 
-MIT
+`@wenu/mongo` is a clean-room reimagination of
+[`ts-valid-mongodb`](https://www.npmjs.com/package/ts-valid-mongodb). The original library proved
+the concept — a lightweight, Zod-validated MongoDB wrapper without Mongoose. `@wenu/mongo` takes
+that foundation further: a no-throw `Result<T>` contract, pluggable ID strategies, Zod 3/4
+compatibility, and a MongoDB driver shim that works across v5, v6, and v7.

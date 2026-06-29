@@ -1,5 +1,8 @@
 # @wenu/nest-mongo
 
+[![npm](https://img.shields.io/npm/v/@wenu/nest-mongo)](https://www.npmjs.com/package/@wenu/nest-mongo)
+[![node](https://img.shields.io/node/v/@wenu/nest-mongo)](https://www.npmjs.com/package/@wenu/nest-mongo)
+
 NestJS dynamic module for `@wenu/mongo` — typed MongoDB repository injection with graceful shutdown.
 MongoDB 5/6/7 compatible. NestJS 10/11 compatible.
 
@@ -70,10 +73,10 @@ pnpm add @wenu/nest-mongo @wenu/mongo
 ### Peer dependencies
 
 ```bash
-npm install @nestjs/common@^10 @nestjs/core@^10 mongodb@^6
+npm install @nestjs/common@"^10 || ^11" @nestjs/core@"^10 || ^11" mongodb@">=5"
 ```
 
-**Requirements:** Node `>=18.0.0`
+**Requirements:** Node `>=22.0.0`
 
 ---
 
@@ -1011,6 +1014,10 @@ Requires a MongoDB replica set or sharded cluster.
 
 ---
 
-## License
+## Acknowledgements
 
-MIT
+`@wenu/nest-mongo` builds on `@wenu/mongo` the same way
+[`@ioni/nest-ts-valid-mongodb`](https://www.npmjs.com/package/@ioni/nest-ts-valid-mongodb) built on
+`ts-valid-mongodb` — adding the NestJS layer: dynamic modules, `forRoot`/`forFeature`, typed
+repository injection, and graceful shutdown. The evolution of the stack made it the natural home for
+everything the original NestJS wrapper proved out.

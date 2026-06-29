@@ -55,7 +55,7 @@
     "url": "https://github.com/johnnyhuirilef/toolkit/issues"
   },
   "engines": {
-    "node": ">=16.0.0",
+    "node": ">=22.0.0",
     "npm": ">=7.0.0"
   },
   "publishConfig": {
