@@ -130,6 +130,97 @@ describe('repository integration', () => {
     expect(result.value.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('find respects limit option', async () => {
+    const uniqueDb = client.db('test-find-limit');
+    const repo = createRepository(UserCollection, uniqueDb);
+    await repo.insert({ name: 'Limit1', email: 'limit1@test.com' });
+    await repo.insert({ name: 'Limit2', email: 'limit2@test.com' });
+    await repo.insert({ name: 'Limit3', email: 'limit3@test.com' });
+
+    const result = await repo.find({}, { limit: 2 });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toHaveLength(2);
+  });
+
+  it('find respects sort option', async () => {
+    const uniqueDb = client.db('test-find-sort');
+    const repo = createRepository(UserCollection, uniqueDb);
+    await repo.insert({ name: 'Zebra', email: 'z@test.com' });
+    await repo.insert({ name: 'Alpha', email: 'a@test.com' });
+
+    const result = await repo.find({}, { sort: { name: 1 } });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value[0]?.name).toBe('Alpha');
+    expect(result.value[1]?.name).toBe('Zebra');
+  });
+
+  it('findOne respects sort option', async () => {
+    const uniqueDb = client.db('test-findone-sort');
+    const repo = createRepository(UserCollection, uniqueDb);
+    await repo.insert({ name: 'Charlie', email: 'charlie@test.com' });
+    await repo.insert({ name: 'Alice', email: 'alice2@test.com' });
+
+    const result = await repo.findOne({}, { sort: { name: 1 } });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value?.name).toBe('Alice');
+  });
+
+  it('findById with projection returns partial document', async () => {
+    const uniqueDb = client.db('test-findbyid-projection');
+    const repo = createRepository(UserCollection, uniqueDb);
+    const inserted = await repo.insert({ name: 'Projected', email: 'proj@test.com' });
+    expect(inserted.ok).toBe(true);
+    if (!inserted.ok) return;
+
+    const result = await repo.findById(inserted.value._id, { projection: { name: 1 } });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value?.name).toBe('Projected');
+  });
+
+  it('updateMany with options applies patch to all matching documents', async () => {
+    const uniqueDb = client.db('test-updatemany-options');
+    const repo = createRepository(UserCollection, uniqueDb);
+    await repo.insert({ name: 'Batch', email: 'batch1@test.com' });
+    await repo.insert({ name: 'Batch', email: 'batch2@test.com' });
+
+    const result = await repo.updateMany({ name: 'Batch' }, { name: 'Patched' }, {});
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.modifiedCount).toBe(2);
+
+    const found = await repo.find({ name: 'Patched' });
+    expect(found.ok).toBe(true);
+    if (!found.ok) return;
+    expect(found.value).toHaveLength(2);
+  });
+
+  it('updateById with comment option updates the document', async () => {
+    const uniqueDb = client.db('test-updatebyid-options');
+    const repo = createRepository(UserCollection, uniqueDb);
+    const inserted = await repo.insert({ name: 'WithComment', email: 'comment@test.com' });
+    expect(inserted.ok).toBe(true);
+    if (!inserted.ok) return;
+
+    const result = await repo.updateById(
+      inserted.value._id,
+      { name: 'Updated' },
+      { comment: 'wave1-options-test' },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value?.name).toBe('Updated');
+  });
+
   it('deleteById removes the document', async () => {
     const uniqueDb = client.db('test-delete');
     const repo = createRepository(UserCollection, uniqueDb);
