@@ -3,8 +3,12 @@ import { defineCollection } from '@wenu/mongo';
 import { describe, it, expect } from 'vitest';
 import * as z from 'zod';
 
-import { InjectRepository, InjectConnection } from '../../src/zod-mongo.decorators';
-import { DEFAULT_CONNECTION } from '../../src/zod-mongo.tokens';
+import {
+  InjectRepository,
+  InjectConnection,
+  InjectClientWrapper,
+} from '../../src/zod-mongo.decorators';
+import { DEFAULT_CONNECTION, getClientWrapperToken } from '../../src/zod-mongo.tokens';
 
 const UserCollection = defineCollection({
   name: 'users',
@@ -73,6 +77,32 @@ describe('InjectConnection', () => {
   it('returns Inject("primary") for named connection', () => {
     const decorator = InjectConnection('primary');
     const expected = Inject('primary');
+    const targetA = {};
+    const targetB = {};
+    decorator(targetA, undefined, 0);
+    expected(targetB, undefined, 0);
+    expect(Reflect.getMetadata('self:paramtypes', targetA)).toEqual(
+      Reflect.getMetadata('self:paramtypes', targetB),
+    );
+  });
+});
+
+describe('InjectClientWrapper', () => {
+  it('S8: returns Inject(getClientWrapperToken()) for default connection', () => {
+    const decorator = InjectClientWrapper();
+    const expected = Inject(getClientWrapperToken(undefined));
+    const targetA = {};
+    const targetB = {};
+    decorator(targetA, undefined, 0);
+    expected(targetB, undefined, 0);
+    expect(Reflect.getMetadata('self:paramtypes', targetA)).toEqual(
+      Reflect.getMetadata('self:paramtypes', targetB),
+    );
+  });
+
+  it('S8b: returns Inject(getClientWrapperToken("reporting")) for named connection', () => {
+    const decorator = InjectClientWrapper('reporting');
+    const expected = Inject(getClientWrapperToken('reporting'));
     const targetA = {};
     const targetB = {};
     decorator(targetA, undefined, 0);
