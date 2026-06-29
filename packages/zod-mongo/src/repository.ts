@@ -3,6 +3,7 @@ import type {
   Filter,
   FindOneAndUpdateOptions,
   FindOptions,
+  UpdateFilter,
   UpdateOptions,
 } from 'mongodb';
 
@@ -43,6 +44,11 @@ export type Repository<Schema extends ZodCompat, Id extends IdStrategy> = {
   updateMany(
     filter: Filter<Doc<Schema, Id>>,
     patch: Partial<Infer<Schema>>,
+    options?: UpdateOptions,
+  ): Promise<Result<{ modifiedCount: number }>>;
+  updateRaw(
+    filter: Filter<Doc<Schema, Id>>,
+    update: UpdateFilter<Doc<Schema, Id>>,
     options?: UpdateOptions,
   ): Promise<Result<{ modifiedCount: number }>>;
   deleteById(id: InferIdType<Id>): Promise<Result<Doc<Schema, Id> | null>>;

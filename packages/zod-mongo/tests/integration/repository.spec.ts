@@ -729,3 +729,81 @@ describe('composite _id via custom ZodCompat schema', () => {
     expect(result.value.title).toBe('Auto');
   });
 });
+
+describe('updateRaw', () => {
+  let container: StartedMongoDBContainer;
+  let client: MongoClient;
+
+  const RawCollection = defineCollection({
+    name: 'raw',
+    schema: z.object({ tag: z.string(), count: z.number() }),
+    id: 'uuid' as const,
+  });
+
+  beforeAll(async () => {
+    container = await new MongoDBContainer('mongo:7').start();
+    client = new MongoClient(container.getConnectionString(), { directConnection: true });
+    await client.connect();
+  }, 90_000);
+
+  afterAll(async () => {
+    await client.close();
+    await container.stop();
+  });
+
+  const setup = (databaseName: string) => ({
+    repo: createRepository(RawCollection, client.db(databaseName)),
+  });
+
+  it('should apply $inc without $set wrapping', async () => {
+    // Arrange
+    const { repo } = setup('test-raw-inc');
+    await repo.insert({ tag: 'a', count: 1 });
+    await repo.insert({ tag: 'a', count: 1 });
+
+    // Act
+    const result = await repo.updateRaw({ tag: 'a' }, { $inc: { count: 10 } });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.modifiedCount).toBe(2);
+
+    const found = await repo.find({ tag: 'a' });
+    expect(found.ok).toBe(true);
+    if (!found.ok) return;
+    expect(found.value.every((document_) => document_.count === 11)).toBe(true);
+  });
+
+  it('should apply $set directly when passed as UpdateFilter', async () => {
+    // Arrange
+    const { repo } = setup('test-raw-set');
+    await repo.insert({ tag: 'b', count: 0 });
+
+    // Act
+    const result = await repo.updateRaw({ tag: 'b' }, { $set: { count: 99 } });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.modifiedCount).toBe(1);
+
+    const found = await repo.findOne({ tag: 'b' });
+    expect(found.ok).toBe(true);
+    if (!found.ok) return;
+    expect(found.value?.count).toBe(99);
+  });
+
+  it('should return modifiedCount zero when filter matches nothing', async () => {
+    // Arrange
+    const { repo } = setup('test-raw-nomatch');
+
+    // Act
+    const result = await repo.updateRaw({ tag: 'ghost' }, { $inc: { count: 1 } });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.modifiedCount).toBe(0);
+  });
+});

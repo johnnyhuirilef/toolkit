@@ -203,6 +203,13 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
       );
     },
 
+    updateRaw: (filter, update, options?) =>
+      runSafe(() =>
+        coll
+          .updateMany(filter, update, options)
+          .then((result) => ({ modifiedCount: result.modifiedCount })),
+      ),
+
     deleteById: (id) =>
       runSafe(() =>
         findOneAndModify(coll, { _id: id } as Filter<TDoc>, { kind: 'delete' }).then(
