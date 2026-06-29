@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/johnnyhuirilef/toolkit/compare/nest-mongo-v0.3.0...nest-mongo-v0.4.0) (2026-06-29)
+
+
+### Features
+
+* **nest-zod-mongo:** add optional MongoHealthIndicator for @nestjs/terminus ([#41](https://github.com/johnnyhuirilef/toolkit/issues/41)) ([b8293a0](https://github.com/johnnyhuirilef/toolkit/commit/b8293a0a3ad2c546d8a4c181691bb36be31c00e0))
+* **zod-mongo:** add upsertById and upsertOne to Repository ([#38](https://github.com/johnnyhuirilef/toolkit/issues/38)) ([6a7817d](https://github.com/johnnyhuirilef/toolkit/commit/6a7817d1aeb6877d1792d547e7f66b2cb50d4437))
+
+
+### Tests
+
+* **nest-zod-mongo:** add cross-provider inject coverage for forRootAsync ([#40](https://github.com/johnnyhuirilef/toolkit/issues/40)) ([0368a64](https://github.com/johnnyhuirilef/toolkit/commit/0368a6442220735217ad40b42f5c5a5f6c42ed9b))
+
 ## [0.3.0](https://github.com/johnnyhuirilef/toolkit/compare/nest-mongo-v0.2.0...nest-mongo-v0.3.0) (2026-06-25)
 
 
