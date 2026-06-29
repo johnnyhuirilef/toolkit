@@ -1011,3 +1011,13 @@ Requires a MongoDB replica set or sharded cluster.
 | `index(spec, options?)`       | Create an `IndexDef` for use in `defineCollection()`              |
 | `syncIndexes(col, db)`        | Sync declared indexes to MongoDB. Returns `Promise<Result<void>>` |
 | `generateIndexMigration(col)` | Returns a migrate-mongo compatible JS migration string            |
+
+---
+
+## Acknowledgements
+
+`@wenu/nest-mongo` builds on `@wenu/mongo` the same way
+[`@ioni/nest-ts-valid-mongodb`](https://www.npmjs.com/package/@ioni/nest-ts-valid-mongodb) built on
+`ts-valid-mongodb` — adding the NestJS layer: dynamic modules, `forRoot`/`forFeature`, typed
+repository injection, and graceful shutdown. The evolution of the stack made it the natural home for
+everything the original NestJS wrapper proved out.

@@ -846,3 +846,13 @@ Returns a migrate-mongo compatible JS migration string (`up` / `down`) for the c
 | `'uuid'`               | `string`        | Yes — `crypto.randomUUID()` |
 | `'string'`             | `string`        | No — embed `_id` in data    |
 | Any Zod schema         | `Infer<Schema>` | No — embed `_id` in data    |
+
+---
+
+## Acknowledgements
+
+`@wenu/mongo` is a clean-room reimagination of
+[`ts-valid-mongodb`](https://www.npmjs.com/package/ts-valid-mongodb). The original library proved
+the concept — a lightweight, Zod-validated MongoDB wrapper without Mongoose. `@wenu/mongo` takes
+that foundation further: a no-throw `Result<T>` contract, pluggable ID strategies, Zod 3/4
+compatibility, and a MongoDB driver shim that works across v5, v6, and v7.
