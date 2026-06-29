@@ -1,4 +1,4 @@
-import type { ObjectId } from 'mongodb';
+import type { ClientSession, ObjectId } from 'mongodb';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { z } from 'zod';
 
@@ -8,6 +8,7 @@ import type { Infer } from '../../src/compat/zod.js';
 import type { InferIdType } from '../../src/id.js';
 import type { createRepository } from '../../src/mongo-repository.js';
 import type { QueryBuilder } from '../../src/query-builder.js';
+import type { Repository } from '../../src/repository.js';
 import type { Result } from '../../src/result.js';
 
 describe('InferIdType — type-level assertions', () => {
@@ -119,5 +120,22 @@ describe('QueryBuilder — type-level assertions', () => {
     type Repo = ReturnType<typeof createRepository<Schema, Id>>;
     type QB = ReturnType<Repo['query']>;
     expectTypeOf<ReturnType<QB['exec']>>().toEqualTypeOf<Promise<Result<Doc<Schema, Id>[]>>>();
+  });
+});
+
+// TASK-06: session() type-level assertions
+describe('session() — type-level assertions', () => {
+  const Schema = z.object({ name: z.string() });
+  type Schema = typeof Schema;
+  type Id = 'uuid';
+
+  it('repo.session(s) return type is Repository<Schema, Id>', () => {
+    type Repo = ReturnType<typeof createRepository<Schema, Id>>;
+    expectTypeOf<ReturnType<Repo['session']>>().toEqualTypeOf<Repository<Schema, Id>>();
+  });
+
+  it('session() parameter type is ClientSession', () => {
+    type Repo = ReturnType<typeof createRepository<Schema, Id>>;
+    expectTypeOf<Parameters<Repo['session']>[0]>().toEqualTypeOf<ClientSession>();
   });
 });

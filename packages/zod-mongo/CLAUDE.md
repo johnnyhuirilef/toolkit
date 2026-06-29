@@ -8,7 +8,8 @@ Declarative, immutable, type-safe MongoDB repository layer. Zero throws, dual ES
 pluggable ID strategies.
 
 Public surface: `defineCollection` + `createRepository` + `Result` + `DbError` +
-`index`/`syncIndexes`/`generateIndexMigration` + `QueryBuilder` (type-only).
+`index`/`syncIndexes`/`generateIndexMigration` + `QueryBuilder` (type-only) + `Repository.session()`
+(ClientSession threading).
 
 Peer dependencies: `mongodb ^5 || ^6 || ^7`, `zod >=3 <5`. Runtime dependency: `radashi ^12`.
 
@@ -62,6 +63,10 @@ cd packages/zod-mongo && pnpm vitest run tests/unit/collection.spec.ts
 
 Returns a plain object literal — not a class, not an instance. Every method is a closure over the
 MongoDB collection handle. Do not add `this` references.
+
+Accepts an internal third param `{ session?: ClientSession }` (defaults to `{}`). This param is NOT
+in the public `Repository<Schema, Id>` type and is never re-exported. Use `repo.session(s)` to get a
+new repository view that threads `s` into every driver call — the base repo is unaffected.
 
 ### Result type
 

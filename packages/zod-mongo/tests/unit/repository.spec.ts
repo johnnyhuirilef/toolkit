@@ -1,4 +1,5 @@
 import type {
+  ClientSession,
   Collection,
   Db,
   FindOneAndUpdateOptions,
@@ -23,9 +24,14 @@ const makeCollection = (overrides: Partial<Collection<TestDoc>> = {}) =>
     findOne: vi.fn().mockResolvedValue(null),
     find: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue([]) }),
     findOneAndUpdate: vi.fn().mockResolvedValue(null),
+    findOneAndReplace: vi.fn().mockResolvedValue(null),
+    findOneAndDelete: vi.fn().mockResolvedValue(null),
     updateMany: vi.fn().mockResolvedValue({ modifiedCount: 0 }),
+    deleteMany: vi.fn().mockResolvedValue({ deletedCount: 0 }),
     insertOne: vi.fn().mockResolvedValue({ insertedId: 'uuid-123' }),
+    insertMany: vi.fn().mockResolvedValue({ insertedCount: 0 }),
     countDocuments: vi.fn().mockResolvedValue(0),
+    aggregate: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue([]) }),
     ...overrides,
   }) as unknown as Collection<TestDoc>;
 
@@ -61,7 +67,7 @@ describe('findById', () => {
     await repo.findById('uuid-1');
 
     // Assert
-    expect(coll.findOne).toHaveBeenCalledWith({ _id: 'uuid-1' }, undefined);
+    expect(coll.findOne).toHaveBeenCalledWith({ _id: 'uuid-1' }, {});
   });
 });
 
@@ -88,7 +94,7 @@ describe('findOne', () => {
     await repo.findOne({ name: 'Bob' });
 
     // Assert
-    expect(coll.findOne).toHaveBeenCalledWith({ name: 'Bob' }, undefined);
+    expect(coll.findOne).toHaveBeenCalledWith({ name: 'Bob' }, {});
   });
 });
 
@@ -117,7 +123,7 @@ describe('find', () => {
     await repo.find();
 
     // Assert
-    expect(coll.find).toHaveBeenCalledWith({}, undefined);
+    expect(coll.find).toHaveBeenCalledWith({}, {});
   });
 });
 
@@ -212,7 +218,7 @@ describe('updateMany', () => {
     expect(coll.updateMany).toHaveBeenCalledWith(
       { name: 'Henry' },
       expect.objectContaining({ $set: expect.anything() }),
-      undefined,
+      {},
     );
   });
 });
@@ -232,7 +238,7 @@ describe('updateRaw', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.modifiedCount).toBe(3);
-    expect(coll.updateMany).toHaveBeenCalledWith({}, update, undefined);
+    expect(coll.updateMany).toHaveBeenCalledWith({}, update, {});
   });
 
   it('should forward options to the driver when provided', async () => {
@@ -263,5 +269,384 @@ describe('updateRaw', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.modifiedCount).toBe(0);
+  });
+});
+
+// TASK-01: session() identity + contract
+describe('session()', () => {
+  const session = {} as ClientSession;
+
+  it('repo.session(s) returns a distinct object from repo', () => {
+    // Arrange
+    const { repo } = setup();
+
+    // Act
+    const sessionRepo = repo.session(session);
+
+    // Assert
+    expect(sessionRepo).not.toBe(repo);
+  });
+
+  it('repo.session(s) satisfies Repository shape — all methods present', () => {
+    // Arrange
+    const { repo } = setup();
+
+    // Act
+    const sessionRepo = repo.session(session);
+
+    // Assert
+    const methods = [
+      'findById',
+      'findOne',
+      'find',
+      'query',
+      'count',
+      'exists',
+      'insert',
+      'insertMany',
+      'upsertById',
+      'upsertOne',
+      'updateById',
+      'updateOne',
+      'updateMany',
+      'updateRaw',
+      'deleteById',
+      'deleteOne',
+      'deleteMany',
+      'aggregate',
+      'session',
+    ];
+    for (const method of methods) {
+      expect(typeof (sessionRepo as Record<string, unknown>)[method]).toBe('function');
+    }
+  });
+
+  it('base repo.findById does NOT receive session (no contamination)', async () => {
+    // Arrange
+    const { coll, repo } = setup();
+    repo.session(session); // create a session repo — must not affect base
+
+    // Act
+    await repo.findById('uuid-1');
+
+    // Assert
+    expect(coll.findOne).toHaveBeenCalledWith(
+      { _id: 'uuid-1' },
+      expect.not.objectContaining({ session }),
+    );
+  });
+
+  // TASK-02: reads thread session
+  it('repo.session(s).findById threads session', async () => {
+    // Arrange
+    const { coll, repo } = setup();
+
+    // Act
+    await repo.session(session).findById('uuid-1');
+
+    // Assert
+    expect(coll.findOne).toHaveBeenCalledWith(
+      { _id: 'uuid-1' },
+      expect.objectContaining({ session }),
+    );
+  });
+
+  it('repo.session(s).findOne threads session', async () => {
+    // Arrange
+    const { coll, repo } = setup();
+
+    // Act
+    await repo.session(session).findOne({ name: 'Alice' });
+
+    // Assert
+    expect(coll.findOne).toHaveBeenCalledWith(
+      { name: 'Alice' },
+      expect.objectContaining({ session }),
+    );
+  });
+
+  it('repo.session(s).find threads session', async () => {
+    // Arrange
+    const { coll, repo } = setup();
+
+    // Act
+    await repo.session(session).find();
+
+    // Assert
+    expect(coll.find).toHaveBeenCalledWith({}, expect.objectContaining({ session }));
+  });
+
+  it('repo.session(s).count threads session', async () => {
+    // Arrange
+    const { coll, repo } = setup();
+
+    // Act
+    await repo.session(session).count({ name: 'Alice' });
+
+    // Assert
+    expect(coll.countDocuments).toHaveBeenCalledWith(
+      { name: 'Alice' },
+      expect.objectContaining({ session }),
+    );
+  });
+
+  it('repo.session(s).exists threads session with limit: 1', async () => {
+    // Arrange
+    const { coll, repo } = setup();
+
+    // Act
+    await repo.session(session).exists({ name: 'Alice' });
+
+    // Assert
+    expect(coll.countDocuments).toHaveBeenCalledWith(
+      { name: 'Alice' },
+      expect.objectContaining({ session, limit: 1 }),
+    );
+  });
+
+  it('repo.session(s).findById merges session with caller options (defensive merge)', async () => {
+    // Arrange
+    const { coll, repo } = setup();
+    const options: FindOptions<TestDoc> = { projection: { name: 1 } };
+
+    // Act
+    await repo.session(session).findById('uuid-1', options);
+
+    // Assert
+    expect(coll.findOne).toHaveBeenCalledWith(
+      { _id: 'uuid-1' },
+      expect.objectContaining({ session, projection: { name: 1 } }),
+    );
+  });
+
+  // TASK-03: writes + updates + upserts thread session
+  it('repo.session(s).insert threads session', async () => {
+    // Arrange
+    const { coll, repo } = setup();
+
+    // Act
+    await repo.session(session).insert({ name: 'Alice' });
+
+    // Assert
+    expect(coll.insertOne).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ session }),
+    );
+  });
+
+  it('repo.session(s).insertMany threads session', async () => {
+    // Arrange
+    const { coll, repo } = setup({ insertMany: vi.fn().mockResolvedValue({ insertedCount: 1 }) });
+
+    // Act
+    await repo.session(session).insertMany([{ name: 'Alice' }]);
+
+    // Assert
+    expect(coll.insertMany).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ session }),
+    );
+  });
+
+  it('repo.session(s).updateById threads session', async () => {
+    // Arrange
+    const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
+    const { coll, repo } = setup({ findOneAndUpdate: vi.fn().mockResolvedValue(document_) });
+
+    // Act
+    await repo.session(session).updateById('uuid-1', { name: 'Bob' });
+
+    // Assert
+    expect(coll.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ session, returnDocument: 'after' }),
+    );
+  });
+
+  it('repo.session(s).updateOne threads session', async () => {
+    // Arrange
+    const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
+    const { coll, repo } = setup({ findOneAndUpdate: vi.fn().mockResolvedValue(document_) });
+
+    // Act
+    await repo.session(session).updateOne({ name: 'Alice' }, { name: 'Bob' });
+
+    // Assert
+    expect(coll.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ session, returnDocument: 'after' }),
+    );
+  });
+
+  it('repo.session(s).updateMany threads session', async () => {
+    // Arrange
+    const { coll, repo } = setup({ updateMany: vi.fn().mockResolvedValue({ modifiedCount: 1 }) });
+
+    // Act
+    await repo.session(session).updateMany({ name: 'Alice' }, { name: 'Bob' });
+
+    // Assert
+    expect(coll.updateMany).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ session }),
+    );
+  });
+
+  it('repo.session(s).updateRaw threads session', async () => {
+    // Arrange
+    const { coll, repo } = setup({ updateMany: vi.fn().mockResolvedValue({ modifiedCount: 1 }) });
+
+    // Act
+    await repo.session(session).updateRaw({}, { $set: { name: 'Bob' } });
+
+    // Assert
+    expect(coll.updateMany).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ session }),
+    );
+  });
+
+  it('repo.session(s).upsertById threads session', async () => {
+    // Arrange
+    const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
+    const { coll, repo } = setup({ findOneAndReplace: vi.fn().mockResolvedValue(document_) });
+
+    // Act
+    await repo.session(session).upsertById('uuid-1', { name: 'Alice' });
+
+    // Assert
+    expect(coll.findOneAndReplace).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ session, upsert: true, returnDocument: 'after' }),
+    );
+  });
+
+  it('repo.session(s).upsertOne threads session', async () => {
+    // Arrange
+    const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
+    const { coll, repo } = setup({
+      findOne: vi.fn().mockResolvedValue(null),
+      findOneAndReplace: vi.fn().mockResolvedValue(document_),
+    });
+
+    // Act
+    await repo.session(session).upsertOne({ name: 'Alice' }, { name: 'Alice' });
+
+    // Assert
+    expect(coll.findOneAndReplace).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ session, upsert: true, returnDocument: 'after' }),
+    );
+    expect(coll.findOne).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ session }),
+    );
+  });
+
+  // TASK-04: deletes + aggregate + query() thread session
+  it('repo.session(s).deleteById threads session', async () => {
+    // Arrange
+    const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
+    const { coll, repo } = setup({ findOneAndDelete: vi.fn().mockResolvedValue(document_) });
+
+    // Act
+    await repo.session(session).deleteById('uuid-1');
+
+    // Assert
+    expect(coll.findOneAndDelete).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ session }),
+    );
+  });
+
+  it('repo.session(s).deleteOne threads session', async () => {
+    // Arrange
+    const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
+    const { coll, repo } = setup({ findOneAndDelete: vi.fn().mockResolvedValue(document_) });
+
+    // Act
+    await repo.session(session).deleteOne({ name: 'Alice' });
+
+    // Assert
+    expect(coll.findOneAndDelete).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ session }),
+    );
+  });
+
+  it('repo.session(s).deleteMany threads session', async () => {
+    // Arrange
+    const { coll, repo } = setup({ deleteMany: vi.fn().mockResolvedValue({ deletedCount: 1 }) });
+
+    // Act
+    await repo.session(session).deleteMany({ name: 'Alice' });
+
+    // Assert
+    expect(coll.deleteMany).toHaveBeenCalledWith(
+      { name: 'Alice' },
+      expect.objectContaining({ session }),
+    );
+  });
+
+  it('repo.session(s).aggregate threads session', async () => {
+    // Arrange
+    const toArray = vi.fn().mockResolvedValue([]);
+    const { coll, repo } = setup({ aggregate: vi.fn().mockReturnValue({ toArray }) });
+    const outputSchema = z.object({ name: z.string() });
+
+    // Act
+    await repo.session(session).aggregate([], outputSchema);
+
+    // Assert
+    expect(coll.aggregate).toHaveBeenCalledWith([], expect.objectContaining({ session }));
+  });
+
+  it('repo.session(s).query().exec() threads session', async () => {
+    // Arrange
+    const toArray = vi.fn().mockResolvedValue([]);
+    const { coll, repo } = setup({ find: vi.fn().mockReturnValue({ toArray }) });
+
+    // Act
+    await repo.session(session).query().exec();
+
+    // Assert
+    expect(coll.find).toHaveBeenCalledWith({}, expect.objectContaining({ session }));
+  });
+
+  it('repo.session(s).query() session survives chaining', async () => {
+    // Arrange
+    const toArray = vi.fn().mockResolvedValue([]);
+    const { coll, repo } = setup({ find: vi.fn().mockReturnValue({ toArray }) });
+
+    // Act
+    await repo.session(session).query().filter({ name: 'x' }).sort({ name: 1 }).exec();
+
+    // Assert
+    expect(coll.find).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ session }));
+  });
+
+  it('session(s2) on a session-bound repo replaces s1 with s2', async () => {
+    const s1 = { id: 'session-1' } as unknown as ClientSession;
+    const s2 = { id: 'session-2' } as unknown as ClientSession;
+    const { coll, repo } = setup({
+      findOne: vi.fn().mockResolvedValue(null),
+    });
+
+    await repo.session(s1).session(s2).findById('uuid-1');
+
+    expect(coll.findOne).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ session: s2 }),
+    );
+    expect(coll.findOne).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ session: s1 }),
+    );
   });
 });

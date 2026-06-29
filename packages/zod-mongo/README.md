@@ -14,6 +14,7 @@ ESM/CJS. MongoDB 5/6/7 compatible. Zod 3 and 4 compatible.
   - [Result Type](#result-type)
 - [CRUD Operations](#crud-operations)
   - [query() builder](#query)
+  - [Transactions — session()](#transactions--session)
 - [Error Handling](#error-handling)
 - [ID Strategies](#id-strategies)
 - [Index Management](#index-management)
@@ -42,6 +43,8 @@ ESM/CJS. MongoDB 5/6/7 compatible. Zod 3 and 4 compatible.
   `updateOne` accept `FindOneAndUpdateOptions`; `updateMany` accepts `UpdateOptions`
 - **Atomic operations escape hatch** — `updateRaw` passes any `UpdateFilter` directly to the driver
   for `$inc`, `$push`, `$pull`, `$unset`, and other operators not expressible as a validated patch
+- **Transaction support** — `repo.session(clientSession)` returns an immutable repository view that
+  threads the `ClientSession` into every driver call, enabling multi-document transactions
 - **Dual ESM/CJS** — works in Node ESM projects and CommonJS consumers alike
 
 ---
@@ -399,6 +402,42 @@ if (bulk.ok) {
 
 ---
 
+### Transactions — `session()`
+
+`repo.session(clientSession)` returns a new repository view that threads the given `ClientSession`
+into every MongoDB driver call. The base repository is unaffected.
+
+```typescript
+import { MongoClient } from 'mongodb';
+
+const client = new MongoClient(uri);
+const db = client.db('mydb');
+
+const users = createRepository(UserCollection, db);
+const orders = createRepository(OrderCollection, db);
+
+const session = client.startSession();
+try {
+  await session.withTransaction(async () => {
+    const user = await users.session(session).findById(userId);
+    if (!user.ok || !user.value) throw new Error('user not found');
+
+    await orders.session(session).insert({ userId, total: 99 });
+    await users.session(session).updateById(userId, { lastOrderAt: new Date() });
+  });
+} finally {
+  await session.endSession();
+}
+```
+
+`session()` is immutable — it always returns a new repository view, never mutates the original.
+Calling `repo.session(s1).session(s2)` binds `s2`, discarding `s1`.
+
+> **Note**: multi-document transactions require a MongoDB replica set (or Atlas). A standalone
+> instance will reject `commitTransaction`.
+
+---
+
 ## Error Handling
 
 `DbError` carries a discriminated `kind` field so you can branch on error type without inspecting
@@ -744,6 +783,7 @@ contract is defined in `repository.ts`; the MongoDB implementation lives in `mon
 | `deleteOne(filter)`                   | `Promise<Result<Doc \| null>>`               |
 | `deleteMany(filter?)`                 | `Promise<Result<{ deletedCount: number }>>`  |
 | `aggregate(pipeline, outputSchema)`   | `Promise<Result<Infer<Out>[]>>`              |
+| `session(clientSession)`              | `Repository<Schema, Id>`                     |
 
 ### `QueryBuilder<Schema, Id>`
 

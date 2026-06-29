@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
 import { MongoDBContainer, type StartedMongoDBContainer } from '@testcontainers/mongodb';
-import type { Db } from 'mongodb';
+import type { ClientSession, Db } from 'mongodb';
 import { MongoClient, ObjectId } from 'mongodb';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import * as z from 'zod';
 
 import { createRepository, defineCollection, index, syncIndexes } from '../../src/index.js';
@@ -233,6 +233,64 @@ describe('repository integration', () => {
     expect(found.ok).toBe(true);
     if (!found.ok) return;
     expect(found.value).toBeNull();
+  });
+
+  // TASK-05: session() smoke tests (non-transactional)
+  // NOTE: These tests use startSession() + plain ops only. withTransaction() requires a
+  // replica set; the single-node test container does NOT have one configured, so transaction
+  // commits would fail. Smoke-level: verify the driver accepts the session without error.
+  describe('session() — non-transactional smoke', () => {
+    const SessionCollection = defineCollection({
+      name: 'session-smoke',
+      schema: z.object({ label: z.string() }),
+      id: 'uuid' as const,
+    });
+
+    let session: ClientSession;
+
+    beforeEach(() => {
+      session = client.startSession();
+    });
+
+    afterEach(async () => {
+      await session.endSession();
+    });
+
+    it('insert via session() round-trips data readable via session-less repo', async () => {
+      // Arrange
+      const sessionDb = client.db('test-session-insert');
+      const repo = createRepository(SessionCollection, sessionDb);
+
+      // Act
+      const result = await repo.session(session).insert({ label: 'session-insert' });
+
+      // Assert
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.label).toBe('session-insert');
+
+      const found = await repo.findById(result.value._id);
+      expect(found.ok).toBe(true);
+      if (!found.ok) return;
+      expect(found.value?.label).toBe('session-insert');
+    });
+
+    it('find via session() returns same data as session-less find', async () => {
+      // Arrange
+      const sessionDb = client.db('test-session-find');
+      const repo = createRepository(SessionCollection, sessionDb);
+      await repo.insert({ label: 'visible' });
+
+      // Act
+      const sessionResult = await repo.session(session).find();
+      const normalResult = await repo.find();
+
+      // Assert
+      expect(sessionResult.ok).toBe(true);
+      expect(normalResult.ok).toBe(true);
+      if (!sessionResult.ok || !normalResult.ok) return;
+      expect(sessionResult.value).toHaveLength(normalResult.value.length);
+    });
   });
 });
 
