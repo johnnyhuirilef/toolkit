@@ -13,6 +13,7 @@ ESM/CJS. MongoDB 5/6/7 compatible. Zod 3 and 4 compatible.
   - [Creating a Repository](#creating-a-repository)
   - [Result Type](#result-type)
 - [CRUD Operations](#crud-operations)
+  - [query() builder](#query)
 - [Error Handling](#error-handling)
 - [ID Strategies](#id-strategies)
 - [Index Management](#index-management)
@@ -210,6 +211,52 @@ const all = await users.find({ name: /alice/i });
 // All documents (no filter)
 const everyone = await users.find();
 ```
+
+### query()
+
+`query()` returns a chainable, immutable `QueryBuilder` that accumulates filter and options before
+executing a single `find` call. It is the ergonomic alternative to `find(filter, options)` for
+complex read scenarios.
+
+```typescript
+// Simple filter
+const active = await users.query().where({ status: 'active' }).exec();
+
+// Sort descending
+const recent = await users.query().sort({ createdAt: -1 }).exec();
+
+// Limit and skip (pagination)
+const page2 = await users.query().sort({ createdAt: -1 }).limit(10).skip(10).exec();
+
+// Full chain — filter + sort + pagination
+const result = await users
+  .query()
+  .where({ status: 'active' })
+  .sort({ createdAt: -1 })
+  .limit(10)
+  .skip(20)
+  .exec();
+
+if (result.ok) {
+  for (const user of result.value) {
+    console.log(user.name);
+  }
+}
+```
+
+**Immutability** — each chainable call returns a new builder; the original is never mutated:
+
+```typescript
+const base = users.query().where({ status: 'active' });
+const page1 = base.limit(10).skip(0);
+const page2 = base.limit(10).skip(10); // independent from page1
+```
+
+**Parity with `find(filter, options)`** — `repo.query().exec()` is equivalent to `repo.find({})`.
+`where` sets the filter, `sort`/`limit`/`skip` set the corresponding `FindOptions` fields.
+
+> `select()` (projection) is not available in v1. Use `find(filter, { projection: ... })` for
+> projection queries.
 
 ### Count and Exists
 
@@ -682,6 +729,7 @@ contract is defined in `repository.ts`; the MongoDB implementation lives in `mon
 | `findById(id, options?)`              | `Promise<Result<Doc \| null>>`               |
 | `findOne(filter, options?)`           | `Promise<Result<Doc \| null>>`               |
 | `find(filter?, options?)`             | `Promise<Result<Doc[]>>`                     |
+| `query()`                             | `QueryBuilder<Schema, Id>`                   |
 | `count(filter?)`                      | `Promise<Result<number>>`                    |
 | `exists(filter)`                      | `Promise<Result<boolean>>`                   |
 | `insert(data)`                        | `Promise<Result<Doc>>`                       |
@@ -696,6 +744,22 @@ contract is defined in `repository.ts`; the MongoDB implementation lives in `mon
 | `deleteOne(filter)`                   | `Promise<Result<Doc \| null>>`               |
 | `deleteMany(filter?)`                 | `Promise<Result<{ deletedCount: number }>>`  |
 | `aggregate(pipeline, outputSchema)`   | `Promise<Result<Infer<Out>[]>>`              |
+
+### `QueryBuilder<Schema, Id>`
+
+Returned by `repo.query()`. Each method returns a new, independent builder — never mutates the
+receiver.
+
+| Method          | Parameter                 | Returns                    |
+| --------------- | ------------------------- | -------------------------- |
+| `where(filter)` | `Filter<Doc<Schema, Id>>` | `QueryBuilder<Schema, Id>` |
+| `sort(sort)`    | `Sort` (from `mongodb`)   | `QueryBuilder<Schema, Id>` |
+| `limit(n)`      | `number`                  | `QueryBuilder<Schema, Id>` |
+| `skip(n)`       | `number`                  | `QueryBuilder<Schema, Id>` |
+| `exec()`        | —                         | `Promise<Result<Doc[]>>`   |
+
+`QueryBuilder` is exported as a type-only export from `@wenu/mongo`. `createQueryBuilder` (the
+internal factory) is not exported.
 
 **`options` types by method:**
 
