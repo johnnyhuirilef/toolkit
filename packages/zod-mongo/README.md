@@ -1,5 +1,8 @@
 # @wenu/mongo
 
+[![npm](https://img.shields.io/npm/v/@wenu/mongo)](https://www.npmjs.com/package/@wenu/mongo)
+[![node](https://img.shields.io/node/v/@wenu/mongo)](https://www.npmjs.com/package/@wenu/mongo)
+
 Declarative, immutable, type-safe MongoDB repository layer with Zod validation. Zero throws. Dual
 ESM/CJS. MongoDB 5/6/7 compatible. Zod 3 and 4 compatible.
 
@@ -72,7 +75,7 @@ npm install mongodb@^5   # or ^6 or ^7
 npm install zod@^3
 ```
 
-**Requirements:** Node `>=18.0.0`
+**Requirements:** Node `>=22.0.0`
 
 ---
 
@@ -843,9 +846,3 @@ Returns a migrate-mongo compatible JS migration string (`up` / `down`) for the c
 | `'uuid'`               | `string`        | Yes — `crypto.randomUUID()` |
 | `'string'`             | `string`        | No — embed `_id` in data    |
 | Any Zod schema         | `Infer<Schema>` | No — embed `_id` in data    |
-
----
-
-## License
-
-MIT

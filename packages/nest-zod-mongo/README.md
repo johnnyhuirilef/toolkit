@@ -1,5 +1,8 @@
 # @wenu/nest-mongo
 
+[![npm](https://img.shields.io/npm/v/@wenu/nest-mongo)](https://www.npmjs.com/package/@wenu/nest-mongo)
+[![node](https://img.shields.io/node/v/@wenu/nest-mongo)](https://www.npmjs.com/package/@wenu/nest-mongo)
+
 NestJS dynamic module for `@wenu/mongo` — typed MongoDB repository injection with graceful shutdown.
 MongoDB 5/6/7 compatible. NestJS 10/11 compatible.
 
@@ -70,10 +73,10 @@ pnpm add @wenu/nest-mongo @wenu/mongo
 ### Peer dependencies
 
 ```bash
-npm install @nestjs/common@^10 @nestjs/core@^10 mongodb@^6
+npm install @nestjs/common@"^10 || ^11" @nestjs/core@"^10 || ^11" mongodb@">=5"
 ```
 
-**Requirements:** Node `>=18.0.0`
+**Requirements:** Node `>=22.0.0`
 
 ---
 
@@ -1008,9 +1011,3 @@ Requires a MongoDB replica set or sharded cluster.
 | `index(spec, options?)`       | Create an `IndexDef` for use in `defineCollection()`              |
 | `syncIndexes(col, db)`        | Sync declared indexes to MongoDB. Returns `Promise<Result<void>>` |
 | `generateIndexMigration(col)` | Returns a migrate-mongo compatible JS migration string            |
-
----
-
-## License
-
-MIT
