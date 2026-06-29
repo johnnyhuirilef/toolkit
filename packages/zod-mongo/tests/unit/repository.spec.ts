@@ -67,7 +67,7 @@ describe('findById', () => {
     await repo.findById('uuid-1');
 
     // Assert
-    expect(coll.findOne).toHaveBeenCalledWith({ _id: 'uuid-1' }, undefined);
+    expect(coll.findOne).toHaveBeenCalledWith({ _id: 'uuid-1' }, {});
   });
 });
 
@@ -94,7 +94,7 @@ describe('findOne', () => {
     await repo.findOne({ name: 'Bob' });
 
     // Assert
-    expect(coll.findOne).toHaveBeenCalledWith({ name: 'Bob' }, undefined);
+    expect(coll.findOne).toHaveBeenCalledWith({ name: 'Bob' }, {});
   });
 });
 
@@ -123,7 +123,7 @@ describe('find', () => {
     await repo.find();
 
     // Assert
-    expect(coll.find).toHaveBeenCalledWith({}, undefined);
+    expect(coll.find).toHaveBeenCalledWith({}, {});
   });
 });
 
@@ -218,7 +218,7 @@ describe('updateMany', () => {
     expect(coll.updateMany).toHaveBeenCalledWith(
       { name: 'Henry' },
       expect.objectContaining({ $set: expect.anything() }),
-      undefined,
+      {},
     );
   });
 });
@@ -238,7 +238,7 @@ describe('updateRaw', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.modifiedCount).toBe(3);
-    expect(coll.updateMany).toHaveBeenCalledWith({}, update, undefined);
+    expect(coll.updateMany).toHaveBeenCalledWith({}, update, {});
   });
 
   it('should forward options to the driver when provided', async () => {
