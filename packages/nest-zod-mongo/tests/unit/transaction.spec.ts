@@ -34,26 +34,25 @@ describe('MongoTransactionService', () => {
   it('S1: callback receives the ClientSession from withTransaction', async () => {
     const { sessionObject, sut } = setup();
     let received: ClientSession | undefined;
-    await sut.run(async (s) => {
+    await sut.run((s) => {
       received = s;
+      return Promise.resolve(undefined);
     });
     expect(received).toBe(sessionObject);
   });
 
   it('S2: returns ok(value) when callback succeeds', async () => {
     const { sut } = setup();
-    const result = await sut.run(async () => 42);
+    const result = await sut.run(() => Promise.resolve(42));
     expect(result).toEqual({ ok: true, value: 42 });
   });
 
   it('S3: returns err(DbError) when callback throws', async () => {
     const { sut } = setup();
-    const result = await sut.run(async () => {
-      throw new Error('boom');
-    });
+    const result = await sut.run(() => Promise.reject(new Error('boom')));
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error).toBeDefined();
+      expect(result.error).toMatchObject({ kind: expect.any(String) });
     }
   });
 
@@ -65,13 +64,16 @@ describe('MongoTransactionService', () => {
       close: vi.fn(),
     } as unknown as MongoClientWrapper;
     const sut = new MongoTransactionService(failingWrapper);
-    const result = await sut.run(async () => 'never');
+    const result = await sut.run(() => Promise.resolve('never'));
     expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatchObject({ kind: 'unknown' });
+    }
   });
 
   it('S5: withSession and withTransaction are each called exactly once', async () => {
     const { withSession, withTransaction, sut } = setup();
-    await sut.run(async () => 'done');
+    await sut.run(() => Promise.resolve('done'));
     expect(withSession).toHaveBeenCalledTimes(1);
     expect(withTransaction).toHaveBeenCalledTimes(1);
   });
