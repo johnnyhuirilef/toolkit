@@ -14,15 +14,11 @@ import type { Infer, ZodCompat } from './compat/zod.js';
 import { NotFoundError, toDbError } from './errors.js';
 import { generateId } from './id.js';
 import type { IdStrategy, InferIdType } from './id.js';
+import { createQueryBuilder } from './query-builder.js';
 import type { Repository } from './repository.js';
 import { err, ok } from './result.js';
 import type { Result } from './result.js';
-
-// ponytail: wraps driver promises — tryit returns [error, value] tuple, we map to our Result type
-const runSafe = async <T>(operation: () => Promise<T>): Promise<Result<T>> => {
-  const [error, value] = await tryit(operation)();
-  return isNullish(error) ? ok(value as T) : err(toDbError(error));
-};
+import { runSafe } from './run-safe.js';
 
 export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy>(
   collection: CollectionDef<Schema, Id>,
@@ -103,6 +99,8 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
         const cursor = coll.find(filter ?? {}, options);
         return cursor.toArray().then((records) => records as TDoc[]);
       }),
+
+    query: () => createQueryBuilder<Schema, Id>(coll),
 
     count: (filter) => runSafe(() => coll.countDocuments(filter ?? {})),
 

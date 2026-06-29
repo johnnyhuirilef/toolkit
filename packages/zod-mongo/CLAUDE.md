@@ -8,7 +8,7 @@ Declarative, immutable, type-safe MongoDB repository layer. Zero throws, dual ES
 pluggable ID strategies.
 
 Public surface: `defineCollection` + `createRepository` + `Result` + `DbError` +
-`index`/`syncIndexes`/`generateIndexMigration`.
+`index`/`syncIndexes`/`generateIndexMigration` + `QueryBuilder` (type-only).
 
 Peer dependencies: `mongodb ^5 || ^6 || ^7`, `zod >=3 <5`. Runtime dependency: `radashi ^12`.
 
@@ -23,6 +23,8 @@ src/
   errors.ts         — DbError, DbErrorKind, toDbError()
   id.ts             — IdStrategy, InferIdType<T>, generateId()
   indexes.ts        — IndexDef, index(), syncIndexes(), generateIndexMigration()
+  run-safe.ts       — runSafe() internal utility; wraps driver promises as Result<T>; moved out of mongo-repository.ts
+  query-builder.ts  — QueryBuilder<Schema, Id> type + createQueryBuilder() factory; internal factory not re-exported
   compat/
     zod.ts          — ZodCompat structural type, Infer<T>
     driver.ts       — findOneAndModify() shim for MongoDB v5/v6/v7 API differences

@@ -10,3 +10,4 @@ export type { CollectionDef, Doc } from './collection.js';
 export { defineCollection } from './collection.js';
 export type { Repository } from './repository.js';
 export { createRepository } from './mongo-repository.js';
+export type { QueryBuilder } from './query-builder.js';
