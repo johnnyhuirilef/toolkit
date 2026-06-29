@@ -12,13 +12,28 @@ MongoDB 5/6/7 compatible. NestJS 10/11 compatible.
   - [forRoot — Static Configuration](#forroot--static-configuration)
   - [forRootAsync — Factory Configuration](#forrootasync--factory-configuration)
   - [forFeature — Repository Registration](#forfeature--repository-registration)
+- [Defining Collections](#defining-collections)
+  - [ID Strategies](#id-strategies)
+  - [Index Declarations](#index-declarations)
 - [Injecting Repositories and Connections](#injecting-repositories-and-connections)
+- [Working with Repositories](#working-with-repositories)
+  - [Result Type](#result-type)
+  - [Find](#find)
+  - [query() builder](#query-builder)
+  - [Count and Exists](#count-and-exists)
+  - [Insert](#insert)
+  - [Upsert](#upsert)
+  - [Update](#update)
+  - [Atomic operations — updateRaw](#atomic-operations--updateraw)
+  - [Delete](#delete)
+  - [Aggregation](#aggregation)
+  - [session()](#session)
 - [Named Connections](#named-connections)
 - [Index Synchronization](#index-synchronization)
 - [Graceful Shutdown](#graceful-shutdown)
 - [Health Checks](#health-checks)
 - [Transactions](#transactions)
-- [Error Types](#error-types)
+- [Error Handling](#error-handling)
 - [API Reference](#api-reference)
 
 ---
@@ -34,6 +49,10 @@ MongoDB 5/6/7 compatible. NestJS 10/11 compatible.
 - **Index sync** — optional `createIndexes()` on module init, driven by the `CollectionDef`
   declaration
 - **Health checks** — opt-in `MongoHealthModule` for `@nestjs/terminus` integration
+- **Transactions** — opt-in `MongoTransactionModule` for multi-document atomic operations
+- **Zero throws** — every repository method returns `Result<T, DbError>`, never throws
+- **Full type inference** — document shape, `_id` type, and filter types flow from a single
+  `defineCollection()` call
 - **Global module** — providers registered once, available everywhere
 
 ---
@@ -93,6 +112,22 @@ export class UserModule {}
 ```
 
 ```typescript
+// user/user.collection.ts
+import * as z from 'zod';
+import { defineCollection, index } from '@wenu/nest-mongo';
+
+export const UserCollection = defineCollection({
+  name: 'users',
+  schema: z.object({
+    name: z.string().min(1),
+    email: z.string().email(),
+    createdAt: z.date(),
+  }),
+  indexes: [index({ email: 1 }, { unique: true })],
+});
+```
+
+```typescript
 // user/user.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@wenu/nest-mongo';
@@ -107,21 +142,6 @@ export class UserService {
 
   async create(name: string, email: string) {
     return this.users.insert({ name, email, createdAt: new Date() });
-  }
-
-  async exists(email: string) {
-    const result = await this.users.exists({ email });
-    return result.ok ? result.value : false;
-  }
-
-  async count() {
-    const result = await this.users.count();
-    return result.ok ? result.value : 0;
-  }
-
-  async upsert(id: string, name: string, email: string) {
-    // Insert if not found, replace if found — _id always preserved
-    return this.users.upsertById(id, { name, email, createdAt: new Date() });
   }
 }
 ```
@@ -189,6 +209,101 @@ Each collection gets a repository provider keyed by
 
 ---
 
+## Defining Collections
+
+`defineCollection()` is the single source of truth for a collection's shape, ID strategy, and
+indexes. Import it directly from `@wenu/nest-mongo` — no need to install `@wenu/mongo` separately.
+
+```typescript
+import * as z from 'zod';
+import { defineCollection, index } from '@wenu/nest-mongo';
+
+export const ProductCollection = defineCollection({
+  name: 'products',
+  schema: z.object({
+    sku: z.string(),
+    name: z.string(),
+    price: z.number().positive(),
+    tags: z.array(z.string()).default([]),
+  }),
+  id: 'uuid',
+  indexes: [index({ sku: 1 }, { unique: true }), index({ tags: 1 })],
+});
+```
+
+The `Doc<Schema, Id>` type resolves to the schema output merged with the inferred `_id` type:
+
+```typescript
+import type { Doc } from '@wenu/nest-mongo';
+
+type Product = Doc<typeof ProductCollection.schema, typeof ProductCollection.id>;
+// { _id: string; sku: string; name: string; price: number; tags: string[] }
+```
+
+### ID Strategies
+
+Set `id` in `defineCollection()`. The `_id` type on every document is inferred automatically.
+
+| Strategy               | `_id` type      | Auto-generated              |
+| ---------------------- | --------------- | --------------------------- |
+| `'objectid'` (default) | `ObjectId`      | Yes — `new ObjectId()`      |
+| `'uuid'`               | `string`        | Yes — `crypto.randomUUID()` |
+| `'string'`             | `string`        | No — embed `_id` in data    |
+| Any Zod schema         | `Infer<Schema>` | No — embed `_id` in data    |
+
+```typescript
+// objectid (default) — _id is ObjectId, never in input
+const PostCollection = defineCollection({
+  name: 'posts',
+  schema: z.object({ title: z.string(), body: z.string() }),
+});
+
+// uuid — _id is string (UUID v4), never in input
+const SessionCollection = defineCollection({
+  name: 'sessions',
+  schema: z.object({ userId: z.string(), expiresAt: z.date() }),
+  id: 'uuid',
+});
+
+// string — caller supplies _id; include it in the schema
+const CountryCollection = defineCollection({
+  name: 'countries',
+  schema: z.object({ _id: z.string(), name: z.string() }),
+  id: 'string',
+});
+
+// Custom Zod schema — branded type
+const OrderId = z.string().brand<'OrderId'>();
+const OrderCollection = defineCollection({
+  name: 'orders',
+  schema: z.object({ _id: OrderId, total: z.number() }),
+  id: OrderId,
+});
+```
+
+### Index Declarations
+
+```typescript
+import { defineCollection, index } from '@wenu/nest-mongo';
+
+const ArticleCollection = defineCollection({
+  name: 'articles',
+  schema: z.object({
+    slug: z.string(),
+    authorId: z.string(),
+    publishedAt: z.date().optional(),
+    tags: z.array(z.string()).default([]),
+  }),
+  indexes: [
+    index({ slug: 1 }, { unique: true }),
+    index({ authorId: 1, publishedAt: -1 }),
+    index({ tags: 1 }),
+  ],
+});
+```
+
+---
+
 ## Injecting Repositories and Connections
 
 ### @InjectRepository
@@ -211,21 +326,272 @@ Inject a typed repository for a collection. Accepts a `CollectionDef` or a plain
 Inject the raw `Db` handle for direct driver access.
 
 ```typescript
-import { InjectConnection } from '@wenu/nest-mongo'
-import type { Db } from 'mongodb'
+import { InjectConnection } from '@wenu/nest-mongo';
+import type { Db } from 'mongodb';
 
 @Injectable()
 export class AdminService {
   constructor(@InjectConnection() private readonly db: Db) {}
 
   async stats() {
-    return this.db.stats()
+    return this.db.stats();
   }
 }
 
 // Named connection
 @InjectConnection('analytics') private readonly analyticsDb: Db
 ```
+
+---
+
+## Working with Repositories
+
+All repository methods return `Promise<Result<T, DbError>>` — they never throw. The injected
+repository type is `Repository<Schema, Id>`.
+
+### Result Type
+
+```typescript
+type Ok<T> = { readonly ok: true; readonly value: T };
+type Err<E> = { readonly ok: false; readonly error: E };
+type Result<T, E = DbError> = Ok<T> | Err<E>;
+```
+
+Use the `ok` discriminant or the `isOk` / `isErr` helpers:
+
+```typescript
+import { isOk, isErr } from '@wenu/nest-mongo';
+
+const result = await this.users.findById(id);
+
+if (result.ok) {
+  console.log(result.value); // Doc | null
+}
+
+if (isErr(result)) {
+  console.error(result.error.kind, result.error.message);
+}
+```
+
+### Find
+
+```typescript
+// By ID
+const byId = await this.users.findById(someObjectId);
+
+// By filter — returns first match or null
+const byEmail = await this.users.findOne({ email: 'alice@example.com' });
+
+// All matching documents
+const all = await this.users.find({ name: /alice/i });
+
+// All documents
+const everyone = await this.users.find();
+
+// With FindOptions (sort, limit, projection, etc.)
+const latest = await this.users.find({}, { sort: { createdAt: -1 }, limit: 10 });
+```
+
+### query() builder
+
+`query()` returns a chainable, immutable `QueryBuilder` for complex reads:
+
+```typescript
+// Equivalent to find() with options
+const result = await this.users
+  .query()
+  .filter({ status: 'active' })
+  .sort({ createdAt: -1 })
+  .limit(10)
+  .skip(20)
+  .exec();
+
+if (result.ok) {
+  for (const user of result.value) {
+    console.log(user.name);
+  }
+}
+```
+
+Each chain call returns a new, independent builder — the original is never mutated:
+
+```typescript
+const base = this.users.query().filter({ status: 'active' });
+const page1 = base.limit(10).skip(0);
+const page2 = base.limit(10).skip(10); // independent from page1
+```
+
+### Count and Exists
+
+```typescript
+const total = await this.users.count();
+if (total.ok) console.log(total.value); // number
+
+const admins = await this.users.count({ role: 'admin' });
+
+// cheaper than count — uses limit: 1 internally
+const hasAdmin = await this.users.exists({ role: 'admin' });
+if (hasAdmin.ok) console.log(hasAdmin.value); // boolean
+```
+
+### Insert
+
+```typescript
+// Single document — validated before insert
+const inserted = await this.users.insert({
+  name: 'Bob',
+  email: 'bob@example.com',
+  createdAt: new Date(),
+});
+
+// Multiple — validates all first; any failure aborts before any DB write
+const many = await this.users.insertMany([
+  { name: 'Carol', email: 'carol@example.com', createdAt: new Date() },
+  { name: 'Dave', email: 'dave@example.com', createdAt: new Date() },
+]);
+```
+
+### Upsert
+
+`upsertById` uses the caller-supplied `id` as `_id` on the insert path. `upsertOne` matches by
+filter — generates a new `_id` on insert, preserves the existing one on replace.
+
+```typescript
+// Insert or replace by explicit ID
+const result = await this.products.upsertById('sku-123', {
+  sku: 'sku-123',
+  name: 'Widget',
+  price: 9.99,
+  tags: [],
+});
+
+// Insert or replace by filter
+const bySlug = await this.products.upsertOne(
+  { sku: 'sku-456' },
+  { sku: 'sku-456', name: 'Gadget', price: 19.99, tags: ['new'] },
+);
+```
+
+### Update
+
+```typescript
+// By ID — returns updated document or null
+const updated = await this.users.updateById(someObjectId, { name: 'Alice Smith' });
+
+// By filter — returns updated document or null
+const updatedOne = await this.users.updateOne(
+  { email: 'alice@example.com' },
+  { name: 'Alice Smith' },
+);
+
+// Bulk — returns { modifiedCount }
+const bulk = await this.users.updateMany(
+  { createdAt: { $lt: new Date('2024-01-01') } },
+  { name: 'archived' },
+);
+if (bulk.ok) console.log(`Updated ${bulk.value.modifiedCount} documents`);
+```
+
+All update methods accept an optional `options` forwarded to the driver:
+
+```typescript
+// FindOneAndUpdateOptions on updateById / updateOne
+await this.users.updateById(id, { name: 'Alice' }, { comment: 'profile-update' });
+
+// UpdateOptions on updateMany
+await this.users.updateMany(
+  { role: 'guest' },
+  { role: 'user' },
+  { writeConcern: { w: 'majority' } },
+);
+```
+
+### Atomic operations — `updateRaw`
+
+For MongoDB operators (`$inc`, `$push`, `$pull`, `$unset`, etc.) that can't be expressed as a
+validated partial update, use `updateRaw`. It passes the `UpdateFilter` directly to the driver
+without `$set` wrapping or schema validation:
+
+```typescript
+// Increment a counter
+await this.users.updateRaw({ _id: id }, { $inc: { loginCount: 1 } });
+
+// Push to an array
+await this.users.updateRaw({ _id: id }, { $push: { tags: 'premium' } });
+
+// Pull from an array
+await this.users.updateRaw({ _id: id }, { $pull: { tags: 'trial' } });
+
+// With options — returns { modifiedCount }
+const result = await this.users.updateRaw(
+  { status: 'inactive' },
+  { $set: { archivedAt: new Date() } },
+  { writeConcern: { w: 'majority' } },
+);
+if (result.ok) console.log(`Archived ${result.value.modifiedCount} users`);
+```
+
+> `updateRaw` matches all documents (equivalent to `updateMany` in scope). Use it only when atomic
+> operators are required — prefer `updateById`, `updateOne`, or `updateMany` for validated patches.
+
+### Delete
+
+```typescript
+// By ID — returns deleted document or null
+const deleted = await this.users.deleteById(someObjectId);
+
+// By filter — returns deleted document or null
+const deletedOne = await this.users.deleteOne({ email: 'bob@example.com' });
+
+// Bulk — returns { deletedCount }
+const bulk = await this.users.deleteMany({ createdAt: { $lt: cutoff } });
+if (bulk.ok) console.log(`Deleted ${bulk.value.deletedCount} documents`);
+```
+
+### Aggregation
+
+Pass the pipeline and an output schema. Results are parsed through the schema and returned as
+`Result<Infer<Out>[]>`. The output schema does not need to match the collection schema.
+
+```typescript
+import * as z from 'zod';
+
+const SummarySchema = z.object({
+  authorId: z.string(),
+  articleCount: z.number(),
+});
+
+const result = await this.articles.aggregate(
+  [
+    { $match: { publishedAt: { $exists: true } } },
+    { $group: { _id: '$authorId', articleCount: { $sum: 1 } } },
+    { $project: { authorId: '$_id', articleCount: 1, _id: 0 } },
+  ],
+  SummarySchema,
+);
+
+if (result.ok) {
+  for (const summary of result.value) {
+    console.log(summary.authorId, summary.articleCount);
+  }
+}
+```
+
+### session()
+
+`repo.session(clientSession)` returns a new repository view that threads the `ClientSession` into
+every driver call. The base repository is unaffected. Use it inside a `withTransaction` callback
+(see [Transactions](#transactions)).
+
+```typescript
+await session.withTransaction(async () => {
+  await this.accounts.session(session).updateRaw({ _id: fromId }, { $inc: { balance: -amount } });
+  await this.accounts.session(session).updateRaw({ _id: toId }, { $inc: { balance: amount } });
+});
+```
+
+Calling `repo.session(s1).session(s2)` binds `s2`, discarding `s1`. Immutable — never mutates the
+original repository.
 
 ---
 
@@ -267,12 +633,13 @@ MongoModule.forFeature([EventCollection], 'analytics');
 ## Index Synchronization
 
 When `syncIndexes: true` (default), the module calls `createIndexes()` for every collection
-registered via `forFeature`. Indexes are declared in `defineCollection()` using the `index()` helper
-from `@wenu/mongo`.
+registered via `forFeature`. MongoDB skips indexes that already exist — safe to run on every
+startup.
+
+Indexes are declared in `defineCollection()` using the `index()` helper:
 
 ```typescript
 import { defineCollection, index } from '@wenu/nest-mongo';
-import * as z from 'zod';
 
 const UserCollection = defineCollection({
   name: 'users',
@@ -281,9 +648,21 @@ const UserCollection = defineCollection({
 });
 ```
 
-MongoDB skips indexes that already exist — safe to run on every startup.
-
 To disable: `MongoModule.forRoot({ ..., syncIndexes: false })`.
+
+You can also sync or generate a migrate-mongo migration manually:
+
+```typescript
+import { syncIndexes, generateIndexMigration } from '@wenu/nest-mongo';
+
+// Sync manually (e.g. in a CLI script)
+const result = await syncIndexes(UserCollection, db);
+if (!result.ok) console.error('Index sync failed:', result.error.message);
+
+// Generate a migrate-mongo migration file
+const migration = generateIndexMigration(UserCollection);
+fs.writeFileSync('migrations/20240101-users-indexes.js', migration);
+```
 
 ---
 
@@ -306,9 +685,9 @@ Configure shutdown behavior via `forRoot` options:
 MongoModule.forRoot({
   uri: '...',
   databaseName: 'myapp',
-  shutdownTimeoutMs: 5_000, // give each close() 5 seconds
-  shutdownRetryAttempts: 3, // retry up to 3 times on failure
-  forceShutdown: false, // set true to force-close (drops in-flight ops)
+  shutdownTimeoutMs: 5_000,
+  shutdownRetryAttempts: 3,
+  forceShutdown: false,
 });
 ```
 
@@ -317,8 +696,7 @@ MongoModule.forRoot({
 ## Health Checks
 
 `MongoHealthModule` provides an opt-in `MongoHealthIndicator` that integrates with
-`@nestjs/terminus`. It requires `@nestjs/terminus >=10.0.0` as a peer dependency — only install it
-if you use health checks.
+`@nestjs/terminus`. Requires `@nestjs/terminus >=10.0.0` as a peer dependency.
 
 ```bash
 npm install @nestjs/terminus
@@ -340,8 +718,7 @@ export class HealthModule {}
 // health/health.controller.ts
 import { Controller, Get } from '@nestjs/common';
 import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
-import { InjectConnection } from '@wenu/nest-mongo';
-import { MongoHealthIndicator } from '@wenu/nest-mongo';
+import { InjectConnection, MongoHealthIndicator } from '@wenu/nest-mongo';
 import type { Db } from 'mongodb';
 
 @Controller('health')
@@ -376,14 +753,10 @@ within a MongoDB transaction. This is an opt-in module — it is NOT registered 
 
 ### Module Registration
 
-Register `MongoTransactionModule.forFeature()` in the feature module that needs transactional
-operations.
-
 ```typescript
 // transfer.module.ts
 import { Module } from '@nestjs/common';
 import { MongoModule, MongoTransactionModule } from '@wenu/nest-mongo';
-
 import { AccountCollection } from './account.collection';
 import { LedgerCollection } from './ledger.collection';
 import { TransferService } from './transfer.service';
@@ -396,18 +769,15 @@ import { TransferService } from './transfer.service';
   providers: [TransferService],
 })
 export class TransferModule {}
-```
 
-For a named connection, pass the `connectionName` option:
-
-```typescript
+// Named connection
 MongoTransactionModule.forFeature({ connectionName: 'primary' });
 ```
 
 ### Using `MongoTransactionService`
 
-Inject `MongoTransactionService` and call `run(fn)`. The callback receives a `ClientSession` that is
-automatically enlisted in the transaction. The method returns `Result<T>` — it never throws.
+Inject `MongoTransactionService` and call `run(fn)`. The callback receives a `ClientSession` already
+enlisted in the transaction. Returns `Result<T>` — never throws.
 
 ```typescript
 // transfer.service.ts
@@ -415,7 +785,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository, MongoTransactionService } from '@wenu/nest-mongo';
 import type { Repository } from '@wenu/nest-mongo';
 import type { ClientSession } from 'mongodb';
-
 import { AccountCollection } from './account.collection';
 import { LedgerCollection } from './ledger.collection';
 
@@ -432,28 +801,72 @@ export class TransferService {
 
   async transfer(fromId: string, toId: string, amount: number) {
     return this.transactions.run(async (session: ClientSession) => {
-      await this.accounts.updateRaw({ _id: fromId }, { $inc: { balance: -amount } }, { session });
-      await this.accounts.updateRaw({ _id: toId }, { $inc: { balance: amount } }, { session });
-      await this.ledger.insert({ fromId, toId, amount, createdAt: new Date() }, { session });
+      await this.accounts
+        .session(session)
+        .updateRaw({ _id: fromId }, { $inc: { balance: -amount } });
+      await this.accounts.session(session).updateRaw({ _id: toId }, { $inc: { balance: amount } });
+      await this.ledger.session(session).insert({ fromId, toId, amount, createdAt: new Date() });
     });
   }
 }
 ```
 
-If the callback throws, `run` catches the error and returns `{ ok: false, error: DbError }`. If the
-MongoDB driver itself rejects (e.g., network failure), the result is also `{ ok: false }`. On
-success the result is `{ ok: true, value: T }`.
+If the callback throws, `run` catches the error and returns `{ ok: false, error: DbError }`. On
+success: `{ ok: true, value: T }`.
 
 ---
 
-## Error Types
+## Error Handling
+
+`DbError` carries a discriminated `kind` field — branch on error type without inspecting strings:
+
+```typescript
+import type { DbError } from '@wenu/nest-mongo';
+
+type DbErrorKind =
+  | 'validation' // Zod parse failed — no DB call was made
+  | 'duplicate-key' // MongoDB error code 11000 (unique index violation)
+  | 'not-found' // upsert returned null after write
+  | 'connection' // reserved for future use
+  | 'unknown'; // any other driver error
+```
+
+```typescript
+const result = await this.products.insert({ sku: 'existing-sku', name: 'X', price: 10, tags: [] });
+
+if (!result.ok) {
+  switch (result.error.kind) {
+    case 'duplicate-key':
+      throw new ConflictException('SKU already exists');
+    case 'validation':
+      throw new BadRequestException(result.error.message);
+    default:
+      throw new InternalServerErrorException(result.error.message);
+  }
+}
+```
+
+Convert any caught value to a `DbError` with `toDbError`:
+
+```typescript
+import { toDbError, NotFoundError } from '@wenu/nest-mongo';
+
+try {
+  // ...
+} catch (error) {
+  if (error instanceof NotFoundError) {
+    // kind: 'not-found'
+  }
+  const dbError = toDbError(error);
+}
+```
+
+Module-level errors thrown during bootstrap:
 
 | Error                     | When thrown                                         |
 | ------------------------- | --------------------------------------------------- |
 | `MongoConnectionError`    | `MongoClient.connect()` fails during module init    |
 | `MongoConfigurationError` | Neither `uri` nor `mongoClient` provided in options |
-
-Both extend `Error` and are exported for use in `catch` blocks or NestJS exception filters.
 
 ```typescript
 import { MongoConnectionError } from '@wenu/nest-mongo';
@@ -479,16 +892,88 @@ try {
 | `forRootAsync(asyncOptions)`     | `DynamicModule` | Factory-based connection setup                    |
 | `forFeature(collections, name?)` | `DynamicModule` | Register repository providers in a feature module |
 
+### Repository\<Schema, Id\> methods
+
+| Method                                | Returns                                      |
+| ------------------------------------- | -------------------------------------------- |
+| `findById(id, options?)`              | `Promise<Result<Doc \| null>>`               |
+| `findOne(filter, options?)`           | `Promise<Result<Doc \| null>>`               |
+| `find(filter?, options?)`             | `Promise<Result<Doc[]>>`                     |
+| `query()`                             | `QueryBuilder<Schema, Id>`                   |
+| `count(filter?)`                      | `Promise<Result<number>>`                    |
+| `exists(filter)`                      | `Promise<Result<boolean>>`                   |
+| `insert(data)`                        | `Promise<Result<Doc>>`                       |
+| `insertMany(data)`                    | `Promise<Result<Doc[]>>`                     |
+| `upsertById(id, data)`                | `Promise<Result<Doc>>`                       |
+| `upsertOne(filter, data)`             | `Promise<Result<Doc>>`                       |
+| `updateById(id, patch, options?)`     | `Promise<Result<Doc \| null>>`               |
+| `updateOne(filter, patch, options?)`  | `Promise<Result<Doc \| null>>`               |
+| `updateMany(filter, patch, options?)` | `Promise<Result<{ modifiedCount: number }>>` |
+| `updateRaw(filter, update, options?)` | `Promise<Result<{ modifiedCount: number }>>` |
+| `deleteById(id)`                      | `Promise<Result<Doc \| null>>`               |
+| `deleteOne(filter)`                   | `Promise<Result<Doc \| null>>`               |
+| `deleteMany(filter?)`                 | `Promise<Result<{ deletedCount: number }>>`  |
+| `aggregate(pipeline, outputSchema)`   | `Promise<Result<Infer<Out>[]>>`              |
+| `session(clientSession)`              | `Repository<Schema, Id>`                     |
+
+**`options` types by method:**
+
+| Method group                  | `options` type            |
+| ----------------------------- | ------------------------- |
+| `findById`, `findOne`, `find` | `FindOptions<Doc>`        |
+| `updateById`, `updateOne`     | `FindOneAndUpdateOptions` |
+| `updateMany`, `updateRaw`     | `UpdateOptions`           |
+
+All types imported from `mongodb` — no custom wrappers.
+
+### QueryBuilder\<Schema, Id\>
+
+Returned by `repo.query()`. Each method returns a new, independent builder.
+
+| Method           | Parameter                 | Returns                    |
+| ---------------- | ------------------------- | -------------------------- |
+| `filter(filter)` | `Filter<Doc<Schema, Id>>` | `QueryBuilder<Schema, Id>` |
+| `sort(sort)`     | `Sort` (from `mongodb`)   | `QueryBuilder<Schema, Id>` |
+| `limit(n)`       | `number`                  | `QueryBuilder<Schema, Id>` |
+| `skip(n)`        | `number`                  | `QueryBuilder<Schema, Id>` |
+| `exec()`         | —                         | `Promise<Result<Doc[]>>`   |
+
+### Decorators
+
+| Decorator                       | Description                                                            |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| `@InjectRepository(col, name?)` | Inject a typed `Repository` for a collection                           |
+| `@InjectConnection(name?)`      | Inject the raw `Db` handle                                             |
+| `@InjectClientWrapper(name?)`   | Inject the `MongoClientWrapper` (advanced — needed for custom modules) |
+
 ### Token helpers
 
 ```typescript
-import { getRepositoryToken, getConnectionToken, DEFAULT_CONNECTION } from '@wenu/nest-mongo';
+import {
+  getRepositoryToken,
+  getConnectionToken,
+  getClientWrapperToken,
+  DEFAULT_CONNECTION,
+} from '@wenu/nest-mongo';
 
 getRepositoryToken('users'); // 'usersRepository'
 getRepositoryToken('users', 'analytics'); // 'analytics_usersRepository'
 getConnectionToken(); // DEFAULT_CONNECTION symbol
 getConnectionToken('analytics'); // 'analytics'
+getClientWrapperToken(); // 'MongoClientWrapper_default'
+getClientWrapperToken('secondary'); // 'MongoClientWrapper_secondary'
 ```
+
+### Result helpers
+
+| Export          | Signature                                | Description                        |
+| --------------- | ---------------------------------------- | ---------------------------------- |
+| `ok`            | `<T>(value: T) => Ok<T>`                 | Construct a success result         |
+| `err`           | `<E>(error: E) => Err<E>`                | Construct an error result          |
+| `isOk`          | `<T, E>(r: Result<T, E>) => r is Ok<T>`  | Type guard for success             |
+| `isErr`         | `<T, E>(r: Result<T, E>) => r is Err<E>` | Type guard for error               |
+| `toDbError`     | `(e: unknown) => DbError`                | Map any thrown value to `DbError`  |
+| `NotFoundError` | `class extends Error`                    | Domain error → `kind: 'not-found'` |
 
 ### MongoHealthModule
 
@@ -516,16 +1001,13 @@ Requires `@nestjs/terminus >=10.0.0` as an optional peer dependency.
 
 Requires a MongoDB replica set or sharded cluster.
 
-### Re-exports from @wenu/mongo
+### Index utilities
 
-For convenience, the following are re-exported so you don't need to install `@wenu/mongo` separately
-for common types:
-
-```typescript
-import { defineCollection, ok, err, isOk, isErr, NotFoundError } from '@wenu/nest-mongo';
-import { MongoHealthIndicator, MongoHealthModule } from '@wenu/nest-mongo';
-import type { Repository, CollectionDef, Doc, Result, DbError } from '@wenu/nest-mongo';
-```
+| Export                        | Description                                                       |
+| ----------------------------- | ----------------------------------------------------------------- |
+| `index(spec, options?)`       | Create an `IndexDef` for use in `defineCollection()`              |
+| `syncIndexes(col, db)`        | Sync declared indexes to MongoDB. Returns `Promise<Result<void>>` |
+| `generateIndexMigration(col)` | Returns a migrate-mongo compatible JS migration string            |
 
 ---
 
