@@ -2,10 +2,15 @@
 export { MongoModule } from './zod-mongo.module';
 
 // Decorators
-export { InjectRepository, InjectConnection } from './zod-mongo.decorators';
+export { InjectRepository, InjectConnection, InjectClientWrapper } from './zod-mongo.decorators';
 
 // Token helpers
-export { getRepositoryToken, getConnectionToken, DEFAULT_CONNECTION } from './zod-mongo.tokens';
+export {
+  getRepositoryToken,
+  getConnectionToken,
+  getClientWrapperToken,
+  DEFAULT_CONNECTION,
+} from './zod-mongo.tokens';
 
 // Error types
 export { MongoConnectionError, MongoConfigurationError } from './zod-mongo.errors';
@@ -16,6 +21,10 @@ export type { MongoOptions, MongoAsyncOptions, MongoClientWrapper } from './zod-
 // Health check (opt-in — requires @nestjs/terminus peer dep)
 export { MongoHealthIndicator } from './health/mongo-health.indicator.js';
 export { MongoHealthModule } from './health/mongo-health.module.js';
+
+// Transaction (opt-in)
+export { MongoTransactionService } from './transaction/mongo-transaction.service.js';
+export { MongoTransactionModule } from './transaction/mongo-transaction.module.js';
 
 // Re-exports from @wenu/mongo for DX
 export type { Repository, CollectionDef, Doc, Result, DbError } from '@wenu/mongo';
