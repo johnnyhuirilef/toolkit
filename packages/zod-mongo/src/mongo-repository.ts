@@ -80,23 +80,27 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
   };
 
   return {
-    findById: (id) =>
-      runSafe(() =>
-        coll
-          .findOne({ _id: id } as Filter<TDoc>)
-          .then((found) => (isNullish(found) ? null : found) as TDoc | null),
+    findById: (id, options?) =>
+      runSafe(
+        () =>
+          coll
+            .findOne({ _id: id } as Filter<TDoc>, options)
+            .then((found) => (isNullish(found) ? null : found) as TDoc | null), // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
       ),
 
-    findOne: (filter) =>
-      runSafe(() =>
-        coll.findOne(filter).then((found) => (isNullish(found) ? null : found) as TDoc | null),
+    findOne: (filter, options?) =>
+      runSafe(
+        () =>
+          coll
+            .findOne(filter, options)
+            .then((found) => (isNullish(found) ? null : found) as TDoc | null), // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
       ),
 
-    find: (filter) =>
+    find: (filter?, options?) =>
       runSafe(() => {
         // ponytail: Collection.find() is not Array.find() — unicorn cannot distinguish them.
-        // eslint-disable-next-line unicorn/no-array-callback-reference
-        const cursor = coll.find(filter ?? {});
+        // eslint-disable-next-line unicorn/no-array-callback-reference, unicorn/no-array-method-this-argument
+        const cursor = coll.find(filter ?? {}, options);
         return cursor.toArray().then((records) => records as TDoc[]);
       }),
 
@@ -165,34 +169,36 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
       });
     },
 
-    updateById: async (id, patch) => {
+    updateById: async (id, patch, options?) => {
       const parsed = parsePartialSchema(patch);
       if (!parsed.ok) return parsed as Result<TDoc | null>;
       return runSafe(() =>
         findOneAndModify(coll, { _id: id } as Filter<TDoc>, {
           kind: 'update',
           update: { $set: shake(parsed.value) } as UpdateFilter<TDoc>,
+          options,
         }).then((found) => (isNullish(found) ? null : found) as TDoc | null),
       );
     },
 
-    updateOne: async (filter, patch) => {
+    updateOne: async (filter, patch, options?) => {
       const parsed = parsePartialSchema(patch);
       if (!parsed.ok) return parsed as Result<TDoc | null>;
       return runSafe(() =>
         findOneAndModify(coll, filter, {
           kind: 'update',
           update: { $set: shake(parsed.value) } as UpdateFilter<TDoc>,
+          options,
         }).then((found) => (isNullish(found) ? null : found) as TDoc | null),
       );
     },
 
-    updateMany: async (filter, patch) => {
+    updateMany: async (filter, patch, options?) => {
       const parsed = parsePartialSchema(patch);
       if (!parsed.ok) return parsed as Result<{ modifiedCount: number }>;
       return runSafe(() =>
         coll
-          .updateMany(filter, { $set: shake(parsed.value) } as UpdateFilter<TDoc>)
+          .updateMany(filter, { $set: shake(parsed.value) } as UpdateFilter<TDoc>, options)
           .then((result) => ({ modifiedCount: result.modifiedCount })),
       );
     },
