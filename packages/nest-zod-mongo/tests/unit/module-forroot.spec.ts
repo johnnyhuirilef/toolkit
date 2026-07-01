@@ -18,6 +18,12 @@ const makeFakeClient = (overrides?: Partial<MongoClient>): MongoClient => {
   } as unknown as MongoClient;
 };
 
+const setup = () => {
+  const fakeClient = makeFakeClient();
+  const options: MongoOptions = { mongoClient: fakeClient, databaseName: 'test_db' };
+  return { fakeClient, options };
+};
+
 describe('MongoModule.forRoot', () => {
   it('throws MongoConfigurationError when neither uri nor mongoClient provided', async () => {
     vi.spyOn(console, 'error').mockImplementation(vi.fn());
@@ -26,23 +32,20 @@ describe('MongoModule.forRoot', () => {
   });
 
   it('resolves the Db handle under getConnectionToken() when mongoClient provided', async () => {
-    const fakeClient = makeFakeClient();
-    const options: MongoOptions = { mongoClient: fakeClient, databaseName: 'test_db' };
+    const { options } = setup();
     const { db } = await establishConnection(options);
     expect(db).toBeDefined();
   });
 
   it('resolves the MongoClientWrapper under getClientWrapperToken()', async () => {
-    const fakeClient = makeFakeClient();
-    const options: MongoOptions = { mongoClient: fakeClient, databaseName: 'test_db' };
+    const { options } = setup();
     const { wrapper } = await establishConnection(options);
     expect(wrapper).toBeDefined();
     expect(typeof wrapper.close).toBe('function');
   });
 
   it('forRoot returns providers with correct tokens', () => {
-    const fakeClient = makeFakeClient();
-    const options: MongoOptions = { mongoClient: fakeClient, databaseName: 'test_db' };
+    const { options } = setup();
     const dynamicModule = MongoModule.forRoot(options);
     const providers = dynamicModule.providers as FactoryProvider[];
     const tokens = providers.map((p) => p.provide);
@@ -51,8 +54,7 @@ describe('MongoModule.forRoot', () => {
   });
 
   it('createConnectionProviders registers 5 providers', () => {
-    const fakeClient = makeFakeClient();
-    const options: MongoOptions = { mongoClient: fakeClient, databaseName: 'test_db' };
+    const { options } = setup();
     const providers = createConnectionProviders(options);
     expect(providers).toHaveLength(5);
   });

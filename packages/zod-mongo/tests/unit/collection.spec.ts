@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { z } from 'zod';
+import * as z from 'zod';
 
 import { defineCollection } from '../../src/collection.js';
 import { index } from '../../src/indexes.js';

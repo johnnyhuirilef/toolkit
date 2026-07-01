@@ -127,6 +127,14 @@ const createImportRules = () => [
           'newlines-between': 'always',
         },
       ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "ImportDeclaration[source.value='zod']:not([importKind='type']) > ImportSpecifier[imported.name='z']:not([importKind='type'])",
+          message: "Use 'import * as z from \"zod\"' instead of the named import.",
+        },
+      ],
     },
   },
 ];

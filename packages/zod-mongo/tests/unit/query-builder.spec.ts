@@ -1,15 +1,11 @@
 import type { Collection } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
-import * as z from 'zod';
 
-import { defineCollection } from '../../src/collection.js';
 import type { Doc } from '../../src/collection.js';
+import type { ZodCompat } from '../../src/compat/zod.js';
 import { createQueryBuilder } from '../../src/query-builder.js';
 
-const schema = z.object({ name: z.string(), score: z.number().optional() });
-const TestCollection = defineCollection({ name: 'qb-unit', schema, id: 'uuid' as const });
-
-type Schema = typeof schema;
+type Schema = ZodCompat<{ name: string; score?: number }>;
 type Id = 'uuid';
 type TestDoc = Doc<Schema, Id>;
 
@@ -30,11 +26,6 @@ const setup = (overrides: Partial<Collection<TestDoc>> = {}) => {
 };
 
 describe('QueryBuilder — unit', () => {
-  // reference TestCollection to avoid unused-var warning; it's used to anchor types
-  it('uses collection with uuid strategy', () => {
-    expect(TestCollection.id).toBe('uuid');
-  });
-
   it('filter(f).exec() calls coll.find with the given filter', async () => {
     // Arrange
     const { coll, builder } = setup();
