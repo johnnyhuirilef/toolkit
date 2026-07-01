@@ -8,6 +8,7 @@ import type {
   UpdateFilter,
   UpdateOptions,
 } from 'mongodb';
+import { ObjectId } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import * as z from 'zod';
 
@@ -41,6 +42,55 @@ type ThrowingIdDoc = { _id: string; name: string };
 const setupThrowingId = (overrides: Partial<Collection<ThrowingIdDoc>> = {}) => {
   const coll = makeCollection<ThrowingIdDoc>(overrides);
   const repo = createRepository(ThrowingIdCollection, makeDb(coll));
+  return { coll, repo };
+};
+
+const ObjectIdCollection = defineCollection({
+  name: 'objectid-test',
+  schema,
+  id: 'objectid' as const,
+});
+
+type ObjectIdDoc = { _id: ObjectId; name: string };
+
+const setupObjectId = (overrides: Partial<Collection<ObjectIdDoc>> = {}) => {
+  const coll = makeCollection<ObjectIdDoc>(overrides);
+  const repo = createRepository(ObjectIdCollection, makeDb(coll));
+  return { coll, repo };
+};
+
+const StringIdCollection = defineCollection({
+  name: 'string-id-test',
+  schema: z.object({ _id: z.string(), name: z.string() }),
+  id: 'string' as const,
+});
+
+type StringIdDoc = { _id: string; name: string };
+
+const setupStringId = (overrides: Partial<Collection<StringIdDoc>> = {}) => {
+  const coll = makeCollection<StringIdDoc>(overrides);
+  const repo = createRepository(StringIdCollection, makeDb(coll));
+  return { coll, repo };
+};
+
+const customIdSchema = z.object({ _id: z.string(), name: z.string() });
+
+const customIdStrategy: ZodCompat<string> = {
+  _output: '',
+  parse: (data) => `custom-${data as string}`,
+};
+
+const CustomIdCollection = defineCollection({
+  name: 'custom-id-test',
+  schema: customIdSchema,
+  id: customIdStrategy,
+});
+
+type CustomIdDoc = { _id: string; name: string };
+
+const setupCustomId = (overrides: Partial<Collection<CustomIdDoc>> = {}) => {
+  const coll = makeCollection<CustomIdDoc>(overrides);
+  const repo = createRepository(CustomIdCollection, makeDb(coll));
   return { coll, repo };
 };
 
@@ -149,6 +199,353 @@ describe('find', () => {
 
     // Assert
     expect(coll.find).toHaveBeenCalledWith({}, {});
+  });
+});
+
+describe('count', () => {
+  it('should call countDocuments with the given filter', async () => {
+    // Arrange
+    const { coll, repo } = setup({ countDocuments: vi.fn().mockResolvedValue(5) });
+
+    // Act
+    const result = await repo.count({ name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toBe(5);
+    expect(coll.countDocuments).toHaveBeenCalledWith({ name: 'Alice' }, {});
+  });
+
+  it('should default filter to empty object when omitted', async () => {
+    // Arrange
+    const { coll, repo } = setup({ countDocuments: vi.fn().mockResolvedValue(0) });
+
+    // Act
+    await repo.count();
+
+    // Assert
+    expect(coll.countDocuments).toHaveBeenCalledWith({}, {});
+  });
+
+  it('should return an unknown error when the driver rejects', async () => {
+    // Arrange
+    const { repo } = setup({
+      countDocuments: vi.fn().mockRejectedValue(new Error('connection dropped')),
+    });
+
+    // Act
+    const result = await repo.count({ name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('unknown');
+    expect(result.error.message).toContain('connection dropped');
+  });
+});
+
+describe('exists', () => {
+  it('should call countDocuments with limit 1 and return true when a match is found', async () => {
+    // Arrange
+    const { coll, repo } = setup({ countDocuments: vi.fn().mockResolvedValue(1) });
+
+    // Act
+    const result = await repo.exists({ name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toBe(true);
+    expect(coll.countDocuments).toHaveBeenCalledWith({ name: 'Alice' }, { limit: 1 });
+  });
+
+  it('should return false when no document matches', async () => {
+    // Arrange
+    const { repo } = setup({ countDocuments: vi.fn().mockResolvedValue(0) });
+
+    // Act
+    const result = await repo.exists({ name: 'Ghost' });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toBe(false);
+  });
+
+  it('should return an unknown error when the driver rejects', async () => {
+    // Arrange
+    const { repo } = setup({
+      countDocuments: vi.fn().mockRejectedValue(new Error('connection dropped')),
+    });
+
+    // Act
+    const result = await repo.exists({ name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('unknown');
+  });
+});
+
+describe('insert', () => {
+  it('should return a validation error and never call the driver when data is invalid', async () => {
+    // Arrange
+    const { coll, repo } = setup();
+
+    // Act
+    // ponytail: JSON.parse yields `any`, letting invalid runtime shapes flow in without a type assertion.
+    const invalidData = JSON.parse('{"name": 42}');
+    const result = await repo.insert(invalidData);
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+    expect(coll.insertOne).not.toHaveBeenCalled();
+  });
+
+  it("should generate and inject an ObjectId _id for the 'objectid' strategy", async () => {
+    // Arrange
+    const { coll, repo } = setupObjectId();
+
+    // Act
+    const result = await repo.insert({ name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value._id).toBeInstanceOf(ObjectId);
+    expect(coll.insertOne).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: expect.any(ObjectId), name: 'Alice' }),
+      {},
+    );
+  });
+
+  it("should generate and inject a string uuid _id for the 'uuid' strategy", async () => {
+    // Arrange
+    const { coll, repo } = setup();
+
+    // Act
+    const result = await repo.insert({ name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(typeof result.value._id).toBe('string');
+    expect(coll.insertOne).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: expect.any(String), name: 'Alice' }),
+      {},
+    );
+  });
+
+  it("should pass the caller-supplied _id through unmodified for the 'string' strategy", async () => {
+    // Arrange
+    const { coll, repo } = setupStringId();
+
+    // Act
+    const result = await repo.insert({ _id: 'caller-id-1', name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value._id).toBe('caller-id-1');
+    expect(coll.insertOne).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: 'caller-id-1', name: 'Alice' }),
+      {},
+    );
+  });
+
+  it('should parse _id through a custom ZodCompat id strategy', async () => {
+    // Arrange
+    const { coll, repo } = setupCustomId();
+
+    // Act
+    const result = await repo.insert({ _id: 'raw-1', name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value._id).toBe('custom-raw-1');
+    expect(coll.insertOne).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: 'custom-raw-1', name: 'Alice' }),
+      {},
+    );
+  });
+
+  it('should return a validation error and never call the driver when the custom id strategy throws', async () => {
+    // Arrange
+    const { coll, repo } = setupThrowingId();
+
+    // Act
+    const result = await repo.insert({ name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+    expect(coll.insertOne).not.toHaveBeenCalled();
+  });
+});
+
+describe('insertMany', () => {
+  it('should return a validation error and never call the driver when any item is invalid', async () => {
+    // Arrange
+    const { coll, repo } = setup();
+
+    // Act
+    // ponytail: JSON.parse yields `any`, letting invalid runtime shapes flow in without a type assertion.
+    const invalidItem = JSON.parse('{"name": 42}');
+    const result = await repo.insertMany([{ name: 'Alice' }, invalidItem]);
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+    expect(coll.insertMany).not.toHaveBeenCalled();
+  });
+
+  it('should insert all documents and return them in the Result value', async () => {
+    // Arrange
+    const { coll, repo } = setup({ insertMany: vi.fn().mockResolvedValue({ insertedCount: 2 }) });
+
+    // Act
+    const result = await repo.insertMany([{ name: 'Alice' }, { name: 'Bob' }]);
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toHaveLength(2);
+    expect(result.value.map((document_) => document_.name)).toEqual(['Alice', 'Bob']);
+    expect(coll.insertMany).toHaveBeenCalledWith(
+      [expect.objectContaining({ name: 'Alice' }), expect.objectContaining({ name: 'Bob' })],
+      {},
+    );
+  });
+
+  it('should return an unknown error when the driver rejects', async () => {
+    // Arrange
+    const { repo } = setup({
+      insertMany: vi.fn().mockRejectedValue(new Error('connection dropped')),
+    });
+
+    // Act
+    const result = await repo.insertMany([{ name: 'Alice' }]);
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('unknown');
+    expect(result.error.message).toContain('connection dropped');
+  });
+});
+
+describe('upsertById', () => {
+  it('should return a validation error and never call the driver when data is invalid', async () => {
+    // Arrange
+    const { coll, repo } = setup();
+
+    // Act
+    // ponytail: JSON.parse yields `any`, letting invalid runtime shapes flow in without a type assertion.
+    const invalidData = JSON.parse('{"name": 42}');
+    const result = await repo.upsertById('uuid-1', invalidData);
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+    expect(coll.findOneAndReplace).not.toHaveBeenCalled();
+  });
+
+  it('should replace with upsert:true and returnDocument:after, keyed by the given id', async () => {
+    // Arrange
+    const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
+    const { coll, repo } = setup({ findOneAndReplace: vi.fn().mockResolvedValue(document_) });
+
+    // Act
+    const result = await repo.upsertById('uuid-1', { name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual(document_);
+    expect(coll.findOneAndReplace).toHaveBeenCalledWith(
+      { _id: 'uuid-1' },
+      expect.objectContaining({ name: 'Alice', _id: 'uuid-1' }),
+      expect.objectContaining({ upsert: true, returnDocument: 'after' }),
+    );
+  });
+
+  it('should return a not-found-derived error when the driver resolves null after write', async () => {
+    // Arrange
+    const { repo } = setup({ findOneAndReplace: vi.fn().mockResolvedValue(null) });
+
+    // Act
+    const result = await repo.upsertById('uuid-1', { name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('not-found');
+    expect(result.error.message).toContain('upsert returned null after write');
+  });
+});
+
+describe('upsertOne', () => {
+  it('should return a validation error and never call the driver when data is invalid', async () => {
+    // Arrange
+    const { coll, repo } = setup();
+
+    // Act
+    // ponytail: JSON.parse yields `any`, letting invalid runtime shapes flow in without a type assertion.
+    const invalidData = JSON.parse('{"name": 42}');
+    const result = await repo.upsertOne({ name: 'Alice' }, invalidData);
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+    expect(coll.findOneAndReplace).not.toHaveBeenCalled();
+  });
+
+  it('should replace the matched document with upsert:true and returnDocument:after', async () => {
+    // Arrange
+    const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
+    const { coll, repo } = setup({
+      findOne: vi.fn().mockResolvedValue(document_),
+      findOneAndReplace: vi.fn().mockResolvedValue(document_),
+    });
+
+    // Act
+    const result = await repo.upsertOne({ name: 'Alice' }, { name: 'Alice Updated' });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual(document_);
+    expect(coll.findOneAndReplace).toHaveBeenCalledWith(
+      { name: 'Alice' },
+      expect.objectContaining({ name: 'Alice Updated', _id: 'uuid-1' }),
+      expect.objectContaining({ upsert: true, returnDocument: 'after' }),
+    );
+  });
+
+  it('should return a not-found-derived error when the driver resolves null after write', async () => {
+    // Arrange
+    const { repo } = setup({
+      findOne: vi.fn().mockResolvedValue(null),
+      findOneAndReplace: vi.fn().mockResolvedValue(null),
+    });
+
+    // Act
+    const result = await repo.upsertOne({ name: 'Alice' }, { name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('not-found');
+    expect(result.error.message).toContain('upsert returned null after write');
   });
 });
 
@@ -294,6 +691,147 @@ describe('updateRaw', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.modifiedCount).toBe(0);
+  });
+});
+
+describe('deleteById', () => {
+  it('should call findOneAndDelete keyed by id and return the deleted document', async () => {
+    // Arrange
+    const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
+    const { coll, repo } = setup({ findOneAndDelete: vi.fn().mockResolvedValue(document_) });
+
+    // Act
+    const result = await repo.deleteById('uuid-1');
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual(document_);
+    expect(coll.findOneAndDelete).toHaveBeenCalledWith({ _id: 'uuid-1' }, {});
+  });
+
+  it('should return null when no document matches the id', async () => {
+    // Arrange
+    const { repo } = setup({ findOneAndDelete: vi.fn().mockResolvedValue(null) });
+
+    // Act
+    const result = await repo.deleteById('ghost-id');
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toBeNull();
+  });
+});
+
+describe('deleteOne', () => {
+  it('should call findOneAndDelete with the given filter and return the deleted document', async () => {
+    // Arrange
+    const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
+    const { coll, repo } = setup({ findOneAndDelete: vi.fn().mockResolvedValue(document_) });
+
+    // Act
+    const result = await repo.deleteOne({ name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual(document_);
+    expect(coll.findOneAndDelete).toHaveBeenCalledWith({ name: 'Alice' }, {});
+  });
+
+  it('should return null when no document matches the filter', async () => {
+    // Arrange
+    const { repo } = setup({ findOneAndDelete: vi.fn().mockResolvedValue(null) });
+
+    // Act
+    const result = await repo.deleteOne({ name: 'Ghost' });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toBeNull();
+  });
+});
+
+describe('deleteMany', () => {
+  it('should call deleteMany with the given filter and return the deletedCount', async () => {
+    // Arrange
+    const { coll, repo } = setup({ deleteMany: vi.fn().mockResolvedValue({ deletedCount: 3 }) });
+
+    // Act
+    const result = await repo.deleteMany({ name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.deletedCount).toBe(3);
+    expect(coll.deleteMany).toHaveBeenCalledWith({ name: 'Alice' }, {});
+  });
+
+  it('should return an unknown error when the driver rejects', async () => {
+    // Arrange
+    const { repo } = setup({
+      deleteMany: vi.fn().mockRejectedValue(new Error('connection dropped')),
+    });
+
+    // Act
+    const result = await repo.deleteMany({ name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('unknown');
+    expect(result.error.message).toContain('connection dropped');
+  });
+});
+
+describe('aggregate', () => {
+  it('should call the driver aggregate with the given pipeline and parse each result through outputSchema', async () => {
+    // Arrange
+    const outputSchema = z.object({ total: z.number() });
+    const toArray = vi.fn().mockResolvedValue([{ total: 1 }, { total: 2 }]);
+    const { coll, repo } = setup({ aggregate: vi.fn().mockReturnValue({ toArray }) });
+    const pipeline = [{ $group: { _id: null, total: { $sum: 1 } } }];
+
+    // Act
+    const result = await repo.aggregate(pipeline, outputSchema);
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual([{ total: 1 }, { total: 2 }]);
+    expect(coll.aggregate).toHaveBeenCalledWith(pipeline, {});
+  });
+
+  it('should return a validation error when a result document fails outputSchema parsing', async () => {
+    // Arrange
+    const outputSchema = z.object({ total: z.number() });
+    const toArray = vi.fn().mockResolvedValue([{ total: 'not-a-number' }]);
+    const { repo } = setup({ aggregate: vi.fn().mockReturnValue({ toArray }) });
+
+    // Act
+    const result = await repo.aggregate([], outputSchema);
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+  });
+
+  it('should return an unknown error when the driver rejects', async () => {
+    // Arrange
+    const toArray = vi.fn().mockRejectedValue(new Error('connection dropped'));
+    const { repo } = setup({ aggregate: vi.fn().mockReturnValue({ toArray }) });
+
+    // Act
+    const result = await repo.aggregate([], z.object({ total: z.number() }));
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('unknown');
+    expect(result.error.message).toContain('connection dropped');
   });
 });
 
