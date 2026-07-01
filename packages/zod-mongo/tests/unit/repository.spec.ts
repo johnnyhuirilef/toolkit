@@ -2,6 +2,7 @@ import type {
   ClientSession,
   Collection,
   Db,
+  Document,
   FindOneAndUpdateOptions,
   FindOptions,
   UpdateFilter,
@@ -11,6 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 import * as z from 'zod';
 
 import { defineCollection } from '../../src/collection.js';
+import type { ZodCompat } from '../../src/compat/zod.js';
 import { createRepository } from '../../src/mongo-repository.js';
 
 const schema = z.object({ name: z.string() });
@@ -19,7 +21,30 @@ const TestCollection = defineCollection({ name: 'test', schema, id: 'uuid' as co
 
 type TestDoc = { _id: string; name: string };
 
-const makeCollection = (overrides: Partial<Collection<TestDoc>> = {}) =>
+const throwingIdSchema = z.object({ name: z.string() });
+
+const throwingIdStrategy: ZodCompat<string> = {
+  _output: '',
+  parse: () => {
+    throw new z.ZodError([]);
+  },
+};
+
+const ThrowingIdCollection = defineCollection({
+  name: 'throwing-id',
+  schema: throwingIdSchema,
+  id: throwingIdStrategy,
+});
+
+type ThrowingIdDoc = { _id: string; name: string };
+
+const setupThrowingId = (overrides: Partial<Collection<ThrowingIdDoc>> = {}) => {
+  const coll = makeCollection<ThrowingIdDoc>(overrides);
+  const repo = createRepository(ThrowingIdCollection, makeDb(coll));
+  return { coll, repo };
+};
+
+const makeCollection = <Doc extends Document = TestDoc>(overrides: Partial<Collection<Doc>> = {}) =>
   ({
     findOne: vi.fn().mockResolvedValue(null),
     find: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue([]) }),
@@ -33,9 +58,9 @@ const makeCollection = (overrides: Partial<Collection<TestDoc>> = {}) =>
     countDocuments: vi.fn().mockResolvedValue(0),
     aggregate: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue([]) }),
     ...overrides,
-  }) as unknown as Collection<TestDoc>;
+  }) as unknown as Collection<Doc>;
 
-const makeDb = (coll: Collection<TestDoc>) =>
+const makeDb = <Doc extends Document>(coll: Collection<Doc>) =>
   ({ collection: vi.fn().mockReturnValue(coll) }) as unknown as Db;
 
 const setup = (overrides: Partial<Collection<TestDoc>> = {}) => {
@@ -648,5 +673,51 @@ describe('session()', () => {
       expect.anything(),
       expect.objectContaining({ session: s1 }),
     );
+  });
+});
+
+// Bug #57: buildReplacement must propagate resolveId failures instead of
+// silently falling through to a base object without _id.
+describe('upsertOne — insert path with failing custom id strategy', () => {
+  it('returns a validation error when resolveId fails on the insert path', async () => {
+    // Arrange
+    const { repo } = setupThrowingId();
+
+    // Act
+    const result = await repo.upsertOne({ name: 'Alice' }, { name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+  });
+
+  it('never calls the driver write when resolveId fails on the insert path', async () => {
+    // Arrange
+    const { coll, repo } = setupThrowingId();
+
+    // Act
+    await repo.upsertOne({ name: 'Alice' }, { name: 'Alice' });
+
+    // Assert
+    expect(coll.findOneAndReplace).not.toHaveBeenCalled();
+  });
+});
+
+describe('upsertOne — driver failure on the pre-write lookup', () => {
+  it('returns an err result instead of throwing when findOne rejects', async () => {
+    // Arrange
+    const { repo } = setup({
+      findOne: vi.fn().mockRejectedValue(new Error('connection dropped')),
+    });
+
+    // Act
+    const result = await repo.upsertOne({ name: 'Alice' }, { name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('unknown');
+    expect(result.error.message).toContain('connection dropped');
   });
 });
