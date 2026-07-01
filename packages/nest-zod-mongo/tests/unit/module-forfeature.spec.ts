@@ -1,6 +1,5 @@
 import type { FactoryProvider } from '@nestjs/common';
 import { defineCollection } from '@wenu/mongo';
-import type { Db } from 'mongodb';
 import { describe, it, expect, vi } from 'vitest';
 import * as z from 'zod';
 
@@ -28,14 +27,15 @@ const setup = () => {
     createIndexes: vi.fn().mockResolvedValue([]),
     listIndexes: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue([]) }),
   };
+  // ponytail: useFactory is (...args: any[]) per FactoryProvider, so structural
+  // literals flow in without pretending to be the nominal Db / full MongoOptions
   const fakeDatabase = {
     collection: vi.fn().mockReturnValue(fakeCollection),
-  } as unknown as Db;
-  const fakeOptions: MongoOptions = {
-    mongoClient: {} as never,
+  };
+  const fakeOptions = {
     databaseName: 'test',
     syncIndexes: false,
-  };
+  } satisfies Partial<MongoOptions>;
   const providers = createRepositoryProviders([UserCollection]) as FactoryProvider[];
   const repositoryProvider = providers.find((p) => p.provide === getRepositoryToken('users'));
 
