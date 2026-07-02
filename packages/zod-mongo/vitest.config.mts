@@ -22,6 +22,14 @@ export default defineConfig(() => ({
       reportsDirectory: '../../coverage/packages/zod-mongo',
       provider: 'v8' as const,
       reporter: ['text', 'json-summary', 'json'],
+      // Calibrated against actual coverage (statements 96.88 / branches 94.55 / funcs 98.03 / lines 96.88),
+      // not aspirational — headroom absorbs incidental drift, branches stays tightest since it's what motivated this gate.
+      thresholds: {
+        statements: 92,
+        branches: 90,
+        functions: 94,
+        lines: 92,
+      },
     },
   },
 }));
