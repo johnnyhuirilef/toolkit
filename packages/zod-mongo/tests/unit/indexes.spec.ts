@@ -1,7 +1,7 @@
-import type { Db } from 'mongodb';
 import { describe, it, expect, vi } from 'vitest';
 import * as z from 'zod';
 
+import type { DatabaseLike } from '../../src/collection-like.js';
 import { defineCollection } from '../../src/collection.js';
 import { generateIndexMigration, index, syncIndexes } from '../../src/indexes.js';
 
@@ -10,7 +10,7 @@ const schema = z.object({ email: z.string(), name: z.string() });
 const makeDb = () => {
   const mockCreateIndexes = vi.fn().mockResolvedValue([]);
   const mockCollection = vi.fn().mockReturnValue({ createIndexes: mockCreateIndexes });
-  const mockDb = { collection: mockCollection } as unknown as Db;
+  const mockDb: DatabaseLike = { collection: mockCollection };
   return { mockDb, mockCollection, mockCreateIndexes };
 };
 
@@ -161,7 +161,7 @@ describe('syncIndexes()', () => {
     it('returns err result when createIndexes throws', async () => {
       const mockCreateIndexes = vi.fn().mockRejectedValue(new Error('network error'));
       const mockCollection = vi.fn().mockReturnValue({ createIndexes: mockCreateIndexes });
-      const mockDb = { collection: mockCollection } as unknown as Db;
+      const mockDb: DatabaseLike = { collection: mockCollection };
       const col = defineCollection({ name: 'users', schema, indexes: [index({ email: 1 })] });
 
       const result = await syncIndexes(col, mockDb);

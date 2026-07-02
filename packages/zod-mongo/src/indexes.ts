@@ -1,6 +1,7 @@
-import type { CreateIndexesOptions, Db, IndexDescription } from 'mongodb';
+import type { CreateIndexesOptions, IndexDescription } from 'mongodb';
 import { dedent, isEmpty, isNullish, tryit } from 'radashi';
 
+import type { DatabaseLike } from './collection-like.js';
 import type { CollectionDef } from './collection.js';
 import type { ZodCompat } from './compat/zod.js';
 import { toDbError } from './errors.js';
@@ -20,7 +21,7 @@ export const index = (spec: IndexSpec, options?: CreateIndexesOptions): IndexDef
 
 export const syncIndexes = async (
   collection: CollectionDef<ZodCompat, IdStrategy>,
-  database: Db,
+  database: DatabaseLike,
 ): Promise<Result<void>> => {
   if (isEmpty(collection.indexes)) return ok(void 0);
   const [error] = await tryit(() =>

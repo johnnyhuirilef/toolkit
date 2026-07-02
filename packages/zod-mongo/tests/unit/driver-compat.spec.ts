@@ -1,7 +1,8 @@
-import type { Collection, Filter, UpdateFilter } from 'mongodb';
+import type { Filter, UpdateFilter } from 'mongodb';
 import { describe, it, expect, vi } from 'vitest';
 
 import { findAndModifyResult } from './driver-shape.js';
+import type { FindOneAndModifyCollection } from '../../src/collection-like.js';
 import { findOneAndModify } from '../../src/compat/driver.js';
 
 // ponytail: MONGO_MAJOR is fixed at module load — we can't mock require() in ESM/Vitest.
@@ -10,12 +11,21 @@ import { findOneAndModify } from '../../src/compat/driver.js';
 
 type TestDoc = { _id: string; name: string };
 
+const makeCollection = (
+  overrides: Partial<FindOneAndModifyCollection<TestDoc>> = {},
+): FindOneAndModifyCollection<TestDoc> => ({
+  findOneAndUpdate: vi.fn().mockResolvedValue(null),
+  findOneAndReplace: vi.fn().mockResolvedValue(null),
+  findOneAndDelete: vi.fn().mockResolvedValue(null),
+  ...overrides,
+});
+
 describe('findOneAndModify() — update path', () => {
   it('returns the document on update', async () => {
     const mockDoc: TestDoc = { _id: 'abc', name: 'updated' };
-    const mockCollection = {
+    const mockCollection = makeCollection({
       findOneAndUpdate: vi.fn().mockResolvedValue(findAndModifyResult(mockDoc)),
-    } as unknown as Collection<TestDoc>;
+    });
 
     const result = await findOneAndModify(mockCollection, { _id: 'abc' } as Filter<TestDoc>, {
       kind: 'update',
@@ -26,9 +36,7 @@ describe('findOneAndModify() — update path', () => {
   });
 
   it('returns null when no document matches', async () => {
-    const mockCollection = {
-      findOneAndUpdate: vi.fn().mockResolvedValue(null),
-    } as unknown as Collection<TestDoc>;
+    const mockCollection = makeCollection();
 
     const result = await findOneAndModify(
       mockCollection,
@@ -41,9 +49,7 @@ describe('findOneAndModify() — update path', () => {
 
   it('calls findOneAndUpdate with returnDocument: after', async () => {
     const mockFindOneAndUpdate = vi.fn().mockResolvedValue(null);
-    const mockCollection = {
-      findOneAndUpdate: mockFindOneAndUpdate,
-    } as unknown as Collection<TestDoc>;
+    const mockCollection = makeCollection({ findOneAndUpdate: mockFindOneAndUpdate });
 
     await findOneAndModify(mockCollection, { _id: 'abc' } as Filter<TestDoc>, {
       kind: 'update',
@@ -61,9 +67,9 @@ describe('findOneAndModify() — update path', () => {
 describe('findOneAndModify() — delete path', () => {
   it('returns the document on delete', async () => {
     const mockDoc: TestDoc = { _id: 'abc', name: 'test' };
-    const mockCollection = {
+    const mockCollection = makeCollection({
       findOneAndDelete: vi.fn().mockResolvedValue(findAndModifyResult(mockDoc)),
-    } as unknown as Collection<TestDoc>;
+    });
 
     const result = await findOneAndModify(mockCollection, { _id: 'abc' } as Filter<TestDoc>, {
       kind: 'delete',
@@ -73,9 +79,7 @@ describe('findOneAndModify() — delete path', () => {
   });
 
   it('returns null when no document matches', async () => {
-    const mockCollection = {
-      findOneAndDelete: vi.fn().mockResolvedValue(null),
-    } as unknown as Collection<TestDoc>;
+    const mockCollection = makeCollection();
 
     const result = await findOneAndModify(
       mockCollection,
@@ -89,10 +93,10 @@ describe('findOneAndModify() — delete path', () => {
   it('calls findOneAndDelete and NOT findOneAndUpdate', async () => {
     const mockFindOneAndDelete = vi.fn().mockResolvedValue(null);
     const mockFindOneAndUpdate = vi.fn();
-    const mockCollection = {
+    const mockCollection = makeCollection({
       findOneAndDelete: mockFindOneAndDelete,
       findOneAndUpdate: mockFindOneAndUpdate,
-    } as unknown as Collection<TestDoc>;
+    });
 
     await findOneAndModify(mockCollection, { _id: 'abc' } as Filter<TestDoc>, { kind: 'delete' });
 

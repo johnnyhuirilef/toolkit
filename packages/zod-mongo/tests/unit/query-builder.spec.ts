@@ -1,6 +1,6 @@
-import type { Collection } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { QueryableCollection } from '../../src/collection-like.js';
 import type { Doc } from '../../src/collection.js';
 import type { ZodCompat } from '../../src/compat/zod.js';
 import { createQueryBuilder } from '../../src/query-builder.js';
@@ -13,13 +13,14 @@ const makeCursor = (documents: TestDoc[]) => ({
   toArray: vi.fn().mockResolvedValue(documents),
 });
 
-const makeCollection = (overrides: Partial<Collection<TestDoc>> = {}) =>
-  ({
-    find: vi.fn().mockReturnValue(makeCursor([])),
-    ...overrides,
-  }) as unknown as Collection<TestDoc>;
+const makeCollection = (
+  overrides: Partial<QueryableCollection<TestDoc>> = {},
+): QueryableCollection<TestDoc> => ({
+  find: vi.fn().mockReturnValue(makeCursor([])),
+  ...overrides,
+});
 
-const setup = (overrides: Partial<Collection<TestDoc>> = {}) => {
+const setup = (overrides: Partial<QueryableCollection<TestDoc>> = {}) => {
   const coll = makeCollection(overrides);
   const builder = createQueryBuilder<Schema, Id>(coll);
   return { coll, builder };

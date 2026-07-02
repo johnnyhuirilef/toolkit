@@ -1,6 +1,5 @@
 import type {
   ClientSession,
-  Db,
   Document,
   Filter,
   OptionalUnlessRequiredId,
@@ -9,6 +8,7 @@ import type {
 } from 'mongodb';
 import { isNullish, shake, tryit } from 'radashi';
 
+import type { DatabaseLike } from './collection-like.js';
 import type { CollectionDef, Doc } from './collection.js';
 import { findOneAndModify } from './compat/driver.js';
 import type { Infer, ZodCompat } from './compat/zod.js';
@@ -25,7 +25,7 @@ type RepositoryInternal = { session?: ClientSession };
 
 export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy>(
   collection: CollectionDef<Schema, Id>,
-  database: Db,
+  database: DatabaseLike,
   internal: RepositoryInternal = {},
 ): Repository<Schema, Id> => {
   type TDoc = Doc<Schema, Id>;
