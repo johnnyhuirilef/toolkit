@@ -104,3 +104,46 @@ jobs:
 
       - name: Build & Typecheck (Affected)
         run: pnpm nx affected -t build typecheck --parallel=3
+
+  mongodb-driver-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mongodb: [5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Enable corepack
+        run: corepack enable pnpm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Pins mongodb to the matrix major for zod-mongo only — the driver compat shim
+      # (src/compat/driver.ts) lives there. This mutates the runner's local node_modules/
+      # resolution only; the committed pnpm-lock.yaml is never pushed from CI.
+      - name: Pin mongodb driver to v${{ matrix.mongodb }} for zod-mongo
+        run: pnpm --filter @wenu/mongo add -D mongodb@${{ matrix.mongodb }}
+
+      - name: Test zod-mongo against mongodb v${{ matrix.mongodb }}
+        run: pnpm nx test zod-mongo --skip-nx-cache
