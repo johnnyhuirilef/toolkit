@@ -1,6 +1,7 @@
-import type { ClientSession, Collection, Document, Filter, FindOptions, Sort } from 'mongodb';
+import type { ClientSession, Document, Filter, FindOptions, Sort } from 'mongodb';
 import { shake } from 'radashi';
 
+import type { QueryableCollection } from './collection-like.js';
 import type { Doc } from './collection.js';
 import type { ZodCompat } from './compat/zod.js';
 import type { IdStrategy } from './id.js';
@@ -30,7 +31,7 @@ const defaultState = <T extends Document>(
 });
 
 export const createQueryBuilder = <Schema extends ZodCompat, Id extends IdStrategy>(
-  coll: Collection<Doc<Schema, Id>>,
+  coll: QueryableCollection<Doc<Schema, Id>>,
   state?: QueryBuilderState<Doc<Schema, Id>>,
   internal: QueryBuilderInternal = {},
 ): QueryBuilder<Schema, Id> => {

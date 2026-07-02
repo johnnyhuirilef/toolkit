@@ -1,7 +1,12 @@
-import type { ClientSession, ObjectId } from 'mongodb';
+import type { ClientSession, Collection, Db, ObjectId } from 'mongodb';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import * as z from 'zod';
 
+import type {
+  CollectionLike,
+  DatabaseLike,
+  QueryableCollection,
+} from '../../src/collection-like.js';
 import type { CollectionDef, Doc } from '../../src/collection.js';
 import { defineCollection } from '../../src/collection.js';
 import type { Infer } from '../../src/compat/zod.js';
@@ -137,5 +142,30 @@ describe('session() — type-level assertions', () => {
   it('session() parameter type is ClientSession', () => {
     type Repo = ReturnType<typeof createRepository<Schema, Id>>;
     expectTypeOf<Parameters<Repo['session']>[0]>().toEqualTypeOf<ClientSession>();
+  });
+});
+
+// Issue #82: structural types must accept the real driver classes unmodified — the whole
+// point of deriving them via Pick<Collection<T>, ...> / Pick<Db, ...> is that nominal Db and
+// Collection satisfy them implicitly, so consumer call sites compile unchanged.
+describe('structural driver types — type-level assertions', () => {
+  it('a real Collection<T> is assignable to CollectionLike<T>', () => {
+    type TestDoc = { _id: string; name: string };
+    expectTypeOf<Collection<TestDoc>>().toExtend<CollectionLike<TestDoc>>();
+  });
+
+  it('a real Collection<T> is assignable to QueryableCollection<T>', () => {
+    type TestDoc = { _id: string; name: string };
+    expectTypeOf<Collection<TestDoc>>().toExtend<QueryableCollection<TestDoc>>();
+  });
+
+  it('a real Db is assignable to DatabaseLike', () => {
+    expectTypeOf<Db>().toExtend<DatabaseLike>();
+  });
+
+  it('createRepository accepts a real Db as its second parameter', () => {
+    type Schema = z.ZodObject<{ name: z.ZodString }>;
+    type Id = 'uuid';
+    expectTypeOf<Db>().toExtend<Parameters<typeof createRepository<Schema, Id>>[1]>();
   });
 });

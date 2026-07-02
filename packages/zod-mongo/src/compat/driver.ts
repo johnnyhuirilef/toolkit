@@ -1,5 +1,5 @@
 import type {
-  Collection,
+  Document,
   Filter,
   FindOneAndDeleteOptions,
   FindOneAndReplaceOptions,
@@ -9,6 +9,8 @@ import type {
   WithId,
   WithoutId,
 } from 'mongodb';
+
+import type { FindOneAndModifyCollection } from '../collection-like.js';
 
 // ponytail: version detection at load time — avoids per-call overhead
 const MONGO_MAJOR = (() => {
@@ -33,8 +35,8 @@ const extractResult = <T>(raw: unknown, isV5: boolean): WithId<T> | null => {
   return (raw as WithId<T> | null) ?? null;
 };
 
-export const findOneAndModify = async <T extends object>(
-  collection: Collection<T>,
+export const findOneAndModify = async <T extends Document>(
+  collection: FindOneAndModifyCollection<T>,
   filter: Filter<T>,
   op: FindOneAndModifyOp<T>,
 ): Promise<WithId<T> | null> => {

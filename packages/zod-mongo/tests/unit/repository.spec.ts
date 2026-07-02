@@ -1,7 +1,5 @@
 import type {
   ClientSession,
-  Collection,
-  Db,
   Document,
   FindOneAndUpdateOptions,
   FindOptions,
@@ -13,6 +11,7 @@ import { describe, expect, it, vi } from 'vitest';
 import * as z from 'zod';
 
 import { findAndModifyResult } from './driver-shape.js';
+import type { CollectionLike, DatabaseLike } from '../../src/collection-like.js';
 import { defineCollection } from '../../src/collection.js';
 import type { ZodCompat } from '../../src/compat/zod.js';
 import { createRepository } from '../../src/mongo-repository.js';
@@ -40,7 +39,7 @@ const ThrowingIdCollection = defineCollection({
 
 type ThrowingIdDoc = { _id: string; name: string };
 
-const setupThrowingId = (overrides: Partial<Collection<ThrowingIdDoc>> = {}) => {
+const setupThrowingId = (overrides: Partial<CollectionLike<ThrowingIdDoc>> = {}) => {
   const coll = makeCollection<ThrowingIdDoc>(overrides);
   const repo = createRepository(ThrowingIdCollection, makeDb(coll));
   return { coll, repo };
@@ -54,7 +53,7 @@ const ObjectIdCollection = defineCollection({
 
 type ObjectIdDoc = { _id: ObjectId; name: string };
 
-const setupObjectId = (overrides: Partial<Collection<ObjectIdDoc>> = {}) => {
+const setupObjectId = (overrides: Partial<CollectionLike<ObjectIdDoc>> = {}) => {
   const coll = makeCollection<ObjectIdDoc>(overrides);
   const repo = createRepository(ObjectIdCollection, makeDb(coll));
   return { coll, repo };
@@ -68,7 +67,7 @@ const StringIdCollection = defineCollection({
 
 type StringIdDoc = { _id: string; name: string };
 
-const setupStringId = (overrides: Partial<Collection<StringIdDoc>> = {}) => {
+const setupStringId = (overrides: Partial<CollectionLike<StringIdDoc>> = {}) => {
   const coll = makeCollection<StringIdDoc>(overrides);
   const repo = createRepository(StringIdCollection, makeDb(coll));
   return { coll, repo };
@@ -89,32 +88,34 @@ const CustomIdCollection = defineCollection({
 
 type CustomIdDoc = { _id: string; name: string };
 
-const setupCustomId = (overrides: Partial<Collection<CustomIdDoc>> = {}) => {
+const setupCustomId = (overrides: Partial<CollectionLike<CustomIdDoc>> = {}) => {
   const coll = makeCollection<CustomIdDoc>(overrides);
   const repo = createRepository(CustomIdCollection, makeDb(coll));
   return { coll, repo };
 };
 
-const makeCollection = <Doc extends Document = TestDoc>(overrides: Partial<Collection<Doc>> = {}) =>
-  ({
-    findOne: vi.fn().mockResolvedValue(null),
-    find: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue([]) }),
-    findOneAndUpdate: vi.fn().mockResolvedValue(null),
-    findOneAndReplace: vi.fn().mockResolvedValue(null),
-    findOneAndDelete: vi.fn().mockResolvedValue(null),
-    updateMany: vi.fn().mockResolvedValue({ modifiedCount: 0 }),
-    deleteMany: vi.fn().mockResolvedValue({ deletedCount: 0 }),
-    insertOne: vi.fn().mockResolvedValue({ insertedId: 'uuid-123' }),
-    insertMany: vi.fn().mockResolvedValue({ insertedCount: 0 }),
-    countDocuments: vi.fn().mockResolvedValue(0),
-    aggregate: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue([]) }),
-    ...overrides,
-  }) as unknown as Collection<Doc>;
+const makeCollection = <Doc extends Document = TestDoc>(
+  overrides: Partial<CollectionLike<Doc>> = {},
+): CollectionLike<Doc> => ({
+  findOne: vi.fn().mockResolvedValue(null),
+  find: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue([]) }),
+  findOneAndUpdate: vi.fn().mockResolvedValue(null),
+  findOneAndReplace: vi.fn().mockResolvedValue(null),
+  findOneAndDelete: vi.fn().mockResolvedValue(null),
+  updateMany: vi.fn().mockResolvedValue({ modifiedCount: 0 }),
+  deleteMany: vi.fn().mockResolvedValue({ deletedCount: 0 }),
+  insertOne: vi.fn().mockResolvedValue({ insertedId: 'uuid-123' }),
+  insertMany: vi.fn().mockResolvedValue({ insertedCount: 0 }),
+  countDocuments: vi.fn().mockResolvedValue(0),
+  aggregate: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue([]) }),
+  ...overrides,
+});
 
-const makeDb = <Doc extends Document>(coll: Collection<Doc>) =>
-  ({ collection: vi.fn().mockReturnValue(coll) }) as unknown as Db;
+const makeDb = <Doc extends Document>(coll: CollectionLike<Doc>): DatabaseLike => ({
+  collection: vi.fn().mockReturnValue(coll),
+});
 
-const setup = (overrides: Partial<Collection<TestDoc>> = {}) => {
+const setup = (overrides: Partial<CollectionLike<TestDoc>> = {}) => {
   const coll = makeCollection(overrides);
   const repo = createRepository(TestCollection, makeDb(coll));
   return { coll, repo };
