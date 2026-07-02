@@ -23,6 +23,14 @@ export default defineConfig(() => ({
       reportsDirectory: '../../coverage/packages/nest-zod-mongo',
       provider: 'v8' as const,
       reporter: ['text', 'json-summary', 'json'],
+      // Calibrated against actual coverage (statements 88.46 / branches 92.18 / funcs 88.46 / lines 88.46),
+      // not aspirational — headroom absorbs incidental drift, branches stays tightest since it's what motivated this gate.
+      thresholds: {
+        statements: 84,
+        branches: 88,
+        functions: 84,
+        lines: 84,
+      },
     },
   },
 }));
