@@ -4,6 +4,8 @@ Personal monorepo of TypeScript libraries for production-grade MongoDB applicati
 
 Built with **Nx**, **pnpm**, and a strict no-throw, full-type-inference philosophy.
 
+See [SECURITY.md](SECURITY.md) for the vulnerability reporting policy.
+
 ## 📦 Packages
 
 | Package                                                         | Description                                                                                  | Version                                                                                                                       |

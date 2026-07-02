@@ -22,6 +22,7 @@ ESM/CJS. MongoDB 5/6/7 compatible. Zod 3 and 4 compatible.
 - [ID Strategies](#id-strategies)
 - [Index Management](#index-management)
 - [Aggregation](#aggregation)
+- [Security](#security)
 - [Compatibility](#compatibility)
 - [API Reference](#api-reference)
 
@@ -386,6 +387,9 @@ if (result.ok) {
 > `updateRaw` matches all documents — equivalent to `updateMany` in scope. Use it when atomic
 > operators are required. For validated partial updates, prefer `updateById`, `updateOne`, or
 > `updateMany`.
+>
+> `updateRaw` does not validate the `update` argument — see [Security](#security) before passing it
+> anything derived from user input.
 
 ### Delete
 
@@ -728,6 +732,45 @@ if (result.ok) {
   }
 }
 ```
+
+---
+
+## Security
+
+`@wenu/mongo` validates **documents** with Zod on every `insert` and `update`. It does **not**
+validate the shape of **filters** or `updateRaw` operators — `Filter<Doc>` and `UpdateFilter<Doc>`
+arguments are forwarded to the MongoDB driver as-is. Building a filter or update from untrusted
+input is a classic NoSQL operator-injection vector: an attacker-controlled body can inject operators
+like `$ne`, `$gt`, or `$where` to bypass the query you intended.
+
+Never spread request bodies or query params into a filter or update object — allow-list the keys you
+expect:
+
+```typescript
+// ❌ attacker can send { email: { $ne: null } } and match every document
+const user = await users.findOne(req.query);
+
+// ❌ attacker can send { $set: { role: 'admin' } } via req.body.update
+await users.updateRaw({ _id: userId }, req.body.update);
+
+// ✅ allow-list keys, build the filter/update as code
+const email = String(req.query.email ?? '');
+const user = await users.findOne({ email });
+
+const patch = { name: req.body.name };
+await users.updateOne({ _id: userId }, patch);
+```
+
+As defense-in-depth for services that must accept less-trusted input, consider disabling
+`$where`-class JavaScript execution on the server:
+
+```yaml
+# mongod.conf
+security:
+  javascriptEnabled: false
+```
+
+See [SECURITY.md](../../SECURITY.md) at the repo root for the vulnerability reporting policy.
 
 ---
 
