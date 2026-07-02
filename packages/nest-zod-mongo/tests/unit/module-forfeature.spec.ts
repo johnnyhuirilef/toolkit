@@ -1,6 +1,5 @@
 import type { FactoryProvider } from '@nestjs/common';
 import { defineCollection } from '@wenu/mongo';
-import type { Db } from 'mongodb';
 import { describe, it, expect, vi } from 'vitest';
 import * as z from 'zod';
 
@@ -15,6 +14,34 @@ const UserCollection = defineCollection({
   id: 'objectid',
 });
 
+const OrderCollection = defineCollection({
+  name: 'orders',
+  schema: z.object({ total: z.number() }),
+  id: 'objectid',
+});
+
+const setup = () => {
+  const fakeCollection = {
+    findOne: vi.fn(),
+    insertOne: vi.fn(),
+    createIndexes: vi.fn().mockResolvedValue([]),
+    listIndexes: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue([]) }),
+  };
+  // ponytail: useFactory is (...args: any[]) per FactoryProvider, so structural
+  // literals flow in without pretending to be the nominal Db / full MongoOptions
+  const fakeDatabase = {
+    collection: vi.fn().mockReturnValue(fakeCollection),
+  };
+  const fakeOptions = {
+    databaseName: 'test',
+    syncIndexes: false,
+  } satisfies Partial<MongoOptions>;
+  const providers = createRepositoryProviders([UserCollection]) as FactoryProvider[];
+  const repositoryProvider = providers.find((p) => p.provide === getRepositoryToken('users'));
+
+  return { fakeDatabase, fakeOptions, providers, repositoryProvider };
+};
+
 describe('MongoModule.forFeature', () => {
   it('forFeature returns providers with correct repository token', () => {
     const dynamicModule = MongoModule.forFeature([UserCollection]);
@@ -23,24 +50,24 @@ describe('MongoModule.forFeature', () => {
     expect(tokens).toContain(getRepositoryToken('users'));
   });
 
-  it('resolves a repository under @InjectRepository(UserCollection)', async () => {
-    const fakeCollection = {
-      findOne: vi.fn(),
-      insertOne: vi.fn(),
-      createIndexes: vi.fn().mockResolvedValue([]),
-      listIndexes: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue([]) }),
-    };
-    const fakeDatabase = {
-      collection: vi.fn().mockReturnValue(fakeCollection),
-    } as unknown as Db;
-    const fakeOptions: MongoOptions = {
-      mongoClient: {} as never,
-      databaseName: 'test',
-      syncIndexes: false,
-    };
+  it('assigns the named-connection repository token when a connection name is given', () => {
+    const providers = createRepositoryProviders(
+      [OrderCollection],
+      'analytics',
+    ) as FactoryProvider[];
+    expect(providers[0]?.provide).toBe(getRepositoryToken('orders', 'analytics'));
+  });
 
-    const providers = createRepositoryProviders([UserCollection]) as FactoryProvider[];
-    const repositoryProvider = providers.find((p) => p.provide === getRepositoryToken('users'));
+  it('creates exactly one provider per collection', () => {
+    // Arrange / Act
+    const providers = createRepositoryProviders([UserCollection, OrderCollection]);
+
+    // Assert
+    expect(providers).toHaveLength(2);
+  });
+
+  it('resolves a repository under @InjectRepository(UserCollection)', async () => {
+    const { fakeDatabase, fakeOptions, repositoryProvider } = setup();
     expect(repositoryProvider).toBeDefined();
 
     if (repositoryProvider === undefined) throw new Error('Repository provider not found');
@@ -51,8 +78,7 @@ describe('MongoModule.forFeature', () => {
   });
 
   it('inject array includes getConnectionToken and ZOD_MONGO_MODULE_OPTIONS', () => {
-    const providers = createRepositoryProviders([UserCollection]) as FactoryProvider[];
-    const repositoryProvider = providers.find((p) => p.provide === getRepositoryToken('users'));
+    const { repositoryProvider } = setup();
     expect(repositoryProvider?.inject).toContain(ZOD_MONGO_MODULE_OPTIONS);
   });
 });

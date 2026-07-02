@@ -1,4 +1,5 @@
 import { Inject } from '@nestjs/common';
+import type { InjectionToken } from '@nestjs/common';
 import { defineCollection } from '@wenu/mongo';
 import { describe, it, expect } from 'vitest';
 import * as z from 'zod';
@@ -22,93 +23,53 @@ const OrderCollection = defineCollection({
   id: 'objectid',
 });
 
+// Parameter decorators can't be compared by reference — @Inject(token) builds a
+// closure each call. Comparing the Reflect metadata they attach to a target is
+// the only way to assert two decorators are behaviorally identical.
+const expectSameInjectMetadata = (decorator: ParameterDecorator, expectedToken: InjectionToken) => {
+  const expected = Inject(expectedToken);
+  const targetA = {};
+  const targetB = {};
+  decorator(targetA, undefined, 0);
+  expected(targetB, undefined, 0);
+  expect(Reflect.getMetadata('self:paramtypes', targetA)).toEqual(
+    Reflect.getMetadata('self:paramtypes', targetB),
+  );
+};
+
 describe('InjectRepository', () => {
   it('returns Inject("usersRepository") for default connection with CollectionDef', () => {
-    const decorator = InjectRepository(UserCollection);
-    const expected = Inject('usersRepository');
-    // Both are parameter decorators — compare the metadata they produce
-    const targetA = {};
-    const targetB = {};
-    decorator(targetA, undefined, 0);
-    expected(targetB, undefined, 0);
-    expect(Reflect.getMetadata('self:paramtypes', targetA)).toEqual(
-      Reflect.getMetadata('self:paramtypes', targetB),
-    );
+    expectSameInjectMetadata(InjectRepository(UserCollection), 'usersRepository');
   });
 
   it('returns Inject("analytics_ordersRepository") for named connection with CollectionDef', () => {
-    const decorator = InjectRepository(OrderCollection, 'analytics');
-    const expected = Inject('analytics_ordersRepository');
-    const targetA = {};
-    const targetB = {};
-    decorator(targetA, undefined, 0);
-    expected(targetB, undefined, 0);
-    expect(Reflect.getMetadata('self:paramtypes', targetA)).toEqual(
-      Reflect.getMetadata('self:paramtypes', targetB),
+    expectSameInjectMetadata(
+      InjectRepository(OrderCollection, 'analytics'),
+      'analytics_ordersRepository',
     );
   });
 
   it('accepts a plain string name', () => {
-    const decorator = InjectRepository('products');
-    const expected = Inject('productsRepository');
-    const targetA = {};
-    const targetB = {};
-    decorator(targetA, undefined, 0);
-    expected(targetB, undefined, 0);
-    expect(Reflect.getMetadata('self:paramtypes', targetA)).toEqual(
-      Reflect.getMetadata('self:paramtypes', targetB),
-    );
+    expectSameInjectMetadata(InjectRepository('products'), 'productsRepository');
   });
 });
 
 describe('InjectConnection', () => {
   it('returns Inject(DEFAULT_CONNECTION) when no connectionName', () => {
-    const decorator = InjectConnection();
-    const expected = Inject(DEFAULT_CONNECTION);
-    const targetA = {};
-    const targetB = {};
-    decorator(targetA, undefined, 0);
-    expected(targetB, undefined, 0);
-    expect(Reflect.getMetadata('self:paramtypes', targetA)).toEqual(
-      Reflect.getMetadata('self:paramtypes', targetB),
-    );
+    expectSameInjectMetadata(InjectConnection(), DEFAULT_CONNECTION);
   });
 
   it('returns Inject("primary") for named connection', () => {
-    const decorator = InjectConnection('primary');
-    const expected = Inject('primary');
-    const targetA = {};
-    const targetB = {};
-    decorator(targetA, undefined, 0);
-    expected(targetB, undefined, 0);
-    expect(Reflect.getMetadata('self:paramtypes', targetA)).toEqual(
-      Reflect.getMetadata('self:paramtypes', targetB),
-    );
+    expectSameInjectMetadata(InjectConnection('primary'), 'primary');
   });
 });
 
 describe('InjectClientWrapper', () => {
-  it('S8: returns Inject(getClientWrapperToken()) for default connection', () => {
-    const decorator = InjectClientWrapper();
-    const expected = Inject(getClientWrapperToken(undefined));
-    const targetA = {};
-    const targetB = {};
-    decorator(targetA, undefined, 0);
-    expected(targetB, undefined, 0);
-    expect(Reflect.getMetadata('self:paramtypes', targetA)).toEqual(
-      Reflect.getMetadata('self:paramtypes', targetB),
-    );
+  it('returns Inject(getClientWrapperToken()) for default connection', () => {
+    expectSameInjectMetadata(InjectClientWrapper(), getClientWrapperToken(undefined));
   });
 
-  it('S8b: returns Inject(getClientWrapperToken("reporting")) for named connection', () => {
-    const decorator = InjectClientWrapper('reporting');
-    const expected = Inject(getClientWrapperToken('reporting'));
-    const targetA = {};
-    const targetB = {};
-    decorator(targetA, undefined, 0);
-    expected(targetB, undefined, 0);
-    expect(Reflect.getMetadata('self:paramtypes', targetA)).toEqual(
-      Reflect.getMetadata('self:paramtypes', targetB),
-    );
+  it('returns Inject(getClientWrapperToken("reporting")) for named connection', () => {
+    expectSameInjectMetadata(InjectClientWrapper('reporting'), getClientWrapperToken('reporting'));
   });
 });

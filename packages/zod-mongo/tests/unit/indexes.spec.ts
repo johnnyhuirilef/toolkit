@@ -1,6 +1,6 @@
 import type { Db } from 'mongodb';
 import { describe, it, expect, vi } from 'vitest';
-import { z } from 'zod';
+import * as z from 'zod';
 
 import { defineCollection } from '../../src/collection.js';
 import { generateIndexMigration, index, syncIndexes } from '../../src/indexes.js';

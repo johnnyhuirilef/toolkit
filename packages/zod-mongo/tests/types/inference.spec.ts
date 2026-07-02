@@ -1,6 +1,6 @@
 import type { ClientSession, ObjectId } from 'mongodb';
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { z } from 'zod';
+import * as z from 'zod';
 
 import type { CollectionDef, Doc } from '../../src/collection.js';
 import { defineCollection } from '../../src/collection.js';
