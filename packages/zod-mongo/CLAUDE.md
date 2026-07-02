@@ -42,7 +42,7 @@ pnpm nx test zod-mongo               # unit + type tests (Vitest, no Docker)
 pnpm nx test:integration zod-mongo   # integration tests (requires Docker)
 pnpm nx typecheck zod-mongo          # tsc --build --emitDeclarationOnly
 pnpm nx lint zod-mongo               # ESLint
-pnpm nx build zod-mongo              # Rollup → dist/packages/zod-mongo (CJS + ESM)
+pnpm nx build zod-mongo              # tsdown → packages/zod-mongo/dist (CJS + ESM)
 ```
 
 Run a single test file:
@@ -217,16 +217,17 @@ Vitest.
 
 ## Build output
 
-Rollup produces dual-format output to `dist/packages/zod-mongo/`:
+tsdown (rolldown) produces dual-format output to `packages/zod-mongo/dist/`:
 
-- `index.cjs.js` — CommonJS
-- `index.esm.js` — ESM
-- `index.d.ts` — declarations
+- `index.cjs` — CommonJS
+- `index.mjs` — ESM
+- `index.d.cts` / `index.d.mts` — declarations per format
 
-`mongodb` and `zod` are `external` — not bundled. `radashi` is bundled (runtime dep, not peer).
+`mongodb`, `zod`, and `radashi` are all external — nothing is bundled. `radashi` is a runtime
+dependency consumers install transitively; `mongodb` and `zod` are peers.
 
-The `dist/packages/zod-mongo/package.json` is the one updated for releases (see
-`manifestRootsToUpdate` in `project.json`).
+Releases update the package root's own `package.json` (`manifestRootsToUpdate: ["{projectRoot}"]` in
+`project.json`); publishing runs from the package directory, not from `dist/`.
 
 ## Gotchas
 
