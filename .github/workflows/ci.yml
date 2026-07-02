@@ -105,6 +105,66 @@ jobs:
       - name: Build & Typecheck (Affected)
         run: pnpm nx affected -t build typecheck --parallel=3
 
+  quality-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Enable corepack
+        run: corepack enable pnpm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build publishable packages
+        run: pnpm nx run-many -t build -p zod-mongo,nest-zod-mongo
+
+      # --- PACKAGING GATES (publint + attw) ---
+      # Both packages already build ESM+CJS+types via tsdown; publint and attw
+      # lint the built dist/ output, so the build step above is shared with both.
+      - name: publint (zod-mongo)
+        working-directory: packages/zod-mongo
+        run: pnpm exec publint .
+
+      - name: publint (nest-zod-mongo)
+        working-directory: packages/nest-zod-mongo
+        run: pnpm exec publint .
+
+      - name: arethetypeswrong (zod-mongo)
+        working-directory: packages/zod-mongo
+        run: pnpm exec attw --pack .
+
+      - name: arethetypeswrong (nest-zod-mongo)
+        working-directory: packages/nest-zod-mongo
+        run: pnpm exec attw --pack .
+
+      # --- UNUSED EXPORT / DEPENDENCY DETECTION ---
+      - name: knip
+        run: pnpm exec knip
+
+      # --- CROSS-PACKAGE PEER-RANGE CONSISTENCY ---
+      - name: Check workspace peer-dependency ranges
+        run: node scripts/check-peer-ranges.mjs
+
   mongodb-driver-matrix:
     runs-on: ubuntu-latest
     strategy:
