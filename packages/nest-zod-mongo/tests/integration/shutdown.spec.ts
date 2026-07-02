@@ -1,17 +1,16 @@
-import type { ModuleRef } from '@nestjs/core';
 import { MongoClient } from 'mongodb';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
 import { shutdownAll } from '../../src/shutdown';
+import type { ClientResolver } from '../../src/shutdown';
 import type { MongoClientWrapper } from '../../src/zod-mongo.interfaces';
 import { establishConnection } from '../../src/zod-mongo.providers';
 import { getClientWrapperToken } from '../../src/zod-mongo.tokens';
 
-const buildModuleReference = (wrappers: Record<string, MongoClientWrapper>): ModuleRef =>
-  ({
-    get: (token: string) => wrappers[token],
-  }) as unknown as ModuleRef;
+const buildModuleReference = (wrappers: Record<string, MongoClientWrapper>): ClientResolver => ({
+  get: (token: string) => wrappers[token],
+});
 
 describe('Graceful shutdown (integration)', () => {
   beforeAll(async () => {
