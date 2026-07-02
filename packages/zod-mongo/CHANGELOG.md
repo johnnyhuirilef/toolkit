@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.4.1](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.4.0...mongo-v0.4.1) (2026-07-02)
+
+
+### Bug Fixes
+
+* **nest-zod-mongo:** stop leaking raw driver errors in health checks ([#86](https://github.com/johnnyhuirilef/toolkit/issues/86)) ([c54b485](https://github.com/johnnyhuirilef/toolkit/commit/c54b4859458f466f5da3ea51cfb8661b1a78f020)), closes [#64](https://github.com/johnnyhuirilef/toolkit/issues/64)
+* upsert id error propagation, peer range, license ([#74](https://github.com/johnnyhuirilef/toolkit/issues/74)) ([7555a39](https://github.com/johnnyhuirilef/toolkit/commit/7555a3932373f77fe9d6e53498b8a13400b15322)), closes [#59](https://github.com/johnnyhuirilef/toolkit/issues/59)
+* **zod-mongo:** map driver network failures to DbErrorKind 'connection' ([#84](https://github.com/johnnyhuirilef/toolkit/issues/84)) ([c53c77c](https://github.com/johnnyhuirilef/toolkit/commit/c53c77c3f4cb922650320a2b51e4c697b8ef56a0)), closes [#65](https://github.com/johnnyhuirilef/toolkit/issues/65)
+
+
+### Miscellaneous
+
+* enforce test conventions with lint rule and duplicate removal ([#80](https://github.com/johnnyhuirilef/toolkit/issues/80)) ([b7a5d58](https://github.com/johnnyhuirilef/toolkit/commit/b7a5d584cd85936f7a1f0afd021e077bea89288a))
+* fix stale docs and drop dead rollup config ([#87](https://github.com/johnnyhuirilef/toolkit/issues/87)) ([ea4418d](https://github.com/johnnyhuirilef/toolkit/commit/ea4418d7a01ecff891db4ec2adc9bc3729221bd6)), closes [#66](https://github.com/johnnyhuirilef/toolkit/issues/66)
+
+
+### Documentation
+
+* add SECURITY.md and NoSQL injection guidance for unvalidated filters ([#85](https://github.com/johnnyhuirilef/toolkit/issues/85)) ([9678a67](https://github.com/johnnyhuirilef/toolkit/commit/9678a67cc5f3a2ff3eae0678e69bf39b2741f1e6))
+
+
+### Code Refactoring
+
+* **zod-mongo:** narrow driver dependencies to structural types ([#89](https://github.com/johnnyhuirilef/toolkit/issues/89)) ([a64dcdd](https://github.com/johnnyhuirilef/toolkit/commit/a64dcdd3f583f30789b133b39942a347308f6cd0)), closes [#82](https://github.com/johnnyhuirilef/toolkit/issues/82)
+
+
+### Tests
+
+* **zod-mongo:** add dedicated unit coverage for write, delete, and aggregate paths ([#77](https://github.com/johnnyhuirilef/toolkit/issues/77)) ([1ff1500](https://github.com/johnnyhuirilef/toolkit/commit/1ff1500ed488678b93d4dc3e3fe23de466fc852c)), closes [#67](https://github.com/johnnyhuirilef/toolkit/issues/67)
+
 ## [0.4.0](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.3.0...mongo-v0.4.0) (2026-06-29)
 
 
