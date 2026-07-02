@@ -1,12 +1,12 @@
 import type { Collection, Filter, UpdateFilter } from 'mongodb';
 import { describe, it, expect, vi } from 'vitest';
 
+import { findAndModifyResult } from './driver-shape.js';
 import { findOneAndModify } from '../../src/compat/driver.js';
 
 // ponytail: MONGO_MAJOR is fixed at module load — we can't mock require() in ESM/Vitest.
-// Tests use the actual installed driver's return shape (v5.9.x returns doc directly after
-// findOneAndUpdate with returnDocument:'after', not ModifyResult). We test observable
-// contract only: correct doc returned, null on no-match, correct method called.
+// We test observable contract only: correct doc returned, null on no-match, correct method
+// called. Mocks mirror the real installed driver's return shape (see driver-shape.ts).
 
 type TestDoc = { _id: string; name: string };
 
@@ -14,7 +14,7 @@ describe('findOneAndModify() — update path', () => {
   it('returns the document on update', async () => {
     const mockDoc: TestDoc = { _id: 'abc', name: 'updated' };
     const mockCollection = {
-      findOneAndUpdate: vi.fn().mockResolvedValue(mockDoc),
+      findOneAndUpdate: vi.fn().mockResolvedValue(findAndModifyResult(mockDoc)),
     } as unknown as Collection<TestDoc>;
 
     const result = await findOneAndModify(mockCollection, { _id: 'abc' } as Filter<TestDoc>, {
@@ -62,7 +62,7 @@ describe('findOneAndModify() — delete path', () => {
   it('returns the document on delete', async () => {
     const mockDoc: TestDoc = { _id: 'abc', name: 'test' };
     const mockCollection = {
-      findOneAndDelete: vi.fn().mockResolvedValue(mockDoc),
+      findOneAndDelete: vi.fn().mockResolvedValue(findAndModifyResult(mockDoc)),
     } as unknown as Collection<TestDoc>;
 
     const result = await findOneAndModify(mockCollection, { _id: 'abc' } as Filter<TestDoc>, {

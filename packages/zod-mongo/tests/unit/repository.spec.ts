@@ -12,6 +12,7 @@ import { ObjectId } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import * as z from 'zod';
 
+import { findAndModifyResult } from './driver-shape.js';
 import { defineCollection } from '../../src/collection.js';
 import type { ZodCompat } from '../../src/compat/zod.js';
 import { createRepository } from '../../src/mongo-repository.js';
@@ -461,7 +462,9 @@ describe('upsertById', () => {
   it('should replace with upsert:true and returnDocument:after, keyed by the given id', async () => {
     // Arrange
     const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
-    const { coll, repo } = setup({ findOneAndReplace: vi.fn().mockResolvedValue(document_) });
+    const { coll, repo } = setup({
+      findOneAndReplace: vi.fn().mockResolvedValue(findAndModifyResult(document_)),
+    });
 
     // Act
     const result = await repo.upsertById('uuid-1', { name: 'Alice' });
@@ -514,7 +517,7 @@ describe('upsertOne', () => {
     const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
     const { coll, repo } = setup({
       findOne: vi.fn().mockResolvedValue(document_),
-      findOneAndReplace: vi.fn().mockResolvedValue(document_),
+      findOneAndReplace: vi.fn().mockResolvedValue(findAndModifyResult(document_)),
     });
 
     // Act
@@ -553,7 +556,9 @@ describe('updateById', () => {
   it('should forward options to the driver when provided', async () => {
     // Arrange
     const document_: TestDoc = { _id: 'uuid-3', name: 'Dave' };
-    const { coll, repo } = setup({ findOneAndUpdate: vi.fn().mockResolvedValue(document_) });
+    const { coll, repo } = setup({
+      findOneAndUpdate: vi.fn().mockResolvedValue(findAndModifyResult(document_)),
+    });
     const options: FindOneAndUpdateOptions = { comment: 'test-update' };
 
     // Act
@@ -571,7 +576,9 @@ describe('updateById', () => {
   it('should call driver without extra options when omitted', async () => {
     // Arrange
     const document_: TestDoc = { _id: 'uuid-4', name: 'Eve' };
-    const { coll, repo } = setup({ findOneAndUpdate: vi.fn().mockResolvedValue(document_) });
+    const { coll, repo } = setup({
+      findOneAndUpdate: vi.fn().mockResolvedValue(findAndModifyResult(document_)),
+    });
 
     // Act
     await repo.updateById('uuid-4', { name: 'Eve' });
@@ -589,7 +596,9 @@ describe('updateOne', () => {
   it('should forward options to the driver when provided', async () => {
     // Arrange
     const document_: TestDoc = { _id: 'uuid-5', name: 'Frank' };
-    const { coll, repo } = setup({ findOneAndUpdate: vi.fn().mockResolvedValue(document_) });
+    const { coll, repo } = setup({
+      findOneAndUpdate: vi.fn().mockResolvedValue(findAndModifyResult(document_)),
+    });
     const options: FindOneAndUpdateOptions = { comment: 'test-update-one' };
 
     // Act
@@ -698,7 +707,9 @@ describe('deleteById', () => {
   it('should call findOneAndDelete keyed by id and return the deleted document', async () => {
     // Arrange
     const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
-    const { coll, repo } = setup({ findOneAndDelete: vi.fn().mockResolvedValue(document_) });
+    const { coll, repo } = setup({
+      findOneAndDelete: vi.fn().mockResolvedValue(findAndModifyResult(document_)),
+    });
 
     // Act
     const result = await repo.deleteById('uuid-1');
@@ -728,7 +739,9 @@ describe('deleteOne', () => {
   it('should call findOneAndDelete with the given filter and return the deleted document', async () => {
     // Arrange
     const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
-    const { coll, repo } = setup({ findOneAndDelete: vi.fn().mockResolvedValue(document_) });
+    const { coll, repo } = setup({
+      findOneAndDelete: vi.fn().mockResolvedValue(findAndModifyResult(document_)),
+    });
 
     // Act
     const result = await repo.deleteOne({ name: 'Alice' });
@@ -1014,7 +1027,9 @@ describe('session()', () => {
   it('repo.session(s).updateById threads session', async () => {
     // Arrange
     const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
-    const { coll, repo } = setup({ findOneAndUpdate: vi.fn().mockResolvedValue(document_) });
+    const { coll, repo } = setup({
+      findOneAndUpdate: vi.fn().mockResolvedValue(findAndModifyResult(document_)),
+    });
 
     // Act
     await repo.session(session).updateById('uuid-1', { name: 'Bob' });
@@ -1030,7 +1045,9 @@ describe('session()', () => {
   it('repo.session(s).updateOne threads session', async () => {
     // Arrange
     const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
-    const { coll, repo } = setup({ findOneAndUpdate: vi.fn().mockResolvedValue(document_) });
+    const { coll, repo } = setup({
+      findOneAndUpdate: vi.fn().mockResolvedValue(findAndModifyResult(document_)),
+    });
 
     // Act
     await repo.session(session).updateOne({ name: 'Alice' }, { name: 'Bob' });
@@ -1076,7 +1093,9 @@ describe('session()', () => {
   it('repo.session(s).upsertById threads session', async () => {
     // Arrange
     const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
-    const { coll, repo } = setup({ findOneAndReplace: vi.fn().mockResolvedValue(document_) });
+    const { coll, repo } = setup({
+      findOneAndReplace: vi.fn().mockResolvedValue(findAndModifyResult(document_)),
+    });
 
     // Act
     await repo.session(session).upsertById('uuid-1', { name: 'Alice' });
@@ -1094,7 +1113,7 @@ describe('session()', () => {
     const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
     const { coll, repo } = setup({
       findOne: vi.fn().mockResolvedValue(null),
-      findOneAndReplace: vi.fn().mockResolvedValue(document_),
+      findOneAndReplace: vi.fn().mockResolvedValue(findAndModifyResult(document_)),
     });
 
     // Act
@@ -1116,7 +1135,9 @@ describe('session()', () => {
   it('repo.session(s).deleteById threads session', async () => {
     // Arrange
     const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
-    const { coll, repo } = setup({ findOneAndDelete: vi.fn().mockResolvedValue(document_) });
+    const { coll, repo } = setup({
+      findOneAndDelete: vi.fn().mockResolvedValue(findAndModifyResult(document_)),
+    });
 
     // Act
     await repo.session(session).deleteById('uuid-1');
@@ -1131,7 +1152,9 @@ describe('session()', () => {
   it('repo.session(s).deleteOne threads session', async () => {
     // Arrange
     const document_: TestDoc = { _id: 'uuid-1', name: 'Alice' };
-    const { coll, repo } = setup({ findOneAndDelete: vi.fn().mockResolvedValue(document_) });
+    const { coll, repo } = setup({
+      findOneAndDelete: vi.fn().mockResolvedValue(findAndModifyResult(document_)),
+    });
 
     // Act
     await repo.session(session).deleteOne({ name: 'Alice' });
