@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.1](https://github.com/johnnyhuirilef/toolkit/compare/nest-mongo-v0.5.0...nest-mongo-v0.5.1) (2026-07-02)
+
+
+### Bug Fixes
+
+* upsert id error propagation, peer range, license ([#74](https://github.com/johnnyhuirilef/toolkit/issues/74)) ([7555a39](https://github.com/johnnyhuirilef/toolkit/commit/7555a3932373f77fe9d6e53498b8a13400b15322)), closes [#59](https://github.com/johnnyhuirilef/toolkit/issues/59)
+
+
+### Miscellaneous
+
+* enforce test conventions with lint rule and duplicate removal ([#80](https://github.com/johnnyhuirilef/toolkit/issues/80)) ([b7a5d58](https://github.com/johnnyhuirilef/toolkit/commit/b7a5d584cd85936f7a1f0afd021e077bea89288a))
+
+
+### Tests
+
+* **nest-zod-mongo:** unit-test shutdown manager error branches ([#79](https://github.com/johnnyhuirilef/toolkit/issues/79)) ([792d8f0](https://github.com/johnnyhuirilef/toolkit/commit/792d8f0acfeb8a1e12fe251ee923d97b0bb10b3c)), closes [#60](https://github.com/johnnyhuirilef/toolkit/issues/60)
+
 ## [0.5.0](https://github.com/johnnyhuirilef/toolkit/compare/nest-mongo-v0.4.0...nest-mongo-v0.5.0) (2026-06-29)
 
 
