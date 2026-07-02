@@ -37,6 +37,7 @@ MongoDB 5/6/7 compatible. NestJS 10/11 compatible.
 - [Health Checks](#health-checks)
 - [Transactions](#transactions)
 - [Error Handling](#error-handling)
+- [Security](#security)
 - [API Reference](#api-reference)
 
 ---
@@ -536,6 +537,9 @@ if (result.ok) console.log(`Archived ${result.value.modifiedCount} users`);
 
 > `updateRaw` matches all documents (equivalent to `updateMany` in scope). Use it only when atomic
 > operators are required — prefer `updateById`, `updateOne`, or `updateMany` for validated patches.
+>
+> `updateRaw` does not validate the `update` argument — see [Security](#security) before passing it
+> anything derived from user input.
 
 ### Delete
 
@@ -1011,6 +1015,26 @@ Requires a MongoDB replica set or sharded cluster.
 | `index(spec, options?)`       | Create an `IndexDef` for use in `defineCollection()`              |
 | `syncIndexes(col, db)`        | Sync declared indexes to MongoDB. Returns `Promise<Result<void>>` |
 | `generateIndexMigration(col)` | Returns a migrate-mongo compatible JS migration string            |
+
+---
+
+## Security
+
+Like `@wenu/mongo`, repositories injected via `@wenu/nest-mongo` validate **documents**, not
+**filters** or `updateRaw` operators — `Filter`/`UpdateFilter` arguments are forwarded to the driver
+as-is. Never pass `req.query` or `req.body` directly as a filter or `updateRaw` update:
+
+```typescript
+// ❌ attacker-controlled operators reach the driver unchecked
+await this.users.updateRaw({ _id: userId }, req.body.update);
+
+// ✅ allow-list keys, build the update as code
+await this.users.updateOne({ _id: userId }, { name: req.body.name });
+```
+
+See [`@wenu/mongo` — Security](../zod-mongo/README.md#security) for the full guidance, including the
+`$where` server-side hardening option, and the repo-root [SECURITY.md](../../SECURITY.md) for the
+vulnerability reporting policy.
 
 ---
 
