@@ -1,4 +1,3 @@
-import type { ModuleRef } from '@nestjs/core';
 import type { Result } from '@wenu/mongo';
 import { err, isOk, isErr, toDbError } from '@wenu/mongo';
 import { isNullish, tryit } from 'radashi';
@@ -8,6 +7,16 @@ import type { ShutdownConfig } from './config';
 import { unknownError } from './errors';
 import { withRetry } from './retry';
 import { withTimeout } from './timeout';
+
+// ponytail: ModuleRef.get is generic (`get<TInput, TResult>(...)`) with an unconstrained
+// return type — a Pick<ModuleRef, 'get'> would carry that same generic surface, forcing any
+// object-literal fake to cast its return value to satisfy TResult. This type is shaped after
+// the single call manager.ts makes: resolve a token to a wrapper, or undefined. The return
+// type is narrowed to `close` (Pick) rather than the full MongoClientWrapper — closeOne never
+// touches `client` — so fakes only need to stub the method actually exercised.
+export type ClientResolver = {
+  get(token: string, options: { strict: false }): Pick<MongoClientWrapper, 'close'> | undefined;
+};
 
 export type ShutdownSummary = {
   readonly total: number;
@@ -24,11 +33,11 @@ const unwrapOrThrow = (result: Result<null>): void => {
 
 const closeOne = async (
   token: string,
-  reference: ModuleRef,
+  reference: ClientResolver,
   config: ShutdownConfig,
 ): Promise<Result<null>> => {
   const [resolveError, wrapper] = await tryit(() =>
-    Promise.resolve(reference.get<MongoClientWrapper>(token, { strict: false })),
+    Promise.resolve(reference.get(token, { strict: false })),
   )();
   if (!isNullish(resolveError) || isNullish(wrapper))
     return err(unknownError(`No wrapper found for token: ${token}`));
@@ -46,7 +55,7 @@ const closeOne = async (
 
 export const shutdownAll = async (
   tokens: readonly string[],
-  reference: ModuleRef,
+  reference: ClientResolver,
   config: ShutdownConfig,
 ): Promise<ShutdownSummary> => {
   const start = Date.now();

@@ -62,4 +62,4 @@ reports/mutation
 .github/skills
 
 # External repository references — not Nx projects
-docs/
+docs/*.tsbuildinfo

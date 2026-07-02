@@ -61,6 +61,10 @@ export class MongoModule implements OnApplicationShutdown {
 
     const [optionsError, options] = await resolve<MongoOptions>(ZOD_MONGO_MODULE_OPTIONS);
     const config = resolveShutdownConfig(optionsError === undefined ? options : undefined);
+    // ponytail: ModuleRef structurally satisfies ClientResolver with zero cast — its `get`
+    // resolves to the overload whose uninstantiated TResult collapses to `any`, which is
+    // assignable regardless of variance. ClientResolver keeps method syntax anyway so the
+    // assignment survives a future ModuleRef with better-typed generics.
     const summary = await shutdownAll(wrapperTokens, this.moduleReference, config);
     Logger.log(
       `MongoDB shutdown: ${String(summary.closed)}/${String(summary.total)} closed in ${String(summary.durationMs)}ms`,
