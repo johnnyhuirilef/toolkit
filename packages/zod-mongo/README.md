@@ -783,7 +783,7 @@ See [SECURITY.md](../../SECURITY.md) at the repo root for the vulnerability repo
 | MongoDB driver 5 | Yes (shim normalizes `ModifyResult.value`)  |
 | MongoDB driver 6 | Yes (direct return from `findOneAndUpdate`) |
 | MongoDB driver 7 | Yes                                         |
-| Node.js          | `>=18.0.0`                                  |
+| Node.js          | `>=22.0.0`                                  |
 | ESM              | Yes                                         |
 | CJS              | Yes                                         |
 
