@@ -741,7 +741,9 @@ export class HealthController {
 ```
 
 The indicator calls `db.command({ ping: 1 })` and returns `{ status: 'up' }` on success or
-`{ status: 'down', error }` on failure.
+`{ status: 'down', kind, message }` on failure — `kind` is the `DbErrorKind` discriminant
+(`'connection'`, `'unknown'`, ...) and `message` is a static string. Raw driver error detail is
+written to the server-side logger, never to the health response.
 
 ---
 

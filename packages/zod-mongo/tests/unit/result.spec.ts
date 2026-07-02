@@ -1,5 +1,6 @@
 import { describe, it, expect, expectTypeOf } from 'vitest';
 
+import type { DbError } from '../../src/errors.js';
 import { ok, err, isOk, isErr } from '../../src/result.js';
 import type { Err, Ok, Result } from '../../src/result.js';
 
@@ -56,7 +57,7 @@ describe('isOk()', () => {
   });
 
   it('returns false for err result', () => {
-    const result: Result<number> = err({ kind: 'unknown' as const, message: 'fail' });
+    const result: Result<number> = err<DbError>({ kind: 'unknown', message: 'fail' });
     expect(isOk(result)).toBe(false);
   });
 
@@ -71,7 +72,7 @@ describe('isOk()', () => {
 
 describe('isErr()', () => {
   it('returns true for err result', () => {
-    const result: Result<number> = err({ kind: 'unknown' as const, message: 'fail' });
+    const result: Result<number> = err<DbError>({ kind: 'unknown', message: 'fail' });
     expect(isErr(result)).toBe(true);
   });
 
@@ -81,7 +82,7 @@ describe('isErr()', () => {
   });
 
   it('narrows type to Err<E> in truthy branch', () => {
-    const result: Result<number> = err({ kind: 'unknown' as const, message: 'fail' });
+    const result: Result<number> = err<DbError>({ kind: 'unknown', message: 'fail' });
     if (isErr(result)) {
       // result is narrowed to Err<DbError>; verify ok is false and error is accessible
       expectTypeOf(result.ok).toEqualTypeOf<false>();
@@ -101,10 +102,10 @@ describe('Result discriminated union', () => {
   });
 
   it('err branch allows accessing error', () => {
-    const result: Ok<string> | Err<{ kind: 'unknown'; message: string }> = err({
-      kind: 'unknown' as const,
-      message: 'nope',
-    });
+    const result: Ok<string> | Err<{ kind: 'unknown'; message: string }> = err<{
+      kind: 'unknown';
+      message: string;
+    }>({ kind: 'unknown', message: 'nope' });
     expect(result.ok).toBe(false);
     if (isErr(result)) {
       expect(result.error.kind).toBe('unknown');

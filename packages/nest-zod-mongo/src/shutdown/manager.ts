@@ -5,6 +5,7 @@ import { isNullish, tryit } from 'radashi';
 
 import type { MongoClientWrapper } from '../zod-mongo.interfaces';
 import type { ShutdownConfig } from './config';
+import { unknownError } from './errors';
 import { withRetry } from './retry';
 import { withTimeout } from './timeout';
 
@@ -30,7 +31,7 @@ const closeOne = async (
     Promise.resolve(reference.get<MongoClientWrapper>(token, { strict: false })),
   )();
   if (!isNullish(resolveError) || isNullish(wrapper))
-    return err({ kind: 'unknown' as const, message: `No wrapper found for token: ${token}` });
+    return err(unknownError(`No wrapper found for token: ${token}`));
   const closeOp = (): Promise<null> =>
     wrapper.close(config.forceClose).then((result) => {
       unwrapOrThrow(result);
@@ -40,7 +41,7 @@ const closeOne = async (
     withTimeout(withRetry(closeOp, config.retryAttempts), config.timeoutMs, `close ${token}`),
   )();
   if (!isNullish(timeoutError)) return err(toDbError(timeoutError));
-  return retryResult ?? err({ kind: 'unknown' as const, message: 'Unexpected empty result' });
+  return retryResult ?? err(unknownError('Unexpected empty result'));
 };
 
 export const shutdownAll = async (
