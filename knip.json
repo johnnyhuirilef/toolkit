@@ -1,0 +1,28 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs"]
+    },
+    "packages/zod-mongo": {
+      "project": ["src/**/*.ts", "tests/**/*.ts"]
+    },
+    "packages/nest-zod-mongo": {
+      "project": ["src/**/*.ts", "tests/**/*.ts"]
+    }
+  },
+  "ignore": ["packages/nest-ts-valid-mongodb/**"],
+  "ignoreDependencies": [
+    "@nx/vite",
+    "@cspell/dict-es-es",
+    "jsonc-eslint-parser",
+    "typedoc",
+    "@nestjs/common",
+    "@nestjs/core",
+    "@nestjs/testing",
+    "@testcontainers/mongodb",
+    "mongodb",
+    "ts-valid-mongodb",
+    "zod"
+  ]
+}

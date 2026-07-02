@@ -2,7 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "outDir": "../../dist/out-tsc",
+    "outDir": "../../dist/out-tsc/zod-mongo-spec",
     "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node", "vitest"],
     "module": "esnext",
     "moduleResolution": "bundler",

@@ -3,7 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "moduleResolution": "nodenext",
-    "outDir": "../../dist/out-tsc",
+    "outDir": "../../dist/out-tsc/zod-mongo",
     "declaration": true,
     "types": ["node"]
   },
