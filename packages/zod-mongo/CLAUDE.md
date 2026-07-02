@@ -79,9 +79,16 @@ is intentionally private — do not export it.
 
 ### toDbError
 
-Maps any throwable to `DbError`. ZodError → `kind: 'validation'`, MongoDB duplicate-key (code 11000)
-→ `kind: 'duplicate-key'`, other Error → `kind: 'unknown'`. Uses radashi `isError` and
-`getErrorMessage`.
+Maps any throwable to `DbError`. ZodError → `kind: 'validation'`, `NotFoundError` →
+`kind: 'not-found'`, MongoDB duplicate-key (code 11000) → `kind: 'duplicate-key'`,
+`MongoNetworkError` / `MongoServerSelectionError` (driver network and server-selection failures) →
+`kind: 'connection'`, other Error → `kind: 'unknown'`. Uses radashi `isError` and `getErrorMessage`.
+
+`MongoNetworkError` (extends `MongoError`) and `MongoServerSelectionError` (extends
+`MongoSystemError` → `MongoError`) sit on separate branches of the hierarchy — neither extends the
+other — so both need an explicit `instanceof` check. `MongoNetworkTimeoutError` extends
+`MongoNetworkError`, so it's covered without a separate branch. Verified identical across mongodb
+v5/v6/v7 (the peer range this package supports).
 
 ### ID strategies
 

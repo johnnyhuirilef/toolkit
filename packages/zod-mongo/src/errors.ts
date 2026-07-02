@@ -1,3 +1,4 @@
+import { MongoNetworkError, MongoServerSelectionError } from 'mongodb';
 import { isError, getErrorMessage } from 'radashi';
 import { ZodError } from 'zod';
 
@@ -22,6 +23,11 @@ export const toDbError = (error: unknown): DbError => {
     return { kind: 'not-found', message: getErrorMessage(error), cause: error };
   if (isError(error) && 'code' in error && error.code === MONGO_DUPLICATE_KEY_CODE)
     return { kind: 'duplicate-key', message: getErrorMessage(error), cause: error };
+  // MongoNetworkError and MongoServerSelectionError live on separate branches of the
+  // MongoError hierarchy (neither extends the other), so both need an explicit check.
+  // MongoNetworkTimeoutError extends MongoNetworkError, so the first check covers it too.
+  if (error instanceof MongoNetworkError || error instanceof MongoServerSelectionError)
+    return { kind: 'connection', message: getErrorMessage(error), cause: error };
   if (isError(error)) return { kind: 'unknown', message: getErrorMessage(error), cause: error };
   return { kind: 'unknown', message: String(error) };
 };
