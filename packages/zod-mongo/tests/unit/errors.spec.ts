@@ -1,7 +1,24 @@
-import { describe, it, expect } from 'vitest';
+import { MongoClient, MongoNetworkError, MongoNetworkTimeoutError } from 'mongodb';
+import { describe, it, expect, beforeAll } from 'vitest';
 import * as z from 'zod';
 
 import { NotFoundError, toDbError } from '../../src/errors.js';
+
+// MongoServerSelectionError's constructor is driver-internal (reads `reason.error`
+// off a real TopologyDescription, which the driver never exports for construction).
+// The only way to obtain a genuine instance is to let the driver produce one: connect
+// to a port that refuses immediately, with a short server-selection timeout.
+const makeServerSelectionError = async (): Promise<unknown> => {
+  const client = new MongoClient('mongodb://127.0.0.1:1/', { serverSelectionTimeoutMS: 200 });
+  try {
+    await client.connect();
+    throw new Error('expected connect() to reject with MongoServerSelectionError');
+  } catch (error) {
+    return error;
+  } finally {
+    await client.close();
+  }
+};
 
 const makeZodError = (): unknown => {
   try {
@@ -54,6 +71,52 @@ describe('toDbError()', () => {
       const error = makeDuplicateKeyError();
       const result = toDbError(error);
       expect(result.message).toBe(error.message);
+    });
+  });
+
+  describe('MongoNetworkError → connection', () => {
+    it('maps MongoNetworkError to kind: connection', () => {
+      const error = new MongoNetworkError('connection refused');
+      const result = toDbError(error);
+      expect(result.kind).toBe('connection');
+    });
+
+    it('carries the original error as cause', () => {
+      const error = new MongoNetworkError('connection refused');
+      const result = toDbError(error);
+      expect(result.cause).toBe(error);
+    });
+
+    it('preserves the message', () => {
+      const error = new MongoNetworkError('connection refused');
+      const result = toDbError(error);
+      expect(result.message).toBe('connection refused');
+    });
+  });
+
+  describe('MongoServerSelectionError → connection', () => {
+    let error: unknown;
+
+    beforeAll(async () => {
+      error = await makeServerSelectionError();
+    });
+
+    it('maps MongoServerSelectionError to kind: connection', () => {
+      const result = toDbError(error);
+      expect(result.kind).toBe('connection');
+    });
+
+    it('carries the original error as cause', () => {
+      const result = toDbError(error);
+      expect(result.cause).toBe(error);
+    });
+  });
+
+  describe('MongoNetworkTimeoutError (MongoNetworkError subclass) → connection', () => {
+    it('maps MongoNetworkTimeoutError to kind: connection via instanceof MongoNetworkError', () => {
+      const error = new MongoNetworkTimeoutError('network timeout');
+      const result = toDbError(error);
+      expect(result.kind).toBe('connection');
     });
   });
 
