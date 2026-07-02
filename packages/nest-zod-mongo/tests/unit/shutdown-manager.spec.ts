@@ -5,6 +5,7 @@ import { ok, err } from '@wenu/mongo';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 
 import type { ShutdownConfig } from '../../src/shutdown/config';
+import { unknownError } from '../../src/shutdown/errors';
 import { shutdownAll } from '../../src/shutdown/manager';
 import type { MongoClientWrapper } from '../../src/zod-mongo.interfaces';
 
@@ -112,9 +113,7 @@ describe('shutdownAll', () => {
   it('counts mixed success and failure correctly', async () => {
     // Arrange
     const succeeding = buildWrapper(() => Promise.resolve(ok(null)));
-    const failing = buildWrapper(() =>
-      Promise.resolve(err({ kind: 'unknown' as const, message: 'disk full' })),
-    );
+    const failing = buildWrapper(() => Promise.resolve(err(unknownError('disk full'))));
     const { reference } = setup({ good: succeeding, bad: failing });
 
     // Act

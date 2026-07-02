@@ -2,6 +2,8 @@ import type { Result } from '@wenu/mongo';
 import { ok, err, toDbError } from '@wenu/mongo';
 import { tryit } from 'radashi';
 
+import { unknownError } from './errors';
+
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 const retryLoop = <T>(
@@ -10,8 +12,7 @@ const retryLoop = <T>(
   baseDelayMs: number,
   attempt: number,
 ): Promise<Result<T>> => {
-  if (attemptsLeft <= 0)
-    return Promise.resolve(err({ kind: 'unknown' as const, message: 'Max retries exceeded' }));
+  if (attemptsLeft <= 0) return Promise.resolve(err(unknownError('Max retries exceeded')));
   return tryit(operation)().then(([error, value]) => {
     if (error === undefined) return ok(value);
     if (attemptsLeft <= 1) return err(toDbError(error));
