@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.1](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.4.0...mongo-v0.4.1) (2026-07-02)
+
+
+### Bug Fixes
+
+* upsert id error propagation, peer range, license ([#74](https://github.com/johnnyhuirilef/toolkit/issues/74)) ([7555a39](https://github.com/johnnyhuirilef/toolkit/commit/7555a3932373f77fe9d6e53498b8a13400b15322)), closes [#59](https://github.com/johnnyhuirilef/toolkit/issues/59)
+
+
+### Miscellaneous
+
+* enforce test conventions with lint rule and duplicate removal ([#80](https://github.com/johnnyhuirilef/toolkit/issues/80)) ([b7a5d58](https://github.com/johnnyhuirilef/toolkit/commit/b7a5d584cd85936f7a1f0afd021e077bea89288a))
+
+
+### Tests
+
+* **zod-mongo:** add dedicated unit coverage for write, delete, and aggregate paths ([#77](https://github.com/johnnyhuirilef/toolkit/issues/77)) ([1ff1500](https://github.com/johnnyhuirilef/toolkit/commit/1ff1500ed488678b93d4dc3e3fe23de466fc852c)), closes [#67](https://github.com/johnnyhuirilef/toolkit/issues/67)
+
 ## [0.4.0](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.3.0...mongo-v0.4.0) (2026-06-29)
 
 
