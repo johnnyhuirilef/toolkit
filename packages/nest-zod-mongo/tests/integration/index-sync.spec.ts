@@ -9,7 +9,7 @@ import { establishConnection, createRepositoryProviders } from '../../src/zod-mo
 const UserCollection = defineCollection({
   name: 'users_idx',
   schema: z.object({ email: z.string() }),
-  id: 'objectid',
+  idStrategy: 'objectid',
   indexes: [index({ email: 1 }, { unique: true })],
 });
 

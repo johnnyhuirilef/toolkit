@@ -18,7 +18,7 @@ import { createRepository } from '../../src/mongo-repository.js';
 
 const schema = z.object({ name: z.string() });
 
-const TestCollection = defineCollection({ name: 'test', schema, id: 'uuid' as const });
+const TestCollection = defineCollection({ name: 'test', schema, idStrategy: 'uuid' as const });
 
 type TestDoc = { _id: string; name: string };
 
@@ -34,7 +34,7 @@ const throwingIdStrategy: ZodCompat<string> = {
 const ThrowingIdCollection = defineCollection({
   name: 'throwing-id',
   schema: throwingIdSchema,
-  id: throwingIdStrategy,
+  idStrategy: throwingIdStrategy,
 });
 
 type ThrowingIdDoc = { _id: string; name: string };
@@ -48,7 +48,7 @@ const setupThrowingId = (overrides: Partial<CollectionLike<ThrowingIdDoc>> = {})
 const ObjectIdCollection = defineCollection({
   name: 'objectid-test',
   schema,
-  id: 'objectid' as const,
+  idStrategy: 'objectid' as const,
 });
 
 type ObjectIdDoc = { _id: ObjectId; name: string };
@@ -62,7 +62,7 @@ const setupObjectId = (overrides: Partial<CollectionLike<ObjectIdDoc>> = {}) => 
 const StringIdCollection = defineCollection({
   name: 'string-id-test',
   schema: z.object({ _id: z.string(), name: z.string() }),
-  id: 'string' as const,
+  idStrategy: 'string' as const,
 });
 
 type StringIdDoc = { _id: string; name: string };
@@ -78,7 +78,7 @@ const setupStringId = (overrides: Partial<CollectionLike<StringIdDoc>> = {}) => 
 const MisnamedStringIdCollection = defineCollection({
   name: 'misnamed-string-id-test',
   schema: z.object({ id: z.string(), name: z.string() }),
-  id: 'string' as const,
+  idStrategy: 'string' as const,
 });
 
 type MisnamedStringIdDoc = { _id: string; id: string; name: string };
@@ -86,6 +86,22 @@ type MisnamedStringIdDoc = { _id: string; id: string; name: string };
 const setupMisnamedStringId = (overrides: Partial<CollectionLike<MisnamedStringIdDoc>> = {}) => {
   const coll = makeCollection<MisnamedStringIdDoc>(overrides);
   const repo = createRepository(MisnamedStringIdCollection, makeDb(coll));
+  return { coll, repo };
+};
+
+// Fixture with neither `id` nor `_id` in the schema — the base MissingIdError
+// message must stay clean here, with no id/_id hint appended.
+const NoIdFieldStringCollection = defineCollection({
+  name: 'no-id-field-string-test',
+  schema: z.object({ name: z.string() }),
+  idStrategy: 'string' as const,
+});
+
+type NoIdFieldStringDoc = { _id: string; name: string };
+
+const setupNoIdFieldString = (overrides: Partial<CollectionLike<NoIdFieldStringDoc>> = {}) => {
+  const coll = makeCollection<NoIdFieldStringDoc>(overrides);
+  const repo = createRepository(NoIdFieldStringCollection, makeDb(coll));
   return { coll, repo };
 };
 
@@ -99,7 +115,7 @@ const customIdStrategy: ZodCompat<string> = {
 const CustomIdCollection = defineCollection({
   name: 'custom-id-test',
   schema: customIdSchema,
-  id: customIdStrategy,
+  idStrategy: customIdStrategy,
 });
 
 type CustomIdDoc = { _id: string; name: string };
@@ -417,6 +433,48 @@ describe('insert', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe('validation');
+    expect(coll.insertOne).not.toHaveBeenCalled();
+  });
+
+  // Issue #95 repro: schema names its identity field `id`, not `_id`. Zod's
+  // `.parse()` strips the explicitly-passed `_id` before resolveId ever sees
+  // it, so the write still fails — but the message must now hint at the
+  // `id`/`_id` naming trap, since `validated` has a truthy `id` field.
+  it("should hint at the id/_id naming trap when 'string' strategy input has an id field but no _id", async () => {
+    // Arrange
+    const { coll, repo } = setupMisnamedStringId();
+
+    // Act
+    // ponytail: JSON.parse yields `any` — the schema types `id` + `name` only,
+    // but the repro needs an explicit (schema-unknown) `_id` on the raw input.
+    const dataWithExplicitId = JSON.parse(
+      '{"id": "my-app-id-456", "name": "Alice", "_id": "my-app-id-456"}',
+    );
+    const result = await repo.insert(dataWithExplicitId);
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+    expect(result.error.message).toContain(
+      "if your schema has an 'id' field, note that 'string' strategy requires the identity to be named '_id'",
+    );
+    expect(coll.insertOne).not.toHaveBeenCalled();
+  });
+
+  it("should NOT add the id/_id hint for the 'string' strategy when there is no id field at all", async () => {
+    // Arrange
+    const { coll, repo } = setupNoIdFieldString();
+
+    // Act
+    const result = await repo.insert({ name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+    expect(result.error.message).not.toContain('id/_id');
+    expect(result.error.message).not.toContain("note that 'string' strategy");
     expect(coll.insertOne).not.toHaveBeenCalled();
   });
 });

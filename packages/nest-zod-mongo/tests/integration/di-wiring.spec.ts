@@ -12,7 +12,7 @@ import { MongoModule } from '../../src/zod-mongo.module';
 const UserCollection = defineCollection({
   name: 'users_di',
   schema: z.object({ name: z.string() }),
-  id: 'objectid',
+  idStrategy: 'objectid',
 });
 
 type UserRepo = Repository<typeof UserCollection.schema, 'objectid'>;

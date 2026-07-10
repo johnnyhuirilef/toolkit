@@ -11,13 +11,13 @@ import { getRepositoryToken, ZOD_MONGO_MODULE_OPTIONS } from '../../src/zod-mong
 const UserCollection = defineCollection({
   name: 'users',
   schema: z.object({ name: z.string() }),
-  id: 'objectid',
+  idStrategy: 'objectid',
 });
 
 const OrderCollection = defineCollection({
   name: 'orders',
   schema: z.object({ total: z.number() }),
-  id: 'objectid',
+  idStrategy: 'objectid',
 });
 
 const setup = () => {

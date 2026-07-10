@@ -16,7 +16,7 @@ describe('session() — withTransaction (replica set)', () => {
   const TxCollection = defineCollection({
     name: 'tx-test',
     schema: z.object({ label: z.string() }),
-    id: 'uuid' as const,
+    idStrategy: 'uuid' as const,
   });
 
   beforeAll(async () => {
@@ -96,12 +96,12 @@ describe('session() — withTransaction (replica set)', () => {
     const ACollection = defineCollection({
       name: 'tx-a',
       schema: z.object({ val: z.number() }),
-      id: 'uuid' as const,
+      idStrategy: 'uuid' as const,
     });
     const BCollection = defineCollection({
       name: 'tx-b',
       schema: z.object({ val: z.number() }),
-      id: 'uuid' as const,
+      idStrategy: 'uuid' as const,
     });
     const database = client.db('test-tx-multi');
     const repoA = createRepository(ACollection, database);

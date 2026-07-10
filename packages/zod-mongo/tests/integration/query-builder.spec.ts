@@ -11,7 +11,7 @@ const schema = z.object({ name: z.string(), score: z.number() });
 const QbCollection = defineCollection({
   name: 'qb-integration',
   schema,
-  id: 'uuid' as const,
+  idStrategy: 'uuid' as const,
 });
 
 describe('QueryBuilder — integration', () => {

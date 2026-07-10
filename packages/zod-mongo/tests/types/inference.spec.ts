@@ -66,7 +66,11 @@ describe('Infer type — type-level assertions', () => {
 describe('defineCollection — type-level assertions', () => {
   it('infers CollectionDef with correct TId from explicit id option', () => {
     const nameSchema = z.object({ name: z.string() });
-    const col = defineCollection({ name: 'users', schema: nameSchema, id: 'uuid' as const });
+    const col = defineCollection({
+      name: 'users',
+      schema: nameSchema,
+      idStrategy: 'uuid' as const,
+    });
     expectTypeOf(col.id).toEqualTypeOf<'uuid'>();
     // use col.schema to avoid unused-value lint; parse confirms schema is a live ZodCompat instance
     expect(typeof col.schema.parse).toBe('function');

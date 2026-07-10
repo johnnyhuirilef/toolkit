@@ -14,13 +14,13 @@ import { DEFAULT_CONNECTION, getClientWrapperToken } from '../../src/zod-mongo.t
 const UserCollection = defineCollection({
   name: 'users',
   schema: z.object({ name: z.string() }),
-  id: 'objectid',
+  idStrategy: 'objectid',
 });
 
 const OrderCollection = defineCollection({
   name: 'orders',
   schema: z.object({ total: z.number() }),
-  id: 'objectid',
+  idStrategy: 'objectid',
 });
 
 // Parameter decorators can't be compared by reference — @Inject(token) builds a
