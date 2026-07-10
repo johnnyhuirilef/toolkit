@@ -64,17 +64,18 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
     }
     // idStrategy === 'string': the caller's schema owns `_id` directly, so no
     // value needs generating — but it must actually be present, or the write
-    // would silently hand the driver a document with no `_id` at all.
-    return isNullish((validated as Record<string, unknown>)['_id'])
-      ? err(
-          toDbError(
-            new MissingIdError(
-              `Collection "${collection.name}" uses the 'string' id strategy, which requires ` +
-                `'_id' to be present in the schema and input data`,
-            ),
-          ),
-        )
-      : ok({ inject: false });
+    // would silently hand the driver a document with no `_id` at all. Any other
+    // field the schema declares (e.g. `id`) is the caller's own domain data —
+    // unrelated to `_id` and never inspected here.
+    if (!isNullish((validated as Record<string, unknown>)['_id'])) return ok({ inject: false });
+    return err(
+      toDbError(
+        new MissingIdError(
+          `Collection "${collection.name}" uses the 'string' id strategy, which requires ` +
+            `'_id' to be present in the schema and input data`,
+        ),
+      ),
+    );
   };
 
   const buildDoc = (validated: Infer<Schema>): Result<TDoc> => {

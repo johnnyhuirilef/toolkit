@@ -13,20 +13,20 @@ const schema = z.object({ name: z.string(), email: z.string().email() });
 const UserCollection = defineCollection({
   name: 'users',
   schema,
-  id: 'uuid' as const,
+  idStrategy: 'uuid' as const,
   indexes: [index({ email: 1 }, { unique: true })],
 });
 
 const ObjectIdCollection = defineCollection({
   name: 'items',
   schema: z.object({ label: z.string() }),
-  id: 'objectid' as const,
+  idStrategy: 'objectid' as const,
 });
 
 const StringIdCollection = defineCollection({
   name: 'slugs',
   schema: z.object({ _id: z.string(), title: z.string() }),
-  id: 'string' as const,
+  idStrategy: 'string' as const,
 });
 
 // Regression fixture for the silent-corruption bug: schema names its identity
@@ -34,13 +34,13 @@ const StringIdCollection = defineCollection({
 const MisnamedStringIdCollection = defineCollection({
   name: 'misnamed-slugs',
   schema: z.object({ id: z.string(), title: z.string() }),
-  id: 'string' as const,
+  idStrategy: 'string' as const,
 });
 
 const NumericIdCollection = defineCollection({
   name: 'numeric',
   schema: z.object({ _id: z.number(), value: z.string() }),
-  id: z.number(),
+  idStrategy: z.number(),
 });
 
 describe('repository integration', () => {
@@ -251,7 +251,7 @@ describe('repository integration', () => {
     const SessionCollection = defineCollection({
       name: 'session-smoke',
       schema: z.object({ label: z.string() }),
-      id: 'uuid' as const,
+      idStrategy: 'uuid' as const,
     });
 
     let session: ClientSession;
@@ -418,6 +418,30 @@ describe('string strategy', () => {
     if (!found.ok) return;
     expect(found.value).toHaveLength(0);
   });
+
+  // Issue #95 exact repro: caller passes `_id` explicitly alongside an unrelated
+  // `id` field, but the schema never declares `_id`, so Zod's `.parse()` strips
+  // it before resolveId ever sees the data — the write still fails (correctly,
+  // this schema shape is wrong). `id` is the caller's own domain field, never
+  // inspected by the library, so the message is identical to any other missing-
+  // `_id` case.
+  it('should still fail when _id is passed explicitly but the schema omits it', async () => {
+    const repo = createRepository(MisnamedStringIdCollection, database);
+
+    // ponytail: JSON.parse yields `any` — the schema types `id` + `title` only,
+    // but the repro needs an explicit (schema-unknown) `_id` on the raw input.
+    const dataWithExplicitId = JSON.parse(
+      '{"id": "my-app-id-789", "title": "Orphaned 3", "_id": "my-app-id-789"}',
+    );
+    const insertResult = await repo.insert(dataWithExplicitId);
+    expect(insertResult.ok).toBe(false);
+    if (insertResult.ok) return;
+    expect(insertResult.error.kind).toBe('validation');
+    expect(insertResult.error.message).toBe(
+      'Collection "misnamed-slugs" uses the \'string\' id strategy, which requires ' +
+        "'_id' to be present in the schema and input data",
+    );
+  });
 });
 
 describe('custom ZodCompat (numeric) strategy', () => {
@@ -475,7 +499,7 @@ describe('compound _id strategy (ZodCompat object)', () => {
       _id: z.object({ tenantId: z.string(), userId: z.string() }),
       role: z.string(),
     }),
-    id: z.object({ tenantId: z.string(), userId: z.string() }),
+    idStrategy: z.object({ tenantId: z.string(), userId: z.string() }),
   });
 
   beforeAll(async () => {
@@ -550,7 +574,7 @@ describe('count and exists', () => {
   const CountCollection = defineCollection({
     name: 'counters',
     schema: z.object({ tag: z.string() }),
-    id: 'uuid' as const,
+    idStrategy: 'uuid' as const,
   });
 
   beforeAll(async () => {
@@ -621,7 +645,7 @@ describe('upsertById and upsertOne', () => {
   const UpsertCollection = defineCollection({
     name: 'upserts',
     schema: z.object({ slug: z.string(), title: z.string() }),
-    id: 'uuid' as const,
+    idStrategy: 'uuid' as const,
   });
 
   beforeAll(async () => {
@@ -716,7 +740,7 @@ describe('composite _id via custom ZodCompat schema', () => {
   const ArticleCollection = defineCollection({
     name: 'articles',
     schema: z.object({ _id: CompositeId, title: z.string() }),
-    id: CompositeId,
+    idStrategy: CompositeId,
   });
 
   beforeAll(async () => {
@@ -824,7 +848,7 @@ describe('updateRaw', () => {
   const RawCollection = defineCollection({
     name: 'raw',
     schema: z.object({ tag: z.string(), count: z.number() }),
-    id: 'uuid' as const,
+    idStrategy: 'uuid' as const,
   });
 
   beforeAll(async () => {

@@ -111,7 +111,7 @@ const result = await users.insert({
 });
 
 if (result.ok) {
-  console.log(result.value._id); // ObjectId (inferred from id: 'objectid')
+  console.log(result.value._id); // ObjectId (inferred from idStrategy: 'objectid')
 } else {
   console.error(result.error.kind, result.error.message);
 }
@@ -139,7 +139,7 @@ const ProductCollection = defineCollection({
     price: z.number().positive(),
     tags: z.array(z.string()).default([]),
   }),
-  id: 'uuid', // optional — defaults to 'objectid'
+  idStrategy: 'uuid', // optional — defaults to 'objectid'
   indexes: [index({ sku: 1 }, { unique: true }), index({ tags: 1 })],
 });
 ```
@@ -498,7 +498,9 @@ try {
 
 ## ID Strategies
 
-Set `id` in `defineCollection()`. The `_id` type on every document is inferred automatically.
+Set `idStrategy` in `defineCollection()`. The `_id` type on every document is inferred
+automatically. `id` is still accepted as a deprecated alias for `idStrategy` — do not pass both in
+the same call.
 
 ### `objectid` (default)
 
@@ -511,7 +513,7 @@ import { defineCollection, createRepository } from '@wenu/mongo';
 const PostCollection = defineCollection({
   name: 'posts',
   schema: z.object({ title: z.string(), body: z.string() }),
-  // id: 'objectid' is the default — can be omitted
+  // idStrategy: 'objectid' is the default — can be omitted
 });
 
 const posts = createRepository(PostCollection, db);
@@ -530,7 +532,7 @@ Generated using `crypto.randomUUID()`. No `_id` in input data. `_id` is always a
 const SessionCollection = defineCollection({
   name: 'sessions',
   schema: z.object({ userId: z.string(), expiresAt: z.date() }),
-  id: 'uuid',
+  idStrategy: 'uuid',
 });
 
 const sessions = createRepository(SessionCollection, db);
@@ -555,11 +557,15 @@ if (upserted.ok) {
 Caller-supplied string `_id`. Include `_id` in both the schema and the input data — the library does
 not generate one.
 
+> `idStrategy: 'string'` means "declare `_id` directly in your schema" — it does NOT mean "declare a
+> field named `id`". A schema may also have an unrelated `id` domain field; the library never reads
+> or infers anything from it.
+
 ```typescript
 const CountryCollection = defineCollection({
   name: 'countries',
   schema: z.object({ _id: z.string(), name: z.string(), population: z.number() }),
-  id: 'string',
+  idStrategy: 'string',
 });
 
 const countries = createRepository(CountryCollection, db);
@@ -576,8 +582,8 @@ await countries.upsertOne({ _id: 'AR' }, { _id: 'AR', name: 'Argentina', populat
 
 ### Custom Zod schema — branded type
 
-Pass any Zod schema as the `id` value. The `_id` type is inferred from the schema output. Include
-`_id` in the data — the library validates it through the schema.
+Pass any Zod schema as the `idStrategy` value. The `_id` type is inferred from the schema output.
+Include `_id` in the data — the library validates it through the schema.
 
 ```typescript
 import * as z from 'zod';
@@ -587,7 +593,7 @@ const OrderId = z.string().brand<'OrderId'>();
 const OrderCollection = defineCollection({
   name: 'orders',
   schema: z.object({ _id: OrderId, total: z.number(), status: z.string() }),
-  id: OrderId,
+  idStrategy: OrderId,
 });
 
 const orders = createRepository(OrderCollection, db);
@@ -601,8 +607,8 @@ if (result.ok) {
 
 ### Custom Zod schema — composite (multi-field) `_id`
 
-Use a Zod object schema as `id` to get a composite `_id`. MongoDB treats the whole object as the
-document identifier — uniqueness is enforced across the combination of all fields.
+Use a Zod object schema as `idStrategy` to get a composite `_id`. MongoDB treats the whole object as
+the document identifier — uniqueness is enforced across the combination of all fields.
 
 ```typescript
 import * as z from 'zod';
@@ -612,7 +618,7 @@ const TenantSlugId = z.object({ tenantId: z.string(), slug: z.string() });
 const ArticleCollection = defineCollection({
   name: 'articles',
   schema: z.object({ _id: TenantSlugId, title: z.string() }),
-  id: TenantSlugId,
+  idStrategy: TenantSlugId,
 });
 
 const articles = createRepository(ArticleCollection, db);
@@ -795,12 +801,13 @@ See [SECURITY.md](../../SECURITY.md) at the repo root for the vulnerability repo
 
 Creates an immutable `CollectionDef` descriptor.
 
-| Parameter        | Type         | Default      | Description                         |
-| ---------------- | ------------ | ------------ | ----------------------------------- |
-| `config.name`    | `string`     | —            | MongoDB collection name             |
-| `config.schema`  | `ZodCompat`  | —            | Zod schema for the document body    |
-| `config.id`      | `IdStrategy` | `'objectid'` | ID generation or inference strategy |
-| `config.indexes` | `IndexDef[]` | `[]`         | Index definitions                   |
+| Parameter           | Type         | Default      | Description                                                       |
+| ------------------- | ------------ | ------------ | ----------------------------------------------------------------- |
+| `config.name`       | `string`     | —            | MongoDB collection name                                           |
+| `config.schema`     | `ZodCompat`  | —            | Zod schema for the document body                                  |
+| `config.idStrategy` | `IdStrategy` | `'objectid'` | ID generation or inference strategy                               |
+| `config.id`         | `IdStrategy` | `'objectid'` | **Deprecated** alias for `idStrategy`. Providing both is an error |
+| `config.indexes`    | `IndexDef[]` | `[]`         | Index definitions                                                 |
 
 ### `createRepository(collection, db)`
 

@@ -230,7 +230,7 @@ export const ProductCollection = defineCollection({
     price: z.number().positive(),
     tags: z.array(z.string()).default([]),
   }),
-  id: 'uuid',
+  idStrategy: 'uuid',
   indexes: [index({ sku: 1 }, { unique: true }), index({ tags: 1 })],
 });
 ```
@@ -246,7 +246,9 @@ type Product = Doc<typeof ProductCollection.schema, typeof ProductCollection.id>
 
 ### ID Strategies
 
-Set `id` in `defineCollection()`. The `_id` type on every document is inferred automatically.
+Set `idStrategy` in `defineCollection()`. The `_id` type on every document is inferred
+automatically. `id` is still accepted as a deprecated alias for `idStrategy` — do not pass both in
+the same call.
 
 | Strategy               | `_id` type      | Auto-generated              |
 | ---------------------- | --------------- | --------------------------- |
@@ -266,14 +268,16 @@ const PostCollection = defineCollection({
 const SessionCollection = defineCollection({
   name: 'sessions',
   schema: z.object({ userId: z.string(), expiresAt: z.date() }),
-  id: 'uuid',
+  idStrategy: 'uuid',
 });
 
-// string — caller supplies _id; include it in the schema
+// string — caller supplies _id; include it in the schema.
+// idStrategy: 'string' means "declare _id directly in your schema" — an
+// unrelated `id` domain field is fine to have but is never touched by the library.
 const CountryCollection = defineCollection({
   name: 'countries',
   schema: z.object({ _id: z.string(), name: z.string() }),
-  id: 'string',
+  idStrategy: 'string',
 });
 
 // Custom Zod schema — branded type
@@ -281,7 +285,7 @@ const OrderId = z.string().brand<'OrderId'>();
 const OrderCollection = defineCollection({
   name: 'orders',
   schema: z.object({ _id: OrderId, total: z.number() }),
-  id: OrderId,
+  idStrategy: OrderId,
 });
 ```
 

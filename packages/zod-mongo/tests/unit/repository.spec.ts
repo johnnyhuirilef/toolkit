@@ -18,7 +18,7 @@ import { createRepository } from '../../src/mongo-repository.js';
 
 const schema = z.object({ name: z.string() });
 
-const TestCollection = defineCollection({ name: 'test', schema, id: 'uuid' as const });
+const TestCollection = defineCollection({ name: 'test', schema, idStrategy: 'uuid' as const });
 
 type TestDoc = { _id: string; name: string };
 
@@ -34,7 +34,7 @@ const throwingIdStrategy: ZodCompat<string> = {
 const ThrowingIdCollection = defineCollection({
   name: 'throwing-id',
   schema: throwingIdSchema,
-  id: throwingIdStrategy,
+  idStrategy: throwingIdStrategy,
 });
 
 type ThrowingIdDoc = { _id: string; name: string };
@@ -48,7 +48,7 @@ const setupThrowingId = (overrides: Partial<CollectionLike<ThrowingIdDoc>> = {})
 const ObjectIdCollection = defineCollection({
   name: 'objectid-test',
   schema,
-  id: 'objectid' as const,
+  idStrategy: 'objectid' as const,
 });
 
 type ObjectIdDoc = { _id: ObjectId; name: string };
@@ -62,7 +62,7 @@ const setupObjectId = (overrides: Partial<CollectionLike<ObjectIdDoc>> = {}) => 
 const StringIdCollection = defineCollection({
   name: 'string-id-test',
   schema: z.object({ _id: z.string(), name: z.string() }),
-  id: 'string' as const,
+  idStrategy: 'string' as const,
 });
 
 type StringIdDoc = { _id: string; name: string };
@@ -78,7 +78,7 @@ const setupStringId = (overrides: Partial<CollectionLike<StringIdDoc>> = {}) => 
 const MisnamedStringIdCollection = defineCollection({
   name: 'misnamed-string-id-test',
   schema: z.object({ id: z.string(), name: z.string() }),
-  id: 'string' as const,
+  idStrategy: 'string' as const,
 });
 
 type MisnamedStringIdDoc = { _id: string; id: string; name: string };
@@ -99,7 +99,7 @@ const customIdStrategy: ZodCompat<string> = {
 const CustomIdCollection = defineCollection({
   name: 'custom-id-test',
   schema: customIdSchema,
-  id: customIdStrategy,
+  idStrategy: customIdStrategy,
 });
 
 type CustomIdDoc = { _id: string; name: string };
@@ -417,6 +417,33 @@ describe('insert', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe('validation');
+    expect(coll.insertOne).not.toHaveBeenCalled();
+  });
+
+  // Issue #95 repro: schema names its identity field `id`, not `_id`. Zod's
+  // `.parse()` strips the explicitly-passed `_id` before resolveId ever sees
+  // it, so the write still fails. `id` is the caller's own domain field —
+  // unrelated to `_id` — so the message never varies based on its presence.
+  it("should return the same MissingIdError message regardless of an unrelated 'id' field", async () => {
+    // Arrange
+    const { coll, repo } = setupMisnamedStringId();
+
+    // Act
+    // ponytail: JSON.parse yields `any` — the schema types `id` + `name` only,
+    // but the repro needs an explicit (schema-unknown) `_id` on the raw input.
+    const dataWithExplicitId = JSON.parse(
+      '{"id": "my-app-id-456", "name": "Alice", "_id": "my-app-id-456"}',
+    );
+    const result = await repo.insert(dataWithExplicitId);
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+    expect(result.error.message).toBe(
+      'Collection "misnamed-string-id-test" uses the \'string\' id strategy, which requires ' +
+        "'_id' to be present in the schema and input data",
+    );
     expect(coll.insertOne).not.toHaveBeenCalled();
   });
 });

@@ -10,7 +10,7 @@ import { establishConnection, createRepositoryProviders } from '../../src/zod-mo
 const UserCollection = defineCollection({
   name: 'users',
   schema: z.object({ name: z.string() }),
-  id: 'objectid',
+  idStrategy: 'objectid',
 });
 
 type UserRepo = Repository<typeof UserCollection.schema, 'objectid'>;

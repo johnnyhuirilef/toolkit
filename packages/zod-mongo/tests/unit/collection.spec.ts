@@ -31,13 +31,29 @@ describe('defineCollection()', () => {
 
   describe('custom options', () => {
     it('accepts explicit id strategy uuid', () => {
-      const col = defineCollection({ name: 'users', schema, id: 'uuid' as const });
+      const col = defineCollection({ name: 'users', schema, idStrategy: 'uuid' as const });
       expect(col.id).toBe('uuid');
     });
 
     it('accepts explicit id strategy string', () => {
-      const col = defineCollection({ name: 'users', schema, id: 'string' as const });
+      const col = defineCollection({ name: 'users', schema, idStrategy: 'string' as const });
       expect(col.id).toBe('string');
+    });
+
+    it('accepts the deprecated id alias', () => {
+      const col = defineCollection({ name: 'users', schema, id: 'uuid' as const });
+      expect(col.id).toBe('uuid');
+    });
+
+    it('throws when both id and idStrategy are provided', () => {
+      expect(() =>
+        defineCollection({
+          name: 'users',
+          schema,
+          id: 'uuid' as const,
+          idStrategy: 'uuid' as const,
+        }),
+      ).toThrow(/both 'id' and 'idStrategy'/);
     });
 
     it('preserves provided indexes', () => {
