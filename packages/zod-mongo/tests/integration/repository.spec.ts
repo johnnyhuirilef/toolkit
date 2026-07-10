@@ -29,6 +29,14 @@ const StringIdCollection = defineCollection({
   id: 'string' as const,
 });
 
+// Regression fixture for the silent-corruption bug: schema names its identity
+// field `id`, not `_id` — the 'string' strategy contract requires `_id` itself.
+const MisnamedStringIdCollection = defineCollection({
+  name: 'misnamed-slugs',
+  schema: z.object({ id: z.string(), title: z.string() }),
+  id: 'string' as const,
+});
+
 const NumericIdCollection = defineCollection({
   name: 'numeric',
   schema: z.object({ _id: z.number(), value: z.string() }),
@@ -388,6 +396,27 @@ describe('string strategy', () => {
     expect(found.ok).toBe(true);
     if (!found.ok) return;
     expect(found.value).toBeNull();
+  });
+
+  // Regression: a schema that names its identity field `id` (not `_id`) must
+  // fail loudly instead of letting MongoDB generate a disconnected ObjectId.
+  it('should return a validation error instead of silently writing a mismatched _id when the schema omits _id', async () => {
+    const repo = createRepository(MisnamedStringIdCollection, database);
+
+    const insertResult = await repo.insert({ id: 'my-app-id-123', title: 'Orphaned' });
+    expect(insertResult.ok).toBe(false);
+    if (insertResult.ok) return;
+    expect(insertResult.error.kind).toBe('validation');
+
+    const insertManyResult = await repo.insertMany([{ id: 'my-app-id-456', title: 'Orphaned 2' }]);
+    expect(insertManyResult.ok).toBe(false);
+    if (insertManyResult.ok) return;
+    expect(insertManyResult.error.kind).toBe('validation');
+
+    const found = await repo.find({} as Parameters<typeof repo.find>[0]);
+    expect(found.ok).toBe(true);
+    if (!found.ok) return;
+    expect(found.value).toHaveLength(0);
   });
 });
 

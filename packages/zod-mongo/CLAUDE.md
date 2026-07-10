@@ -232,8 +232,11 @@ Releases update the package root's own `package.json` (`manifestRootsToUpdate: [
 ## Gotchas
 
 - `Doc<Schema, Id>` adds `_id: InferIdType<Id>` to `Infer<Schema>`. For `'string'` and custom
-  `ZodCompat` strategies, the caller is responsible for including `_id` in the data; `buildDoc` does
-  not generate one.
+  `ZodCompat` strategies, the caller is responsible for including `_id` in the schema and the input
+  data; `buildDoc` does not generate one. If `_id` is absent, `resolveId` returns a
+  `validation`-kind `DbError` (`MissingIdError`) instead of silently writing without one — a schema
+  that names its identity field something other than `_id` (e.g. `id`) is caught this way rather
+  than letting MongoDB auto-generate a disconnected `ObjectId`.
 - `shake()` from radashi strips nullish keys from the patch before `$set`. Explicit `null` values in
   an update patch are therefore silently dropped.
 - `aggregate()` takes an `outputSchema: Out` parameter and parses every output document through it.
