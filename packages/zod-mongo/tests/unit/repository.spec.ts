@@ -89,22 +89,6 @@ const setupMisnamedStringId = (overrides: Partial<CollectionLike<MisnamedStringI
   return { coll, repo };
 };
 
-// Fixture with neither `id` nor `_id` in the schema — the base MissingIdError
-// message must stay clean here, with no id/_id hint appended.
-const NoIdFieldStringCollection = defineCollection({
-  name: 'no-id-field-string-test',
-  schema: z.object({ name: z.string() }),
-  idStrategy: 'string' as const,
-});
-
-type NoIdFieldStringDoc = { _id: string; name: string };
-
-const setupNoIdFieldString = (overrides: Partial<CollectionLike<NoIdFieldStringDoc>> = {}) => {
-  const coll = makeCollection<NoIdFieldStringDoc>(overrides);
-  const repo = createRepository(NoIdFieldStringCollection, makeDb(coll));
-  return { coll, repo };
-};
-
 const customIdSchema = z.object({ _id: z.string(), name: z.string() });
 
 const customIdStrategy: ZodCompat<string> = {
@@ -438,9 +422,9 @@ describe('insert', () => {
 
   // Issue #95 repro: schema names its identity field `id`, not `_id`. Zod's
   // `.parse()` strips the explicitly-passed `_id` before resolveId ever sees
-  // it, so the write still fails — but the message must now hint at the
-  // `id`/`_id` naming trap, since `validated` has a truthy `id` field.
-  it("should hint at the id/_id naming trap when 'string' strategy input has an id field but no _id", async () => {
+  // it, so the write still fails. `id` is the caller's own domain field —
+  // unrelated to `_id` — so the message never varies based on its presence.
+  it("should return the same MissingIdError message regardless of an unrelated 'id' field", async () => {
     // Arrange
     const { coll, repo } = setupMisnamedStringId();
 
@@ -456,25 +440,10 @@ describe('insert', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe('validation');
-    expect(result.error.message).toContain(
-      "if your schema has an 'id' field, note that 'string' strategy requires the identity to be named '_id'",
+    expect(result.error.message).toBe(
+      'Collection "misnamed-string-id-test" uses the \'string\' id strategy, which requires ' +
+        "'_id' to be present in the schema and input data",
     );
-    expect(coll.insertOne).not.toHaveBeenCalled();
-  });
-
-  it("should NOT add the id/_id hint for the 'string' strategy when there is no id field at all", async () => {
-    // Arrange
-    const { coll, repo } = setupNoIdFieldString();
-
-    // Act
-    const result = await repo.insert({ name: 'Alice' });
-
-    // Assert
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.kind).toBe('validation');
-    expect(result.error.message).not.toContain('id/_id');
-    expect(result.error.message).not.toContain("note that 'string' strategy");
     expect(coll.insertOne).not.toHaveBeenCalled();
   });
 });

@@ -419,11 +419,13 @@ describe('string strategy', () => {
     expect(found.value).toHaveLength(0);
   });
 
-  // Issue #95 exact repro: caller passes `_id` explicitly alongside `id`, but
-  // the schema never declares `_id`, so Zod's `.parse()` strips it before
-  // resolveId ever sees the data — the write still fails (correctly, this
-  // schema shape is wrong), but the message must hint at the naming trap.
-  it('should still fail when _id is passed explicitly but the schema omits it, with a naming hint in the message', async () => {
+  // Issue #95 exact repro: caller passes `_id` explicitly alongside an unrelated
+  // `id` field, but the schema never declares `_id`, so Zod's `.parse()` strips
+  // it before resolveId ever sees the data — the write still fails (correctly,
+  // this schema shape is wrong). `id` is the caller's own domain field, never
+  // inspected by the library, so the message is identical to any other missing-
+  // `_id` case.
+  it('should still fail when _id is passed explicitly but the schema omits it', async () => {
     const repo = createRepository(MisnamedStringIdCollection, database);
 
     // ponytail: JSON.parse yields `any` — the schema types `id` + `title` only,
@@ -435,8 +437,9 @@ describe('string strategy', () => {
     expect(insertResult.ok).toBe(false);
     if (insertResult.ok) return;
     expect(insertResult.error.kind).toBe('validation');
-    expect(insertResult.error.message).toContain(
-      "if your schema has an 'id' field, note that 'string' strategy requires the identity to be named '_id'",
+    expect(insertResult.error.message).toBe(
+      'Collection "misnamed-slugs" uses the \'string\' id strategy, which requires ' +
+        "'_id' to be present in the schema and input data",
     );
   });
 });
