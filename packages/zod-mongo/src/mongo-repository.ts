@@ -65,16 +65,14 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
     // idStrategy === 'string': the caller's schema owns `_id` directly, so no
     // value needs generating — but it must actually be present, or the write
     // would silently hand the driver a document with no `_id` at all.
-    return isNullish((validated as Record<string, unknown>)['_id'])
-      ? err(
-          toDbError(
-            new MissingIdError(
-              `Collection "${collection.name}" uses the 'string' id strategy, which requires ` +
-                `'_id' to be present in the schema and input data`,
-            ),
-          ),
-        )
-      : ok({ inject: false });
+    if (!isNullish((validated as Record<string, unknown>)['_id'])) return ok({ inject: false });
+    const base = `Collection "${collection.name}" uses the 'string' id strategy, which requires '_id' to be present in the schema and input data`;
+    // A truthy `id` field alongside a missing `_id` is the exact naming trap #95 reports:
+    // callers write `id` believing it's the identity field, but 'string' strategy needs `_id`.
+    const hint = (validated as Record<string, unknown>)['id']
+      ? ` (if your schema has an 'id' field, note that 'string' strategy requires the identity to be named '_id' in your schema — 'id' and '_id' are unrelated fields)`
+      : '';
+    return err(toDbError(new MissingIdError(base + hint)));
   };
 
   const buildDoc = (validated: Infer<Schema>): Result<TDoc> => {
