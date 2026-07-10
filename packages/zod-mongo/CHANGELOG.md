@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.4](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.4.3...mongo-v0.4.4) (2026-07-10)
+
+
+### Documentation
+
+* document the hexagonal/clean-architecture adapter pattern ([#102](https://github.com/johnnyhuirilef/toolkit/issues/102)) ([4903231](https://github.com/johnnyhuirilef/toolkit/commit/49032313a78a98a00f23c93552f44bead5740c78))
+
 ## [0.4.3](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.4.2...mongo-v0.4.3) (2026-07-10)
 
 
