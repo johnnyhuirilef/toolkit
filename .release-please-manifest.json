@@ -1,5 +1,5 @@
 {
   "packages/nest-ts-valid-mongodb": "0.2.0",
-  "packages/zod-mongo": "0.4.1",
+  "packages/zod-mongo": "0.4.2",
   "packages/nest-zod-mongo": "0.5.1"
 }

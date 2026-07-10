@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.4.1...mongo-v0.4.2) (2026-07-10)
+
+
+### Bug Fixes
+
+* **zod-mongo:** stop silently corrupting _id for the 'string' id strategy ([#93](https://github.com/johnnyhuirilef/toolkit/issues/93)) ([8e193bd](https://github.com/johnnyhuirilef/toolkit/commit/8e193bd30a02a33e52838fd50d239715522ca1b1))
+
 ## [0.4.1](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.4.0...mongo-v0.4.1) (2026-07-02)
 
 
