@@ -1,6 +1,6 @@
 {
   "name": "@wenu/mongo",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Declarative, immutable, type-safe MongoDB repository layer with Zod validation. Zero throws, dual ESM/CJS, pluggable ID strategies.",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
