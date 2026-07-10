@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.2](https://github.com/johnnyhuirilef/toolkit/compare/nest-mongo-v0.5.1...nest-mongo-v0.5.2) (2026-07-10)
+
+
+### Documentation
+
+* document the hexagonal/clean-architecture adapter pattern ([#102](https://github.com/johnnyhuirilef/toolkit/issues/102)) ([4903231](https://github.com/johnnyhuirilef/toolkit/commit/49032313a78a98a00f23c93552f44bead5740c78))
+
+
+### Code Refactoring
+
+* **zod-mongo:** rename defineCollection's id-strategy param to idStrategy ([#98](https://github.com/johnnyhuirilef/toolkit/issues/98)) ([96d87f1](https://github.com/johnnyhuirilef/toolkit/commit/96d87f10a94f1ea861e51c610c33a9e828cf8efc))
+
 ## [0.5.1](https://github.com/johnnyhuirilef/toolkit/compare/nest-mongo-v0.5.0...nest-mongo-v0.5.1) (2026-07-02)
 
 

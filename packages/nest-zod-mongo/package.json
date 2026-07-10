@@ -1,6 +1,6 @@
 {
   "name": "@wenu/nest-mongo",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "NestJS dynamic module for @wenu/mongo — typed repository injection with graceful shutdown",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
