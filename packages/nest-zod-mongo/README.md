@@ -1178,6 +1178,99 @@ wiring, not a library-specific concept).
 `Repository` or a `nest-mongo` decorator into an application/use-case service — defeats the entire
 point of writing a domain-owned port in the first place.
 
+### A second adapter on a second, named connection
+
+Multiple collections — even across different databases — need no library feature to coordinate them:
+it's simply **one adapter class per collection**, each constructing its own
+`createRepository(collection, db)` from whichever `Db` it is handed. Adapters never need to know
+about each other.
+
+Say `OrderMongoRepository` reads from an analytics cluster instead of the primary one. Register a
+second, named connection alongside the default one:
+
+```typescript
+// infrastructure/mongo/order.collection.ts
+import * as z from 'zod';
+import { defineCollection } from '@wenu/mongo';
+
+export const OrderCollection = defineCollection({
+  name: 'orders',
+  schema: z.object({ _id: z.string(), productId: z.string(), quantity: z.number().positive() }),
+  idStrategy: 'string',
+});
+```
+
+```typescript
+// infrastructure/mongo/order-mongo.repository.ts — adapter, only depends on @wenu/mongo
+import { createRepository } from '@wenu/mongo';
+import type { DatabaseLike, Repository, Result } from '@wenu/mongo';
+
+import type { Order, OrderRepository, OrderRepositoryError } from '../../domain/order.repository';
+import { OrderCollection } from './order.collection';
+
+export class OrderMongoRepository implements OrderRepository {
+  private readonly repo: Repository<typeof OrderCollection.schema, 'string'>;
+
+  constructor(db: DatabaseLike) {
+    this.repo = createRepository(OrderCollection, db);
+  }
+
+  async save(order: Order): Promise<Result<Order, OrderRepositoryError>> {
+    const result = await this.repo.upsertById(order.id, {
+      _id: order.id,
+      productId: order.productId,
+      quantity: order.quantity,
+    });
+    if (!result.ok) return { ok: false, error: { kind: 'unknown', message: result.error.message } };
+    return {
+      ok: true,
+      value: {
+        id: result.value._id,
+        productId: result.value.productId,
+        quantity: result.value.quantity,
+      },
+    };
+  }
+}
+```
+
+```typescript
+// infrastructure/mongo/order-infra.module.ts — the only file that knows Nest exists
+import { Module } from '@nestjs/common';
+import { MongoModule, getConnectionToken } from '@wenu/nest-mongo';
+import type { Db } from 'mongodb';
+
+import { OrderMongoRepository } from './order-mongo.repository';
+
+export const ORDER_REPOSITORY = 'ORDER_REPOSITORY';
+
+@Module({
+  imports: [
+    MongoModule.forRoot({
+      uri: process.env.ANALYTICS_MONGO_URI ?? '',
+      databaseName: 'analytics',
+      connectionName: 'analytics',
+    }),
+  ],
+  providers: [
+    {
+      provide: ORDER_REPOSITORY,
+      useFactory: (db: Db) => new OrderMongoRepository(db),
+      inject: [getConnectionToken('analytics')],
+    },
+  ],
+  exports: [ORDER_REPOSITORY],
+})
+export class OrderInfraModule {}
+```
+
+The two `forRoot(...)` calls — the default one backing `ProductInfraModule` and this named
+`'analytics'` one backing `OrderInfraModule` — coexist in the same app, each producing its own `Db`
+provider under its own DI token. The only difference from the default-connection example is
+`useFactory`'s `inject` array: `getConnectionToken()` (bare, resolves the default connection) versus
+`getConnectionToken('analytics')` (resolves that named connection specifically). Nothing else about
+`OrderMongoRepository` or `OrderInfraModule` changes shape — it's the same pattern, applied again.
+
 ---
 
 ## Security
