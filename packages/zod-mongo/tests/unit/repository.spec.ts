@@ -73,6 +73,22 @@ const setupStringId = (overrides: Partial<CollectionLike<StringIdDoc>> = {}) => 
   return { coll, repo };
 };
 
+// Bug repro: schema names its identity field `id`, not `_id` — the 'string'
+// strategy contract requires `_id` itself, which this schema never declares.
+const MisnamedStringIdCollection = defineCollection({
+  name: 'misnamed-string-id-test',
+  schema: z.object({ id: z.string(), name: z.string() }),
+  id: 'string' as const,
+});
+
+type MisnamedStringIdDoc = { _id: string; id: string; name: string };
+
+const setupMisnamedStringId = (overrides: Partial<CollectionLike<MisnamedStringIdDoc>> = {}) => {
+  const coll = makeCollection<MisnamedStringIdDoc>(overrides);
+  const repo = createRepository(MisnamedStringIdCollection, makeDb(coll));
+  return { coll, repo };
+};
+
 const customIdSchema = z.object({ _id: z.string(), name: z.string() });
 
 const customIdStrategy: ZodCompat<string> = {
@@ -389,6 +405,20 @@ describe('insert', () => {
     expect(result.error.kind).toBe('validation');
     expect(coll.insertOne).not.toHaveBeenCalled();
   });
+
+  it("should return a validation error and never call the driver for the 'string' strategy when _id is absent from the schema", async () => {
+    // Arrange
+    const { coll, repo } = setupMisnamedStringId();
+
+    // Act
+    const result = await repo.insert({ id: 'my-app-id-123', name: 'Alice' });
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+    expect(coll.insertOne).not.toHaveBeenCalled();
+  });
 });
 
 describe('insertMany', () => {
@@ -440,6 +470,20 @@ describe('insertMany', () => {
     if (result.ok) return;
     expect(result.error.kind).toBe('unknown');
     expect(result.error.message).toContain('connection dropped');
+  });
+
+  it("should return a validation error and never call the driver for the 'string' strategy when _id is absent from the schema", async () => {
+    // Arrange
+    const { coll, repo } = setupMisnamedStringId();
+
+    // Act
+    const result = await repo.insertMany([{ id: 'my-app-id-123', name: 'Alice' }]);
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+    expect(coll.insertMany).not.toHaveBeenCalled();
   });
 });
 
@@ -550,6 +594,25 @@ describe('upsertOne', () => {
     if (result.ok) return;
     expect(result.error.kind).toBe('not-found');
     expect(result.error.message).toContain('upsert returned null after write');
+  });
+
+  it("should return a validation error and never call the driver on the insert-path for the 'string' strategy when _id is absent from the schema", async () => {
+    // Arrange
+    const { coll, repo } = setupMisnamedStringId({
+      findOne: vi.fn().mockResolvedValue(null),
+    });
+
+    // Act
+    const result = await repo.upsertOne(
+      { id: 'my-app-id-123' },
+      { id: 'my-app-id-123', name: 'Alice' },
+    );
+
+    // Assert
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe('validation');
+    expect(coll.findOneAndReplace).not.toHaveBeenCalled();
   });
 });
 

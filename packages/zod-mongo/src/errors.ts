@@ -14,6 +14,10 @@ export class NotFoundError extends Error {
   override readonly name = 'NotFoundError';
 }
 
+export class MissingIdError extends Error {
+  override readonly name = 'MissingIdError';
+}
+
 const MONGO_DUPLICATE_KEY_CODE = 11_000;
 
 export const toDbError = (error: unknown): DbError => {
@@ -21,6 +25,8 @@ export const toDbError = (error: unknown): DbError => {
     return { kind: 'validation', message: getErrorMessage(error), cause: error };
   if (error instanceof NotFoundError)
     return { kind: 'not-found', message: getErrorMessage(error), cause: error };
+  if (error instanceof MissingIdError)
+    return { kind: 'validation', message: getErrorMessage(error), cause: error };
   if (isError(error) && 'code' in error && error.code === MONGO_DUPLICATE_KEY_CODE)
     return { kind: 'duplicate-key', message: getErrorMessage(error), cause: error };
   // MongoNetworkError and MongoServerSelectionError live on separate branches of the

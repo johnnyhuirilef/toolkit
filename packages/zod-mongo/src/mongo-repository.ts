@@ -12,7 +12,7 @@ import type { DatabaseLike } from './collection-like.js';
 import type { CollectionDef, Doc } from './collection.js';
 import { findOneAndModify } from './compat/driver.js';
 import type { Infer, ZodCompat } from './compat/zod.js';
-import { NotFoundError, toDbError } from './errors.js';
+import { MissingIdError, NotFoundError, toDbError } from './errors.js';
 import { generateId } from './id.js';
 import type { IdStrategy, InferIdType } from './id.js';
 import { createQueryBuilder } from './query-builder.js';
@@ -62,7 +62,19 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
         ? ok({ inject: true, id: id as InferIdType<Id> })
         : err(toDbError(error));
     }
-    return ok({ inject: false });
+    // idStrategy === 'string': the caller's schema owns `_id` directly, so no
+    // value needs generating — but it must actually be present, or the write
+    // would silently hand the driver a document with no `_id` at all.
+    return isNullish((validated as Record<string, unknown>)['_id'])
+      ? err(
+          toDbError(
+            new MissingIdError(
+              `Collection "${collection.name}" uses the 'string' id strategy, which requires ` +
+                `'_id' to be present in the schema and input data`,
+            ),
+          ),
+        )
+      : ok({ inject: false });
   };
 
   const buildDoc = (validated: Infer<Schema>): Result<TDoc> => {
