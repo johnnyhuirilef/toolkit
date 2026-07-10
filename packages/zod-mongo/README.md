@@ -166,6 +166,9 @@ const products = createRepository(ProductCollection, db);
 
 All 12 methods return `Promise<Result<T, DbError>>`.
 
+> Building a hexagonal/clean-architecture adapter around this repository? See
+> [`@wenu/nest-mongo` — Using this in a hexagonal / clean architecture setup](../nest-zod-mongo/README.md#using-this-in-a-hexagonal--clean-architecture-setup).
+
 ### Result Type
 
 The `Result` type is a discriminated union — it never throws and forces you to handle both paths:
