@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.4.2...mongo-v0.4.3) (2026-07-10)
+
+
+### Code Refactoring
+
+* **zod-mongo:** rename defineCollection's id-strategy param to idStrategy ([#98](https://github.com/johnnyhuirilef/toolkit/issues/98)) ([96d87f1](https://github.com/johnnyhuirilef/toolkit/commit/96d87f10a94f1ea861e51c610c33a9e828cf8efc))
+
 ## [0.4.2](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.4.1...mongo-v0.4.2) (2026-07-10)
 
 
