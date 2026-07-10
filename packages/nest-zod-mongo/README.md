@@ -37,6 +37,8 @@ MongoDB 5/6/7 compatible. NestJS 10/11 compatible.
 - [Health Checks](#health-checks)
 - [Transactions](#transactions)
 - [Error Handling](#error-handling)
+- [Using this in a hexagonal / clean architecture setup](#using-this-in-a-hexagonal--clean-architecture-setup)
+  - [Testing](#testing)
 - [Security](#security)
 - [API Reference](#api-reference)
 
@@ -1021,6 +1023,253 @@ Requires a MongoDB replica set or sharded cluster.
 | `index(spec, options?)`       | Create an `IndexDef` for use in `defineCollection()`              |
 | `syncIndexes(col, db)`        | Sync declared indexes to MongoDB. Returns `Promise<Result<void>>` |
 | `generateIndexMigration(col)` | Returns a migrate-mongo compatible JS migration string            |
+
+---
+
+## Using this in a hexagonal / clean architecture setup
+
+`@wenu/mongo`'s `createRepository(collection, db)` is already framework-agnostic — it accepts a
+`DatabaseLike` (a structural subset of `Db`, not a NestJS type) and returns a plain object with zero
+Nest dependency. `@wenu/nest-mongo` only adds the Nest infrastructure layer on top: DI, connection
+lifecycle, graceful shutdown, health checks.
+
+That split lets a consumer keep their domain/application layer depending on **their own** repository
+port — not `@wenu/mongo`'s `Repository<Schema, Id>` directly, not anything Nest-shaped — while still
+reusing `nest-mongo`'s infrastructure for the Nest-hosted deployment.
+
+```typescript
+// domain/product.repository.ts — port, zero infra imports
+import type { Result } from '@wenu/mongo';
+
+export interface ProductRepository {
+  save(product: Product): Promise<Result<Product, ProductRepositoryError>>;
+  findById(id: string): Promise<Result<Product | null, ProductRepositoryError>>;
+}
+
+export type Product = { readonly id: string; readonly name: string; readonly price: number };
+export type ProductRepositoryError = { readonly kind: 'unknown'; readonly message: string };
+```
+
+```typescript
+// infrastructure/mongo/product.collection.ts
+import * as z from 'zod';
+import { defineCollection } from '@wenu/mongo';
+
+export const ProductCollection = defineCollection({
+  name: 'products',
+  schema: z.object({ _id: z.string(), name: z.string(), price: z.number().positive() }),
+  idStrategy: 'string',
+});
+```
+
+```typescript
+// infrastructure/mongo/product-mongo.repository.ts — adapter, only depends on @wenu/mongo
+import { createRepository } from '@wenu/mongo';
+import type { DatabaseLike, Repository, Result } from '@wenu/mongo';
+
+import type {
+  Product,
+  ProductRepository,
+  ProductRepositoryError,
+} from '../../domain/product.repository';
+import { ProductCollection } from './product.collection';
+
+export class ProductMongoRepository implements ProductRepository {
+  private readonly repo: Repository<typeof ProductCollection.schema, 'string'>;
+
+  constructor(db: DatabaseLike) {
+    this.repo = createRepository(ProductCollection, db);
+  }
+
+  async save(product: Product): Promise<Result<Product, ProductRepositoryError>> {
+    const result = await this.repo.upsertById(product.id, {
+      _id: product.id,
+      name: product.name,
+      price: product.price,
+    });
+    if (!result.ok) return { ok: false, error: { kind: 'unknown', message: result.error.message } };
+    return {
+      ok: true,
+      value: { id: result.value._id, name: result.value.name, price: result.value.price },
+    };
+  }
+
+  async findById(id: string): Promise<Result<Product | null, ProductRepositoryError>> {
+    const result = await this.repo.findById(id);
+    if (!result.ok) return { ok: false, error: { kind: 'unknown', message: result.error.message } };
+    const doc = result.value;
+    return {
+      ok: true,
+      value: doc === null ? null : { id: doc._id, name: doc.name, price: doc.price },
+    };
+  }
+}
+```
+
+```typescript
+// infrastructure/mongo/product-infra.module.ts — the only file that knows Nest exists
+import { Module } from '@nestjs/common';
+import { MongoModule, getConnectionToken } from '@wenu/nest-mongo';
+import type { Db } from 'mongodb';
+
+import { ProductMongoRepository } from './product-mongo.repository';
+
+export const PRODUCT_REPOSITORY = 'PRODUCT_REPOSITORY';
+
+@Module({
+  imports: [MongoModule.forRoot({ uri: process.env.MONGO_URI ?? '', databaseName: 'shop' })],
+  providers: [
+    {
+      provide: PRODUCT_REPOSITORY,
+      useFactory: (db: Db) => new ProductMongoRepository(db),
+      inject: [getConnectionToken()],
+    },
+  ],
+  exports: [PRODUCT_REPOSITORY],
+})
+export class ProductInfraModule {}
+```
+
+`ProductMongoRepository` has zero `@nestjs/*` imports — it is the same class that would run under
+Express, Koa, or a standalone script wired against a plain `MongoClient.connect()`. Only
+`ProductInfraModule` differs per runtime; it is the seam where `@InjectConnection` /
+`getConnectionToken()` bridges Nest's DI to the framework-agnostic adapter.
+`getClientWrapperToken()` injects the `MongoClientWrapper` itself (`{ client, close }`) — reach for
+it only when you need the raw `MongoClient` (e.g. custom shutdown coordination); for a
+`DatabaseLike` handle, `getConnectionToken()` is the direct seam since it resolves straight to the
+`Db` instance.
+
+### Testing
+
+Because `ProductMongoRepository` only depends on `@wenu/mongo`, testing it never needs Nest's
+`TestingModule`.
+
+**Unit — mocked driver, no Nest, no Docker:**
+
+```typescript
+const setup = () => {
+  const db = { collection: () => fakeCollection };
+  return { repo: new ProductMongoRepository(db) };
+};
+```
+
+**Integration — real testcontainers, no Nest involved:**
+
+```typescript
+const repo = new ProductMongoRepository(client.db('test'));
+const saved = await repo.save({ id: 'sku-1', name: 'Widget', price: 9.99 });
+```
+
+Testing the **domain/application layer** (use cases depending on the consumer's own
+`ProductRepository` port) needs no MongoDB at all — a plain in-memory fake implementing the port is
+enough.
+
+### Rule: Nest decorators stay in the infrastructure module
+
+`@InjectRepository`, `@InjectClientWrapper`, and any other `nest-mongo` decorator are valid **only
+inside the infrastructure/wiring module** that constructs the adapter (`ProductInfraModule` above).
+A use-case/application service (e.g. `ProductService`) must **never** inject
+`Repository<Schema, Id>` from `@wenu/mongo` directly, and must never carry a `nest-mongo` decorator
+— it receives its own `ProductRepository` port via plain Nest constructor injection instead (itself
+framework-agnostic as a _pattern_ — every DI container has some form of constructor injection; it's
+wiring, not a library-specific concept).
+
+**The decorator boundary IS the infrastructure boundary.** Crossing it — injecting `@wenu/mongo`'s
+`Repository` or a `nest-mongo` decorator into an application/use-case service — defeats the entire
+point of writing a domain-owned port in the first place.
+
+### A second adapter on a second, named connection
+
+Multiple collections — even across different databases — need no library feature to coordinate them:
+it's simply **one adapter class per collection**, each constructing its own
+`createRepository(collection, db)` from whichever `Db` it is handed. Adapters never need to know
+about each other.
+
+Say `OrderMongoRepository` reads from an analytics cluster instead of the primary one. Register a
+second, named connection alongside the default one:
+
+```typescript
+// infrastructure/mongo/order.collection.ts
+import * as z from 'zod';
+import { defineCollection } from '@wenu/mongo';
+
+export const OrderCollection = defineCollection({
+  name: 'orders',
+  schema: z.object({ _id: z.string(), productId: z.string(), quantity: z.number().positive() }),
+  idStrategy: 'string',
+});
+```
+
+```typescript
+// infrastructure/mongo/order-mongo.repository.ts — adapter, only depends on @wenu/mongo
+import { createRepository } from '@wenu/mongo';
+import type { DatabaseLike, Repository, Result } from '@wenu/mongo';
+
+import type { Order, OrderRepository, OrderRepositoryError } from '../../domain/order.repository';
+import { OrderCollection } from './order.collection';
+
+export class OrderMongoRepository implements OrderRepository {
+  private readonly repo: Repository<typeof OrderCollection.schema, 'string'>;
+
+  constructor(db: DatabaseLike) {
+    this.repo = createRepository(OrderCollection, db);
+  }
+
+  async save(order: Order): Promise<Result<Order, OrderRepositoryError>> {
+    const result = await this.repo.upsertById(order.id, {
+      _id: order.id,
+      productId: order.productId,
+      quantity: order.quantity,
+    });
+    if (!result.ok) return { ok: false, error: { kind: 'unknown', message: result.error.message } };
+    return {
+      ok: true,
+      value: {
+        id: result.value._id,
+        productId: result.value.productId,
+        quantity: result.value.quantity,
+      },
+    };
+  }
+}
+```
+
+```typescript
+// infrastructure/mongo/order-infra.module.ts — the only file that knows Nest exists
+import { Module } from '@nestjs/common';
+import { MongoModule, getConnectionToken } from '@wenu/nest-mongo';
+import type { Db } from 'mongodb';
+
+import { OrderMongoRepository } from './order-mongo.repository';
+
+export const ORDER_REPOSITORY = 'ORDER_REPOSITORY';
+
+@Module({
+  imports: [
+    MongoModule.forRoot({
+      uri: process.env.ANALYTICS_MONGO_URI ?? '',
+      databaseName: 'analytics',
+      connectionName: 'analytics',
+    }),
+  ],
+  providers: [
+    {
+      provide: ORDER_REPOSITORY,
+      useFactory: (db: Db) => new OrderMongoRepository(db),
+      inject: [getConnectionToken('analytics')],
+    },
+  ],
+  exports: [ORDER_REPOSITORY],
+})
+export class OrderInfraModule {}
+```
+
+The two `forRoot(...)` calls — the default one backing `ProductInfraModule` and this named
+`'analytics'` one backing `OrderInfraModule` — coexist in the same app, each producing its own `Db`
+provider under its own DI token. The only difference from the default-connection example is
+`useFactory`'s `inject` array: `getConnectionToken()` (bare, resolves the default connection) versus
+`getConnectionToken('analytics')` (resolves that named connection specifically). Nothing else about
+`OrderMongoRepository` or `OrderInfraModule` changes shape — it's the same pattern, applied again.
 
 ---
 
