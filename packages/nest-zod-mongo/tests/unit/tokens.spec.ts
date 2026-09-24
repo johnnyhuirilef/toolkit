@@ -7,6 +7,12 @@ import {
   DEFAULT_CONNECTION_NAME,
 } from '../../src/zod-mongo.tokens';
 
+describe('DEFAULT_CONNECTION_NAME', () => {
+  it("strictly equals the string 'default'", () => {
+    expect(DEFAULT_CONNECTION_NAME).toBe('default');
+  });
+});
+
 describe('getConnectionToken', () => {
   it('resolves the default connection identically across all three spellings', () => {
     const withoutName = getConnectionToken();

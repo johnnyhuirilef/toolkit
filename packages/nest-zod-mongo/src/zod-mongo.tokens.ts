@@ -34,7 +34,7 @@ export const MONGO_CORE_OPTIONS = '@wenu/nest-mongo/core/options';
 export const MONGO_CORE_CONNECTION = '@wenu/nest-mongo/core/connection';
 export const MONGO_CORE_ID = '@wenu/nest-mongo/core/id';
 
-// Internal — kept for the current single-connection shutdown/provider wiring.
-// Replaced by MONGO_CORE_* wiring in a later task of this change.
+// Internal — still backs the single-connection shutdown/provider wiring; removing
+// them requires re-wiring shutdown and provider resolution together, not in isolation.
 export const ZOD_MONGO_CONNECTION_TOKENS = Symbol('MongoConnectionTokens');
 export const ZOD_MONGO_MODULE_OPTIONS = Symbol('MongoModuleOptions');

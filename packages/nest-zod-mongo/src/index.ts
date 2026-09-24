@@ -5,7 +5,12 @@ export { MongoModule } from './zod-mongo.module';
 export { InjectRepository, InjectConnection, InjectClientWrapper } from './zod-mongo.decorators';
 
 // Token helpers
-export { getRepositoryToken, getConnectionToken, getClientWrapperToken } from './zod-mongo.tokens';
+export {
+  getRepositoryToken,
+  getConnectionToken,
+  getClientWrapperToken,
+  DEFAULT_CONNECTION_NAME,
+} from './zod-mongo.tokens';
 
 // Error types
 export { MongoConnectionError, MongoConfigurationError } from './zod-mongo.errors';
