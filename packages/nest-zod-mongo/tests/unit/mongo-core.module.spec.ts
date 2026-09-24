@@ -48,8 +48,14 @@ describe('MongoCoreModule.forRoot', () => {
     const options: MongoOptions = { mongoClient, databaseName: 'core_test_metadata' };
 
     const dynamicModule = MongoCoreModule.forRoot(options);
-    const providers = dynamicModule.providers as FactoryProvider[];
-    const optionsProvider = providers.find((provider) => provider.provide === MONGO_CORE_OPTIONS);
+    const providers = dynamicModule.providers ?? [];
+    const optionsProvider = providers.find(
+      (provider): provider is FactoryProvider =>
+        typeof provider === 'object' &&
+        'provide' in provider &&
+        'useFactory' in provider &&
+        provider.provide === MONGO_CORE_OPTIONS,
+    );
 
     expect(optionsProvider).toBeDefined();
     expect(optionsProvider).toHaveProperty('useFactory');

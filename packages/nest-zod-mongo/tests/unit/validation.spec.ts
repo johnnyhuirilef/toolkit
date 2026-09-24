@@ -21,6 +21,12 @@ const setup = () => ({
 const callAsUntypedCaller = (connectionName: unknown): unknown =>
   Reflect.apply(ensureConnectionName, undefined, [connectionName]);
 
+// Reflect.apply performs an untyped call: a non-callable `useClass`/`useExisting` such as `42`
+// cannot be expressed through OptionsSources' own (already loose) `unknown` fields once combined
+// with a real function for another field, so this mirrors exactly what a plain JS caller sends.
+const callEnsureSingleOptionsSourceAsUntypedCaller = (asyncOptions: object): unknown =>
+  Reflect.apply(ensureSingleOptionsSource, undefined, ['orders', asyncOptions]);
+
 describe('ensureConnectionName', () => {
   it('rejects an empty connection name with a MongoConfigurationError naming the remedy', () => {
     const { ensureConnectionName: sut } = setup();
@@ -44,7 +50,6 @@ describe('ensureConnectionName', () => {
 
   it('rejects a non-string connection name from an untyped caller with MongoConfigurationError, not a TypeError', () => {
     expect(() => callAsUntypedCaller(42)).toThrow(MongoConfigurationError);
-    expect(() => callAsUntypedCaller(42)).not.toThrow(TypeError);
   });
 });
 
@@ -78,6 +83,24 @@ describe('ensureValidOptions', () => {
     expect(() => sut('orders', undefined)).toThrow(/options object/);
   });
 
+  it('an options object missing databaseName throws MongoConfigurationError stating databaseName is required', () => {
+    const { ensureValidOptions: sut } = setup();
+    const missingDatabaseName = { uri: 'mongodb://localhost' };
+
+    expect(() => sut('orders', missingDatabaseName)).toThrow(MongoConfigurationError);
+    expect(() => sut('orders', missingDatabaseName)).toThrow(/"orders"/);
+    expect(() => sut('orders', missingDatabaseName)).toThrow(/"databaseName"/);
+  });
+
+  it('rejects an empty uri with a MongoConfigurationError naming the connection and the remedy', () => {
+    const { ensureValidOptions: sut } = setup();
+    const emptyUri = { databaseName: 'db', uri: '' };
+
+    expect(() => sut('orders', emptyUri)).toThrow(MongoConfigurationError);
+    expect(() => sut('orders', emptyUri)).toThrow(/"orders"/);
+    expect(() => sut('orders', emptyUri)).toThrow(/empty "uri"/);
+  });
+
   it('returns the validated options unchanged when the shape and source are valid', () => {
     const { ensureValidOptions: sut } = setup();
     const options = { databaseName: 'db', uri: 'mongodb://localhost' };
@@ -106,6 +129,55 @@ describe('ensureSingleOptionsSource', () => {
     expect(() => sut('orders', asyncOptions)).toThrow(MongoConfigurationError);
     expect(() => sut('orders', asyncOptions)).toThrow(/"orders"/);
     expect(() => sut('orders', asyncOptions)).toThrow(/exactly one/);
+  });
+
+  it('rejects a usable useFactory alongside a non-callable useClass as more than one provided mechanism', () => {
+    const asyncOptions = {
+      useFactory: () => ({ databaseName: 'db', uri: 'mongodb://localhost' }),
+      useClass: 42,
+    };
+
+    expect(() => callEnsureSingleOptionsSourceAsUntypedCaller(asyncOptions)).toThrow(
+      MongoConfigurationError,
+    );
+    expect(() => callEnsureSingleOptionsSourceAsUntypedCaller(asyncOptions)).toThrow(/"orders"/);
+    expect(() => callEnsureSingleOptionsSourceAsUntypedCaller(asyncOptions)).toThrow(/exactly one/);
+  });
+
+  it('rejects a non-callable useClass provided alone with a MongoConfigurationError naming the field and the remedy', () => {
+    const asyncOptions = { useClass: 42 };
+
+    expect(() => callEnsureSingleOptionsSourceAsUntypedCaller(asyncOptions)).toThrow(
+      MongoConfigurationError,
+    );
+    expect(() => callEnsureSingleOptionsSourceAsUntypedCaller(asyncOptions)).toThrow(/"orders"/);
+    expect(() => callEnsureSingleOptionsSourceAsUntypedCaller(asyncOptions)).toThrow(
+      /"useClass".*not a class/,
+    );
+  });
+
+  it('rejects a non-callable useFactory provided alone with a MongoConfigurationError naming the field and the remedy', () => {
+    const asyncOptions = { useFactory: 42 };
+
+    expect(() => callEnsureSingleOptionsSourceAsUntypedCaller(asyncOptions)).toThrow(
+      MongoConfigurationError,
+    );
+    expect(() => callEnsureSingleOptionsSourceAsUntypedCaller(asyncOptions)).toThrow(/"orders"/);
+    expect(() => callEnsureSingleOptionsSourceAsUntypedCaller(asyncOptions)).toThrow(
+      /"useFactory".*not a function/,
+    );
+  });
+
+  it('rejects a non-callable useExisting provided alone with a MongoConfigurationError naming the field and the remedy', () => {
+    const asyncOptions = { useExisting: 42 };
+
+    expect(() => callEnsureSingleOptionsSourceAsUntypedCaller(asyncOptions)).toThrow(
+      MongoConfigurationError,
+    );
+    expect(() => callEnsureSingleOptionsSourceAsUntypedCaller(asyncOptions)).toThrow(/"orders"/);
+    expect(() => callEnsureSingleOptionsSourceAsUntypedCaller(asyncOptions)).toThrow(
+      /"useExisting".*not a class/,
+    );
   });
 
   it('returns the async options unchanged when exactly one mechanism is provided', () => {

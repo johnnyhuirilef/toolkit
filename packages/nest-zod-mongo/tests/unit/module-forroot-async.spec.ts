@@ -1,3 +1,4 @@
+import type { DynamicModule } from '@nestjs/common';
 import { Injectable, Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { defineCollection } from '@wenu/mongo';
@@ -51,6 +52,13 @@ class SharedOptionsModule {}
 // discriminated union cannot express these invalid inputs, so no typed call could reach them.
 const callAsUntypedCaller = (asyncOptions: object): unknown =>
   Reflect.apply(createOptionsProviders, undefined, ['orders', asyncOptions]);
+
+// A `useFactory` typed to return `MongoConnectionOptions` cannot be written to resolve `{}`; this
+// registers with one that does, exactly as a plain JS caller (or an untyped factory) could.
+const registerWithUntypedFactoryResult = (createInvalidOptions: () => object): DynamicModule =>
+  Reflect.apply(MongoModule.forRootAsync, undefined, [
+    { connectionName: 'orders', useFactory: createInvalidOptions },
+  ]);
 
 const setup = async (asyncOptions: MongoAsyncOptions) => {
   const moduleReference = await Test.createTestingModule({
@@ -167,6 +175,14 @@ describe('MongoModule.forRootAsync', () => {
   it('createOptionsProviders throws MongoConfigurationError naming the connection when none of useFactory/useClass/useExisting is provided', () => {
     expect(() => callAsUntypedCaller({})).toThrow(MongoConfigurationError);
     expect(() => callAsUntypedCaller({})).toThrow(/"orders"/);
+  });
+
+  it('forRootAsync boot fails with MongoConfigurationError naming the connection when useFactory resolves an invalid shape', async () => {
+    const dynamicModule = registerWithUntypedFactoryResult(() => ({}));
+
+    await expect(Test.createTestingModule({ imports: [dynamicModule] }).compile()).rejects.toThrow(
+      MongoConfigurationError,
+    );
   });
 
   it('createOptionsProviders throws MongoConfigurationError before selecting a branch when more than one mechanism is provided', () => {

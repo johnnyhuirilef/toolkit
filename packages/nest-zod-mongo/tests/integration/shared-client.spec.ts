@@ -1,18 +1,19 @@
 import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
 import { MongoClient } from 'mongodb';
+import type { Db } from 'mongodb';
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
+import { MongoCoreModule } from '../../src/mongo-core.module';
+import type { MongoClientWrapper, MongoConnectionOptions } from '../../src/zod-mongo.interfaces';
 import { MongoModule } from '../../src/zod-mongo.module';
-
-// Reads which connection's "closed in ...ms" message Logger.log recorded first, to pin the
-// actual shutdown-hook order instead of only counting how many times it ran.
-const readClosedOrder = (logSpy: ReturnType<typeof vi.spyOn>): readonly string[] =>
-  logSpy.mock.calls
-    .map(([message]) => String(message))
-    .filter((message) => message.includes('closed in'))
-    .map((message) => (message.includes('"b"') ? 'b' : 'a'));
+import {
+  getConnectionToken,
+  getClientWrapperToken,
+  getOptionsToken,
+} from '../../src/zod-mongo.tokens';
 
 const setup = () => {
   const sharedClient = new MongoClient(getUri(), clientOptions);
@@ -21,9 +22,20 @@ const setup = () => {
     topologyClosedCount += 1;
   });
   const errorSpy = vi.spyOn(Logger, 'error').mockImplementation(vi.fn());
-  const logSpy = vi.spyOn(Logger, 'log').mockImplementation(vi.fn());
 
-  return { sharedClient, getTopologyClosedCount: () => topologyClosedCount, errorSpy, logSpy };
+  return { sharedClient, getTopologyClosedCount: () => topologyClosedCount, errorSpy };
+};
+
+// The DI container already assembled this connection's Db/wrapper/options records; this builds
+// a second, undeclared MongoCoreModule instance around them so its shutdown hook can be invoked
+// directly, in an order this test chooses, instead of relying on which order Nest itself happens
+// to run global-module shutdown hooks in (that order is incidental framework behavior, not a
+// contract the production code depends on).
+const resolveCore = (moduleReference: TestingModule, connectionName: string): MongoCoreModule => {
+  const database = moduleReference.get<Db>(getConnectionToken(connectionName));
+  const wrapper = moduleReference.get<MongoClientWrapper>(getClientWrapperToken(connectionName));
+  const options = moduleReference.get<MongoConnectionOptions>(getOptionsToken(connectionName));
+  return new MongoCoreModule({ connectionName, options, db: database, wrapper });
 };
 
 describe('Shared-client idempotent close (integration)', () => {
@@ -39,9 +51,8 @@ describe('Shared-client idempotent close (integration)', () => {
     vi.restoreAllMocks();
   });
 
-  it('a MongoClient shared by registrations a and b emits topologyClosed exactly once across both shutdowns', async () => {
-    const { sharedClient, getTopologyClosedCount, errorSpy, logSpy } = setup();
-
+  it('a MongoClient shared by registrations a and b closes its topology exactly once when a shuts down before b', async () => {
+    const { sharedClient, getTopologyClosedCount, errorSpy } = setup();
     const moduleReference = await Test.createTestingModule({
       imports: [
         MongoModule.forRoot({
@@ -57,41 +68,44 @@ describe('Shared-client idempotent close (integration)', () => {
       ],
     }).compile();
 
-    await moduleReference.close();
+    const coreA = resolveCore(moduleReference, 'a');
+    const coreB = resolveCore(moduleReference, 'b');
 
-    // Nest runs global-module shutdown hooks in the reverse of their registration order — b
-    // (registered second) closes before a.
-    expect(readClosedOrder(logSpy)).toEqual(['b', 'a']);
+    await coreA.onApplicationShutdown();
+    await coreB.onApplicationShutdown();
+
     expect(getTopologyClosedCount()).toBe(1);
     expect(errorSpy).not.toHaveBeenCalled();
+
+    await moduleReference.close();
   }, 30_000);
 
-  it("shared-client close is exactly-once regardless of which registration's shutdown hook runs first", async () => {
-    const { sharedClient, getTopologyClosedCount, errorSpy, logSpy } = setup();
-
-    // Registration order reversed relative to the previous test — b registered before a — to
-    // pin that the exactly-once guarantee holds regardless of which shutdown hook Nest runs first.
+  it('a MongoClient shared by registrations a and b closes its topology exactly once when b shuts down before a', async () => {
+    const { sharedClient, getTopologyClosedCount, errorSpy } = setup();
     const moduleReference = await Test.createTestingModule({
       imports: [
         MongoModule.forRoot({
           mongoClient: sharedClient,
-          databaseName: 'shared_client_b_first',
-          connectionName: 'b',
+          databaseName: 'shared_client_a2',
+          connectionName: 'a',
         }),
         MongoModule.forRoot({
           mongoClient: sharedClient,
-          databaseName: 'shared_client_a_second',
-          connectionName: 'a',
+          databaseName: 'shared_client_b2',
+          connectionName: 'b',
         }),
       ],
     }).compile();
 
-    await moduleReference.close();
+    const coreA = resolveCore(moduleReference, 'a');
+    const coreB = resolveCore(moduleReference, 'b');
 
-    // Reversing the registration order reverses the observed shutdown order too (a now closes
-    // first) — proving the exactly-once guarantee does not depend on which hook Nest runs first.
-    expect(readClosedOrder(logSpy)).toEqual(['a', 'b']);
+    await coreB.onApplicationShutdown();
+    await coreA.onApplicationShutdown();
+
     expect(getTopologyClosedCount()).toBe(1);
     expect(errorSpy).not.toHaveBeenCalled();
+
+    await moduleReference.close();
   }, 30_000);
 });
