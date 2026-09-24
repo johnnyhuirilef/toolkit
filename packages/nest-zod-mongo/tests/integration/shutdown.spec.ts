@@ -86,4 +86,25 @@ describe('Graceful shutdown (integration)', () => {
     logSpy.mockRestore();
     await clientB.close();
   }, 30_000);
+
+  it('autoCloseConnection:false leaves the mongoClient usable (able to execute a command) after app.close()', async () => {
+    const mongoClient = new MongoClient(getUri(), clientOptions);
+
+    const moduleReference = await Test.createTestingModule({
+      imports: [
+        MongoModule.forRoot({
+          mongoClient,
+          databaseName: 'test_autoclose_false',
+          autoCloseConnection: false,
+        }),
+      ],
+    }).compile();
+
+    await moduleReference.close();
+
+    const ping = await mongoClient.db('test_autoclose_false').command({ ping: 1 });
+    expect(ping['ok']).toBe(1);
+
+    await mongoClient.close();
+  }, 30_000);
 });
