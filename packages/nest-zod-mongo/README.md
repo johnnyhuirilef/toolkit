@@ -4,7 +4,7 @@
 [![node](https://img.shields.io/node/v/@wenu/nest-mongo)](https://www.npmjs.com/package/@wenu/nest-mongo)
 
 NestJS dynamic module for `@wenu/mongo` — typed MongoDB repository injection with graceful shutdown.
-MongoDB 5/6/7 compatible. NestJS 10/11 compatible.
+MongoDB 6/7 compatible. NestJS 10/11 compatible.
 
 ## Table of Contents
 
@@ -37,6 +37,7 @@ MongoDB 5/6/7 compatible. NestJS 10/11 compatible.
 - [Health Checks](#health-checks)
 - [Transactions](#transactions)
 - [Error Handling](#error-handling)
+- [Migration to 0.6.0](#migration-to-060)
 - [Using this in a hexagonal / clean architecture setup](#using-this-in-a-hexagonal--clean-architecture-setup)
   - [Testing](#testing)
 - [Security](#security)
@@ -49,9 +50,10 @@ MongoDB 5/6/7 compatible. NestJS 10/11 compatible.
 - **Zero-boilerplate DI** — `@InjectRepository(UserCollection)` wires a fully-typed repository into
   any NestJS service
 - **forRoot / forRootAsync / forFeature** — familiar NestJS dynamic module pattern
-- **Named connections** — multiple MongoDB connections in the same app with full isolation
-- **Graceful shutdown** — `OnApplicationShutdown` closes all connections with configurable timeout
-  and retry
+- **Named connections** — multiple MongoDB connections in the same app, each isolated in its own
+  core module (own options, own shutdown, own `syncIndexes`)
+- **Graceful shutdown** — every registered connection closes on `app.close()`, independently, with
+  configurable timeout and retry
 - **Index sync** — optional `createIndexes()` on module init, driven by the `CollectionDef`
   declaration
 - **Health checks** — opt-in `MongoHealthModule` for `@nestjs/terminus` integration
@@ -59,7 +61,6 @@ MongoDB 5/6/7 compatible. NestJS 10/11 compatible.
 - **Zero throws** — every repository method returns `Result<T, DbError>`, never throws
 - **Full type inference** — document shape, `_id` type, and filter types flow from a single
   `defineCollection()` call
-- **Global module** — providers registered once, available everywhere
 
 ---
 
@@ -76,7 +77,7 @@ pnpm add @wenu/nest-mongo @wenu/mongo
 ### Peer dependencies
 
 ```bash
-npm install @nestjs/common@"^10 || ^11" @nestjs/core@"^10 || ^11" mongodb@">=5"
+npm install @nestjs/common@"^10 || ^11" @nestjs/core@"^10 || ^11" mongodb@">=6.0.0"
 ```
 
 **Requirements:** Node `>=22.0.0`
@@ -169,21 +170,33 @@ MongoModule.forRoot({
 
 #### Options
 
-| Option                  | Type                 | Default     | Description                                                    |
-| ----------------------- | -------------------- | ----------- | -------------------------------------------------------------- |
-| `uri`                   | `string`             | —           | MongoDB connection URI (mutually exclusive with `mongoClient`) |
-| `mongoClient`           | `MongoClient`        | —           | Pre-built client (mutually exclusive with `uri`)               |
-| `databaseName`          | `string`             | —           | Database name                                                  |
-| `connectionName`        | `string \| symbol`   | `'default'` | Token namespace for named connections                          |
-| `syncIndexes`           | `boolean`            | `true`      | Call `createIndexes()` on module init                          |
-| `clientOptions`         | `MongoClientOptions` | —           | Passed to `new MongoClient()` (only with `uri`)                |
-| `shutdownTimeoutMs`     | `number`             | `10_000`    | Max ms to wait for `MongoClient.close()`                       |
-| `shutdownRetryAttempts` | `number`             | `2`         | Retry attempts on close failure                                |
-| `forceShutdown`         | `boolean`            | `false`     | Pass `force: true` to `MongoClient.close()`                    |
+| Option                  | Type                 | Default     | Description                                                                         |
+| ----------------------- | -------------------- | ----------- | ----------------------------------------------------------------------------------- |
+| `uri`                   | `string`             | —           | MongoDB connection URI (mutually exclusive with `mongoClient`)                      |
+| `mongoClient`           | `MongoClient`        | —           | Pre-built client (mutually exclusive with `uri`)                                    |
+| `databaseName`          | `string`             | —           | Database name                                                                       |
+| `connectionName`        | `string`             | `'default'` | Registration name for this connection (see [Named Connections](#named-connections)) |
+| `syncIndexes`           | `boolean`            | `true`      | Call `createIndexes()` on module init                                               |
+| `autoCloseConnection`   | `boolean`            | `true`      | `false` skips closing the client on shutdown — the caller keeps ownership           |
+| `clientOptions`         | `MongoClientOptions` | —           | Passed to `new MongoClient()` (only with `uri`)                                     |
+| `shutdownTimeoutMs`     | `number`             | `10_000`    | Max ms to wait for `MongoClient.close()`                                            |
+| `shutdownRetryAttempts` | `number`             | `2`         | Retry attempts on close failure                                                     |
+| `forceShutdown`         | `boolean`            | `false`     | Pass `force: true` to `MongoClient.close()`                                         |
+
+Each `forRoot`/`forRootAsync` registration owns and closes its own MongoDB connection independently
+— registering two connections never causes one to overwrite the other's options or shutdown
+bookkeeping. A `connectionName` must be a non-empty string that does not contain `/`; an invalid
+name throws `MongoConfigurationError`.
 
 ### forRootAsync — Factory Configuration
 
 Use when options depend on a config service, environment variables, or other async sources.
+`forRootAsync` accepts exactly one of `useFactory`, `useClass`, or `useExisting` — providing none or
+more than one throws `MongoConfigurationError`. None of the three ever returns `connectionName`: the
+registration's own `connectionName` (passed alongside `useFactory` / `useClass` / `useExisting`) is
+always the source of truth for which connection is being configured.
+
+#### useFactory
 
 ```typescript
 import { ConfigService } from '@nestjs/config';
@@ -191,10 +204,53 @@ import { ConfigService } from '@nestjs/config';
 MongoModule.forRootAsync({
   imports: [ConfigModule],
   useFactory: (config: ConfigService) => ({
-    uri: config.get<string>('MONGO_URI'),
-    databaseName: config.get<string>('MONGO_DB'),
+    uri: config.getOrThrow<string>('MONGO_URI'),
+    databaseName: config.getOrThrow<string>('MONGO_DB'),
   }),
   inject: [ConfigService],
+});
+```
+
+`useFactory` is invoked exactly once per registration; its return type is inferred through Nest's
+own `FactoryProvider['useFactory']` typing, so a factory typed against a concrete class (like
+`ConfigService` above) is accepted without a cast.
+
+#### useClass and useExisting — MongoOptionsFactory
+
+Implement `MongoOptionsFactory` when the options-building logic itself needs to be a testable,
+injectable class rather than an inline function. `createMongoOptions` receives the registration's
+own `connectionName`, and — like `useFactory` — is called exactly once per registration.
+
+```typescript
+import { Injectable } from '@nestjs/common';
+import type { MongoConnectionOptions, MongoOptionsFactory } from '@wenu/nest-mongo';
+
+@Injectable()
+export class MongoConfigFactory implements MongoOptionsFactory {
+  constructor(private readonly config: ConfigService) {}
+
+  createMongoOptions(connectionName: string): MongoConnectionOptions {
+    return {
+      uri: this.config.getOrThrow<string>(`MONGO_URI_${connectionName.toUpperCase()}`),
+      databaseName: this.config.getOrThrow<string>(`MONGO_DB_${connectionName.toUpperCase()}`),
+    };
+  }
+}
+```
+
+```typescript
+// useClass — MongoModule instantiates and injects MongoConfigFactory itself
+MongoModule.forRootAsync({
+  imports: [ConfigModule],
+  useClass: MongoConfigFactory,
+});
+```
+
+```typescript
+// useExisting — reuse a provider already registered (and injectable) elsewhere
+MongoModule.forRootAsync({
+  imports: [ConfigModule], // must export/provide MongoConfigFactory
+  useExisting: MongoConfigFactory,
 });
 ```
 
@@ -610,8 +666,12 @@ original repository.
 
 ## Named Connections
 
-Register multiple `forRoot` calls with distinct `connectionName` values. Each connection manages its
-own `MongoClient`, `Db`, and shutdown lifecycle independently.
+Register multiple `forRoot` calls with distinct `connectionName` values. Each registration imports
+its own global `MongoCoreModule` internally, so every connection owns and closes its own
+`MongoClient`, `Db`, and shutdown lifecycle independently — one connection's failure to close never
+blocks another's, and one registration's `syncIndexes`/`autoCloseConnection` never leaks into
+another's. `connectionName` defaults to `DEFAULT_CONNECTION_NAME` (`'default'`) and must be a
+non-empty string without `/`.
 
 ```typescript
 @Module({
@@ -681,8 +741,10 @@ fs.writeFileSync('migrations/20240101-users-indexes.js', migration);
 
 ## Graceful Shutdown
 
-`MongoModule` implements `OnApplicationShutdown`. When `app.close()` is called, all registered
-`MongoClient` instances are closed in parallel with timeout and retry protection.
+Every registered connection closes its own `MongoClient` on `app.close()`, independently, with
+timeout and retry protection. Each connection implements `OnApplicationShutdown` on its own
+per-registration core module, so one connection's close failure is logged and does not block another
+connection's shutdown.
 
 Enable shutdown hooks in your bootstrap:
 
@@ -703,6 +765,29 @@ MongoModule.forRoot({
   forceShutdown: false,
 });
 ```
+
+### Opting out with `autoCloseConnection`
+
+Set `autoCloseConnection: false` when the caller — not this module — owns the `MongoClient`'s
+lifecycle (for example, a client shared with other parts of the application). The client is never
+closed on shutdown and stays usable after `app.close()`.
+
+```typescript
+MongoModule.forRoot({
+  mongoClient: sharedClient,
+  databaseName: 'myapp',
+  autoCloseConnection: false,
+});
+```
+
+### Sharing one `MongoClient` across registrations
+
+When the same `mongoClient` instance backs two or more registrations, each registration still runs
+its own shutdown hook and calls `close()` on it. `MongoClient.close()` is idempotent on the
+installed driver (mongodb `>=6.0.0`), so the underlying connection is physically closed exactly
+once, and every later call is a no-op that reports success — no extra bookkeeping is needed. If any
+registration sharing that client sets `autoCloseConnection: true` (the default), the client is
+closed once shutdown completes, even if another registration sharing it set `false`.
 
 ---
 
@@ -876,12 +961,18 @@ try {
 }
 ```
 
-Module-level errors thrown during bootstrap:
+Module-level errors thrown during bootstrap. Every `MongoConfigurationError` message names the
+connection and the remedy:
 
-| Error                     | When thrown                                         |
-| ------------------------- | --------------------------------------------------- |
-| `MongoConnectionError`    | `MongoClient.connect()` fails during module init    |
-| `MongoConfigurationError` | Neither `uri` nor `mongoClient` provided in options |
+| Error                     | When thrown                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------- |
+| `MongoConnectionError`    | `MongoClient.connect()` fails during module init                             |
+| `MongoConfigurationError` | Neither `uri` nor `mongoClient` provided                                     |
+| `MongoConfigurationError` | Both `uri` and `mongoClient` provided                                        |
+| `MongoConfigurationError` | An options factory/`createMongoOptions` result is not a valid options object |
+| `MongoConfigurationError` | `forRootAsync` given none of `useFactory`/`useClass`/`useExisting`           |
+| `MongoConfigurationError` | `forRootAsync` given more than one of `useFactory`/`useClass`/`useExisting`  |
+| `MongoConfigurationError` | `connectionName` is empty or contains `/`                                    |
 
 ```typescript
 import { MongoConnectionError } from '@wenu/nest-mongo';
@@ -894,6 +985,26 @@ try {
   }
 }
 ```
+
+---
+
+## Migration to 0.6.0
+
+0.6.0 makes multi-connection registration correct by construction: every `forRoot`/`forRootAsync`
+registration now owns and closes its own connection independently. This is a breaking release (the
+package stays on `0.x`; see [Error Handling](#error-handling) for the full diagnostic-error
+surface).
+
+| Change                                  | Before                                                                                               | After                                                                                                                             | What to do                                                                                                                                                                 |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connectionName` type                   | `string \| symbol`                                                                                   | `string`                                                                                                                          | Replace any symbol connection names with strings.                                                                                                                          |
+| Default connection constant             | `DEFAULT_CONNECTION` (symbol)                                                                        | `DEFAULT_CONNECTION_NAME` (`'default'`, a string)                                                                                 | Import `DEFAULT_CONNECTION_NAME` instead; `DEFAULT_CONNECTION` is no longer exported.                                                                                      |
+| Token string values                     | Ad hoc per-helper formats (e.g. `getConnectionToken(name)` returned the raw `name`)                  | One rule for all helpers: `@wenu/nest-mongo/{kind}/{name}[/{collection}]`                                                         | Always resolve tokens via `getConnectionToken`/`getClientWrapperToken`/`getRepositoryToken` or the `@Inject*` decorators — never a literal string or a cached token value. |
+| `MongoModule` scope                     | `MongoModule` itself was `@Global()`                                                                 | `MongoModule` is a plain (non-global) facade; each registration imports its own `@Global()` core module internally                | No action if you only use decorators/`forFeature`. Code that referenced `MongoModule`'s own providers directly must resolve the exported per-connection tokens instead.    |
+| Shutdown scope                          | One shared shutdown path; a second registration could silently take over the first one's bookkeeping | Every registered connection closes independently on `app.close()`                                                                 | If a `mongoClient` you pass in must stay open after shutdown, set `autoCloseConnection: false` on that registration.                                                       |
+| `forRootAsync` factory invocation count | `useFactory` / `createMongoOptions` could run twice for one registration                             | Runs exactly once per registration                                                                                                | No action — side-effecting factories now behave correctly.                                                                                                                 |
+| `forRootAsync` options mechanism        | Only `useFactory` was supported                                                                      | Exactly one of `useFactory`, `useClass`, or `useExisting` is required; the resolved options object never carries `connectionName` | Pass `connectionName` on the `forRootAsync(...)` call itself, not inside the factory's/`createMongoOptions`'s return value.                                                |
+| `mongodb` peer dependency               | `>=5.0.0`                                                                                            | `>=6.0.0`                                                                                                                         | Upgrade the `mongodb` driver to `6.x` or later before upgrading `@wenu/nest-mongo`.                                                                                        |
 
 ---
 
@@ -963,20 +1074,28 @@ Returned by `repo.query()`. Each method returns a new, independent builder.
 
 ### Token helpers
 
+All three public token helpers, plus the `@Inject*` decorators, follow one namespaced naming rule:
+`@wenu/nest-mongo/{kind}/{name}[/{collection}]`, where `{name}` is the connection name (defaulting
+to `DEFAULT_CONNECTION_NAME`) and `{collection}` is only present for repository tokens. The default
+connection always resolves identically whether you omit the name, pass `'default'`, or pass
+`DEFAULT_CONNECTION_NAME` — and a named connection's token never equals its raw name. **Always
+resolve tokens through these helpers or the decorators; never hardcode a token string.**
+
 ```typescript
 import {
   getRepositoryToken,
   getConnectionToken,
   getClientWrapperToken,
-  DEFAULT_CONNECTION,
+  DEFAULT_CONNECTION_NAME,
 } from '@wenu/nest-mongo';
 
-getRepositoryToken('users'); // 'usersRepository'
-getRepositoryToken('users', 'analytics'); // 'analytics_usersRepository'
-getConnectionToken(); // DEFAULT_CONNECTION symbol
-getConnectionToken('analytics'); // 'analytics'
-getClientWrapperToken(); // 'MongoClientWrapper_default'
-getClientWrapperToken('secondary'); // 'MongoClientWrapper_secondary'
+getRepositoryToken('users'); // '@wenu/nest-mongo/repository/default/users'
+getRepositoryToken('users', 'analytics'); // '@wenu/nest-mongo/repository/analytics/users'
+getConnectionToken(); // '@wenu/nest-mongo/connection/default'
+getConnectionToken(DEFAULT_CONNECTION_NAME); // same token as above
+getConnectionToken('analytics'); // '@wenu/nest-mongo/connection/analytics'
+getClientWrapperToken(); // '@wenu/nest-mongo/client-wrapper/default'
+getClientWrapperToken('secondary'); // '@wenu/nest-mongo/client-wrapper/secondary'
 ```
 
 ### Result helpers
@@ -1008,9 +1127,9 @@ Requires `@nestjs/terminus >=10.0.0` as an optional peer dependency.
 
 `forFeature` options:
 
-| Option           | Type               | Default     | Description                                    |
-| ---------------- | ------------------ | ----------- | ---------------------------------------------- |
-| `connectionName` | `string \| symbol` | `'default'` | Matches the `connectionName` used in `forRoot` |
+| Option           | Type     | Default     | Description                                    |
+| ---------------- | -------- | ----------- | ---------------------------------------------- |
+| `connectionName` | `string` | `'default'` | Matches the `connectionName` used in `forRoot` |
 
 `run<T>(fn: (session: ClientSession) => Promise<T>): Promise<Result<T>>`
 
