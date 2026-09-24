@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { MongoClient } from 'mongodb';
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
 import { MongoModule } from '../../src/zod-mongo.module';
@@ -13,6 +13,10 @@ describe('Shared-client idempotent close (integration)', () => {
 
   afterAll(async () => {
     await stopContainer();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('a MongoClient shared by registrations a and b emits topologyClosed exactly once across both shutdowns', async () => {
@@ -42,8 +46,6 @@ describe('Shared-client idempotent close (integration)', () => {
 
     expect(topologyClosedCount).toBe(1);
     expect(errorSpy).not.toHaveBeenCalled();
-
-    errorSpy.mockRestore();
   }, 30_000);
 
   it("shared-client close is exactly-once regardless of which registration's shutdown hook runs first", async () => {
@@ -75,7 +77,5 @@ describe('Shared-client idempotent close (integration)', () => {
 
     expect(topologyClosedCount).toBe(1);
     expect(errorSpy).not.toHaveBeenCalled();
-
-    errorSpy.mockRestore();
   }, 30_000);
 });
