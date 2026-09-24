@@ -1,19 +1,14 @@
-import { ok, err } from '@wenu/mongo';
+import { ok, err, isOk, isErr } from '@wenu/mongo';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 
 import type { ShutdownConfig } from '../../src/shutdown/config';
 import { unknownError } from '../../src/shutdown/errors';
-import { shutdownAll } from '../../src/shutdown/manager';
-import type { ClientResolver } from '../../src/shutdown/manager';
+import { closeConnection } from '../../src/shutdown/manager';
 import type { MongoClientWrapper } from '../../src/zod-mongo.interfaces';
 
 // manager.ts only ever calls wrapper.close() — `client` is irrelevant to the orchestration
 // logic under test, so the fake wrapper is typed against the minimal surface actually consumed.
 type FakeWrapper = Pick<MongoClientWrapper, 'close'>;
-
-const buildClientResolver = (wrappers: ReadonlyMap<string, FakeWrapper>): ClientResolver => ({
-  get: (token) => wrappers.get(token),
-});
 
 const buildConfig = (overrides: Partial<ShutdownConfig> = {}): ShutdownConfig => ({
   timeoutMs: 1000,
@@ -24,97 +19,83 @@ const buildConfig = (overrides: Partial<ShutdownConfig> = {}): ShutdownConfig =>
 
 const buildWrapper = (close: MongoClientWrapper['close']): FakeWrapper => ({ close });
 
-const setup = (wrappers: Record<string, FakeWrapper>) => {
-  const reference = buildClientResolver(new Map(Object.entries(wrappers)));
-  return { reference };
-};
+const setup = (close: MongoClientWrapper['close']) => ({ wrapper: buildWrapper(close) });
 
 const neverResolves = (): Promise<never> => new Promise(() => undefined);
 
-describe('shutdownAll', () => {
+describe('closeConnection', () => {
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('reports token not found as failed without affecting other entries', async () => {
+  it('resolves ok after a successful close within retry/timeout config', async () => {
     // Arrange
-    const okWrapper = buildWrapper(() => Promise.resolve(ok(null)));
-    const { reference } = setup({ known: okWrapper });
+    const { wrapper } = setup(() => Promise.resolve(ok(null)));
 
     // Act
-    const summary = await shutdownAll(['known', 'missing'], reference, buildConfig());
+    const result = await closeConnection(wrapper, buildConfig(), 'close "default"');
 
     // Assert
-    expect(summary.total).toBe(2);
-    expect(summary.closed).toBe(1);
-    expect(summary.failed).toBe(1);
-    expect(summary.results[1]).toMatchObject({
-      ok: false,
-      error: { message: 'No wrapper found for token: missing' },
-    });
+    expect(isOk(result)).toBe(true);
   });
 
-  it('reports failed after close() rejects on every retry attempt', async () => {
+  it('retries per config.retryAttempts before giving up', async () => {
     // Arrange
     const close = vi.fn().mockRejectedValue(new Error('connection refused'));
-    const { reference } = setup({ flaky: buildWrapper(close) });
+    const { wrapper } = setup(close);
 
     // Act
-    const summary = await shutdownAll(['flaky'], reference, buildConfig({ retryAttempts: 2 }));
+    const result = await closeConnection(
+      wrapper,
+      buildConfig({ retryAttempts: 2 }),
+      'close "flaky"',
+    );
 
     // Assert
-    expect(summary.closed).toBe(0);
-    expect(summary.failed).toBe(1);
+    expect(isErr(result)).toBe(true);
     expect(close).toHaveBeenCalledTimes(2);
   });
 
-  it('reports failed when close() exceeds the configured timeout', async () => {
+  it('returns Err naming the wrapper close failure when every retry attempt rejects', async () => {
     // Arrange
-    vi.useFakeTimers();
-    const { reference } = setup({ slow: buildWrapper(neverResolves) });
+    const close = vi.fn().mockRejectedValue(new Error('disk full'));
+    const { wrapper } = setup(close);
 
     // Act
-    const summaryPromise = shutdownAll(['slow'], reference, buildConfig({ timeoutMs: 100 }));
-    await vi.advanceTimersByTimeAsync(200);
-    const summary = await summaryPromise;
+    const result = await closeConnection(wrapper, buildConfig({ retryAttempts: 1 }), 'close "bad"');
 
     // Assert
-    expect(summary.closed).toBe(0);
-    expect(summary.failed).toBe(1);
-    expect(summary.results[0]).toMatchObject({
+    expect(result).toMatchObject({ ok: false, error: { message: 'disk full' } });
+  });
+
+  it('returns Err when close() exceeds the configured timeout', async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const { wrapper } = setup(neverResolves);
+
+    // Act
+    const resultPromise = closeConnection(wrapper, buildConfig({ timeoutMs: 100 }), 'close "slow"');
+    await vi.advanceTimersByTimeAsync(200);
+    const result = await resultPromise;
+
+    // Assert
+    expect(result).toMatchObject({
       ok: false,
       error: { message: expect.stringContaining('exceeded timeout') },
     });
   });
 
-  it('counts mixed success and failure correctly', async () => {
+  it('propagates a Result.err returned by wrapper.close() without throwing', async () => {
     // Arrange
-    const succeeding = buildWrapper(() => Promise.resolve(ok(null)));
-    const failing = buildWrapper(() => Promise.resolve(err(unknownError('disk full'))));
-    const { reference } = setup({ good: succeeding, bad: failing });
+    const { wrapper } = setup(() => Promise.resolve(err(unknownError('replica set unreachable'))));
 
     // Act
-    const summary = await shutdownAll(['good', 'bad'], reference, buildConfig());
+    const result = await closeConnection(wrapper, buildConfig(), 'close "replica"');
 
     // Assert
-    expect(summary.total).toBe(2);
-    expect(summary.closed).toBe(1);
-    expect(summary.failed).toBe(1);
-  });
-
-  it('reports every connection closed on the happy path', async () => {
-    // Arrange
-    const wrapperA = buildWrapper(() => Promise.resolve(ok(null)));
-    const wrapperB = buildWrapper(() => Promise.resolve(ok(null)));
-    const { reference } = setup({ a: wrapperA, b: wrapperB });
-
-    // Act
-    const summary = await shutdownAll(['a', 'b'], reference, buildConfig());
-
-    // Assert
-    expect(summary.total).toBe(2);
-    expect(summary.closed).toBe(2);
-    expect(summary.failed).toBe(0);
-    expect(summary.results.every((r) => r.ok)).toBe(true);
+    expect(result).toMatchObject({
+      ok: false,
+      error: { message: 'replica set unreachable' },
+    });
   });
 });

@@ -2,10 +2,12 @@ import type { DynamicModule, OnApplicationShutdown } from '@nestjs/common';
 import { Global, Logger, Module } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import type { CollectionDef, ZodCompat, IdStrategy } from '@wenu/mongo';
-import { isEmpty, tryit } from 'radashi';
+import { err, isOk, isErr } from '@wenu/mongo';
+import { isEmpty, isNullish, tryit } from 'radashi';
 
-import { resolveShutdownConfig, shutdownAll } from './shutdown';
-import type { MongoOptions, MongoAsyncOptions } from './zod-mongo.interfaces';
+import { resolveShutdownConfig, closeConnection } from './shutdown';
+import { unknownError } from './shutdown/errors';
+import type { MongoOptions, MongoAsyncOptions, MongoClientWrapper } from './zod-mongo.interfaces';
 import {
   createConnectionProviders,
   createAsyncConnectionProviders,
@@ -61,16 +63,25 @@ export class MongoModule implements OnApplicationShutdown {
 
     const [optionsError, options] = await resolve<MongoOptions>(ZOD_MONGO_MODULE_OPTIONS);
     const config = resolveShutdownConfig(optionsError === undefined ? options : undefined);
-    // ponytail: ModuleRef structurally satisfies ClientResolver with zero cast — its `get`
-    // resolves to the overload whose uninstantiated TResult collapses to `any`, which is
-    // assignable regardless of variance. ClientResolver keeps method syntax anyway so the
-    // assignment survives a future ModuleRef with better-typed generics.
-    const summary = await shutdownAll(wrapperTokens, this.moduleReference, config);
+
+    const start = Date.now();
+    // ponytail: closeConnection (Decision 6) takes an already-resolved wrapper, so this token
+    // array still resolves each wrapper via ModuleRef before closing it — the single-wrapper
+    // shape T04 keeps working; per-core direct injection replaces this resolution in T05/T06.
+    const results = await Promise.all(
+      wrapperTokens.map(async (token) => {
+        const [wrapperError, wrapper] = await resolve<Pick<MongoClientWrapper, 'close'>>(token);
+        if (wrapperError !== undefined || isNullish(wrapper))
+          return err(unknownError(`No wrapper found for token: ${token}`));
+        return closeConnection(wrapper, config, token);
+      }),
+    );
+    const closed = results.filter((result) => isOk(result)).length;
+    const failed = results.filter((result) => isErr(result)).length;
     Logger.log(
-      `MongoDB shutdown: ${String(summary.closed)}/${String(summary.total)} closed in ${String(summary.durationMs)}ms`,
+      `MongoDB shutdown: ${String(closed)}/${String(results.length)} closed in ${String(Date.now() - start)}ms`,
       'MongoModule',
     );
-    if (summary.failed > 0)
-      Logger.error(`${String(summary.failed)} connection(s) failed to close`, 'MongoModule');
+    if (failed > 0) Logger.error(`${String(failed)} connection(s) failed to close`, 'MongoModule');
   }
 }
