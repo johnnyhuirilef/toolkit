@@ -11,7 +11,8 @@
     },
     "packages/nest-zod-mongo": {
       "release-type": "node",
-      "package-name": "@wenu/nest-mongo"
+      "package-name": "@wenu/nest-mongo",
+      "bump-minor-pre-major": true
     }
   },
   "changelog-sections": [
