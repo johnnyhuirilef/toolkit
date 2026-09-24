@@ -6,7 +6,11 @@ import * as z from 'zod';
 import type { MongoOptions } from '../../src/zod-mongo.interfaces';
 import { MongoModule } from '../../src/zod-mongo.module';
 import { createRepositoryProviders } from '../../src/zod-mongo.providers';
-import { getRepositoryToken, ZOD_MONGO_MODULE_OPTIONS } from '../../src/zod-mongo.tokens';
+import {
+  getRepositoryToken,
+  getConnectionToken,
+  getOptionsToken,
+} from '../../src/zod-mongo.tokens';
 
 const UserCollection = defineCollection({
   name: 'users',
@@ -40,6 +44,24 @@ const setup = () => {
   const repositoryProvider = providers.find((p) => p.provide === getRepositoryToken('users'));
 
   return { fakeDatabase, fakeOptions, providers, repositoryProvider };
+};
+
+const setupTwoConnections = () => {
+  const collectionA = vi.fn();
+  const collectionB = vi.fn().mockReturnValue({
+    findOne: vi.fn(),
+    insertOne: vi.fn(),
+    createIndexes: vi.fn().mockResolvedValue([]),
+    listIndexes: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue([]) }),
+  });
+  const fakeDatabaseA = { collection: collectionA };
+  const fakeDatabaseB = { collection: collectionB };
+  const providersB = createRepositoryProviders([UserCollection], 'b') as FactoryProvider[];
+  const repositoryProviderB = providersB.find(
+    (p) => p.provide === getRepositoryToken('users', 'b'),
+  );
+
+  return { fakeDatabaseA, fakeDatabaseB, collectionA, collectionB, repositoryProviderB };
 };
 
 describe('MongoModule.forFeature', () => {
@@ -77,8 +99,22 @@ describe('MongoModule.forFeature', () => {
     expect(typeof repo.insert).toBe('function');
   });
 
-  it('inject array includes getConnectionToken and ZOD_MONGO_MODULE_OPTIONS', () => {
+  it('inject array includes getConnectionToken and getOptionsToken for the default connection', () => {
     const { repositoryProvider } = setup();
-    expect(repositoryProvider?.inject).toContain(ZOD_MONGO_MODULE_OPTIONS);
+    expect(repositoryProvider?.inject).toEqual([getConnectionToken(), getOptionsToken()]);
+  });
+
+  it("forFeature on connection 'b' wires the repository to connection b's Db, not connection a's", async () => {
+    const { fakeDatabaseB, collectionA, collectionB, repositoryProviderB } = setupTwoConnections();
+    expect(repositoryProviderB?.inject).toEqual([getConnectionToken('b'), getOptionsToken('b')]);
+
+    if (repositoryProviderB === undefined) throw new Error('Repository provider not found');
+    await repositoryProviderB.useFactory(fakeDatabaseB, {
+      databaseName: 'b_db',
+      syncIndexes: false,
+    });
+
+    expect(collectionB).toHaveBeenCalledWith('users');
+    expect(collectionA).not.toHaveBeenCalled();
   });
 });

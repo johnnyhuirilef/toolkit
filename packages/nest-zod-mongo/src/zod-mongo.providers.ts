@@ -16,10 +16,9 @@ import type {
 import {
   getConnectionToken,
   getClientWrapperToken,
+  getOptionsToken,
   getRepositoryToken,
   DEFAULT_CONNECTION_NAME,
-  ZOD_MONGO_CONNECTION_TOKENS,
-  ZOD_MONGO_MODULE_OPTIONS,
 } from './zod-mongo.tokens';
 import { ensureValidOptions } from './zod-mongo.validation';
 
@@ -94,17 +93,11 @@ export const createAsyncConnectionProviders = (asyncOptions: MongoAsyncOptions):
     },
     {
       // Calling useFactory again is acceptable for a pure config factory (ADR mirrors forRoot behavior).
-      // The establish provider already called it once above, but for options we need a separate provider
-      // so ZOD_MONGO_MODULE_OPTIONS is available to forFeature repo factories.
-      provide: ZOD_MONGO_MODULE_OPTIONS,
+      // The establish provider already called it once above, but forFeature repo factories need
+      // this registration's own connection-scoped options token, not a shared one.
+      provide: getOptionsToken(asyncOptions.connectionName),
       useFactory: async (...arguments_: unknown[]) => asyncOptions.useFactory(...arguments_),
       inject,
-    },
-    {
-      // ponytail: known limitation — multiple forRootAsync() calls overwrite this token
-      // (NestJS v11 types do not expose multi on Provider). Tracked in docs/ia/issues/nest-zod-mongo-multi-connection-shutdown.md
-      provide: ZOD_MONGO_CONNECTION_TOKENS,
-      useValue: [wrapperToken],
     },
   ];
 };
@@ -131,5 +124,5 @@ export const createRepositoryProviders = (
       }
       return createRepository(collectionEntry, database);
     },
-    inject: [getConnectionToken(connectionName), ZOD_MONGO_MODULE_OPTIONS],
+    inject: [getConnectionToken(connectionName), getOptionsToken(connectionName)],
   }));

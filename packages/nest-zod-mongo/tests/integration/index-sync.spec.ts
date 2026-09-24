@@ -1,10 +1,13 @@
+import { Test } from '@nestjs/testing';
 import { defineCollection, syncIndexes, index } from '@wenu/mongo';
 import type { Db, MongoClient } from 'mongodb';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import * as z from 'zod';
 
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
+import { MongoModule } from '../../src/zod-mongo.module';
 import { establishConnection, createRepositoryProviders } from '../../src/zod-mongo.providers';
+import { getConnectionToken } from '../../src/zod-mongo.tokens';
 
 const UserCollection = defineCollection({
   name: 'users_idx',
@@ -56,4 +59,51 @@ describe('Index synchronization (integration)', () => {
     expect(syncSpy).not.toHaveBeenCalled();
     syncSpy.mockRestore();
   });
+});
+
+describe('Index synchronization is isolated per named connection (integration)', () => {
+  beforeAll(async () => {
+    await startContainer();
+  }, 90_000);
+
+  afterAll(async () => {
+    await stopContainer();
+  });
+
+  it("connection a's repository (syncIndexes:true) applies index synchronization while connection b's repository (syncIndexes:false) on the same collection name does not", async () => {
+    const moduleReference = await Test.createTestingModule({
+      imports: [
+        MongoModule.forRoot({
+          uri: getUri(),
+          databaseName: 'idx_conn_a',
+          connectionName: 'a',
+          syncIndexes: true,
+          clientOptions,
+        }),
+        MongoModule.forRoot({
+          uri: getUri(),
+          databaseName: 'idx_conn_b',
+          connectionName: 'b',
+          syncIndexes: false,
+          clientOptions,
+        }),
+        MongoModule.forFeature([UserCollection], 'a'),
+        MongoModule.forFeature([UserCollection], 'b'),
+      ],
+    }).compile();
+
+    const databaseA = moduleReference.get<Db>(getConnectionToken('a'));
+    const databaseB = moduleReference.get<Db>(getConnectionToken('b'));
+    // syncIndexes:false on connection b never creates the collection/its indexes — insert a
+    // document first so the namespace exists and listIndexes reflects only the default _id index.
+    await databaseB.collection('users_idx').insertOne({ email: 'b@example.com' });
+
+    const indexesA = await databaseA.collection('users_idx').listIndexes().toArray();
+    const indexesB = await databaseB.collection('users_idx').listIndexes().toArray();
+
+    expect(indexesA.find((index_) => 'email' in (index_.key ?? {}))?.unique).toBe(true);
+    expect(indexesB.find((index_) => 'email' in (index_.key ?? {}))).toBeUndefined();
+
+    await moduleReference.close();
+  }, 30_000);
 });

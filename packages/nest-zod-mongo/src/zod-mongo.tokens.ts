@@ -33,11 +33,3 @@ export const getOptionsToken = (connectionName: string = DEFAULT_CONNECTION_NAME
 export const MONGO_CORE_OPTIONS = '@wenu/nest-mongo/core/options';
 export const MONGO_CORE_CONNECTION = '@wenu/nest-mongo/core/connection';
 export const MONGO_CORE_ID = '@wenu/nest-mongo/core/id';
-
-// Internal — bridges forFeature's per-connection syncIndexes lookup until it resolves options
-// through a connection-scoped token instead of this single shared symbol.
-export const ZOD_MONGO_MODULE_OPTIONS = Symbol('MongoModuleOptions');
-
-// Internal — no remaining reader now that shutdown resolves each connection's own wrapper
-// directly; still provided by the async registration path pending its own cleanup.
-export const ZOD_MONGO_CONNECTION_TOKENS = Symbol('MongoConnectionTokens');

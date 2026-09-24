@@ -10,10 +10,10 @@ import { establishConnection } from './zod-mongo.providers';
 import {
   getConnectionToken,
   getClientWrapperToken,
+  getOptionsToken,
   MONGO_CORE_CONNECTION,
   MONGO_CORE_ID,
   MONGO_CORE_OPTIONS,
-  ZOD_MONGO_MODULE_OPTIONS,
 } from './zod-mongo.tokens';
 
 @Global()
@@ -49,12 +49,12 @@ export class MongoCoreModule implements OnApplicationShutdown {
       useFactory: (connection: MongoConnection) => connection.wrapper,
       inject: [MONGO_CORE_CONNECTION],
     };
-    // Bridges forFeature's per-connection syncIndexes lookup, which still resolves this shared
-    // symbol rather than a connection-scoped options token; forwards the same closure value.
-    const legacyModuleOptionsProvider: Provider = {
-      provide: ZOD_MONGO_MODULE_OPTIONS,
-      useFactory: (options: MongoOptions) => options,
-      inject: [MONGO_CORE_OPTIONS],
+    // Exported so forFeature's repository providers can resolve their own connection's
+    // syncIndexes option; a single shared token would let the last registration win.
+    const optionsProvider: Provider = {
+      provide: getOptionsToken(connectionName),
+      useFactory: (connection: MongoConnection) => connection.options,
+      inject: [MONGO_CORE_CONNECTION],
     };
 
     return {
@@ -64,12 +64,12 @@ export class MongoCoreModule implements OnApplicationShutdown {
         connectionProvider,
         databaseProvider,
         wrapperProvider,
-        legacyModuleOptionsProvider,
+        optionsProvider,
         // Keeps the keys of separate registrations apart when Nest derives module keys from
         // their metadata ("deep-hash").
         { provide: MONGO_CORE_ID, useValue: randomUUID() },
       ],
-      exports: [databaseProvider, wrapperProvider, legacyModuleOptionsProvider],
+      exports: [databaseProvider, wrapperProvider, optionsProvider],
     };
   }
 
