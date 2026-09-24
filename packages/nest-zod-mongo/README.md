@@ -121,7 +121,8 @@ export class UserModule {}
 ```typescript
 // user/user.collection.ts
 import * as z from 'zod';
-import { defineCollection, index } from '@wenu/nest-mongo';
+import { defineCollection } from '@wenu/nest-mongo';
+import { index } from '@wenu/mongo';
 
 export const UserCollection = defineCollection({
   name: 'users',
@@ -274,11 +275,13 @@ Each collection gets a repository provider keyed by
 ## Defining Collections
 
 `defineCollection()` is the single source of truth for a collection's shape, ID strategy, and
-indexes. Import it directly from `@wenu/nest-mongo` — no need to install `@wenu/mongo` separately.
+indexes. Import it directly from `@wenu/nest-mongo`; index helpers such as `index()` come from
+`@wenu/mongo`, an existing peer dependency.
 
 ```typescript
 import * as z from 'zod';
-import { defineCollection, index } from '@wenu/nest-mongo';
+import { defineCollection } from '@wenu/nest-mongo';
+import { index } from '@wenu/mongo';
 
 export const ProductCollection = defineCollection({
   name: 'products',
@@ -350,7 +353,8 @@ const OrderCollection = defineCollection({
 ### Index Declarations
 
 ```typescript
-import { defineCollection, index } from '@wenu/nest-mongo';
+import { defineCollection } from '@wenu/nest-mongo';
+import { index } from '@wenu/mongo';
 
 const ArticleCollection = defineCollection({
   name: 'articles',
@@ -712,7 +716,8 @@ startup.
 Indexes are declared in `defineCollection()` using the `index()` helper:
 
 ```typescript
-import { defineCollection, index } from '@wenu/nest-mongo';
+import { defineCollection } from '@wenu/nest-mongo';
+import { index } from '@wenu/mongo';
 
 const UserCollection = defineCollection({
   name: 'users',
@@ -726,7 +731,7 @@ To disable: `MongoModule.forRoot({ ..., syncIndexes: false })`.
 You can also sync or generate a migrate-mongo migration manually:
 
 ```typescript
-import { syncIndexes, generateIndexMigration } from '@wenu/nest-mongo';
+import { syncIndexes, generateIndexMigration } from '@wenu/mongo';
 
 // Sync manually (e.g. in a CLI script)
 const result = await syncIndexes(UserCollection, db);
@@ -949,7 +954,8 @@ if (!result.ok) {
 Convert any caught value to a `DbError` with `toDbError`:
 
 ```typescript
-import { toDbError, NotFoundError } from '@wenu/nest-mongo';
+import { NotFoundError } from '@wenu/nest-mongo';
+import { toDbError } from '@wenu/mongo';
 
 try {
   // ...
@@ -995,16 +1001,17 @@ registration now owns and closes its own connection independently. This is a bre
 package stays on `0.x`; see [Error Handling](#error-handling) for the full diagnostic-error
 surface).
 
-| Change                                  | Before                                                                                               | After                                                                                                                             | What to do                                                                                                                                                                 |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `connectionName` type                   | `string \| symbol`                                                                                   | `string`                                                                                                                          | Replace any symbol connection names with strings.                                                                                                                          |
-| Default connection constant             | `DEFAULT_CONNECTION` (symbol)                                                                        | `DEFAULT_CONNECTION_NAME` (`'default'`, a string)                                                                                 | Import `DEFAULT_CONNECTION_NAME` instead; `DEFAULT_CONNECTION` is no longer exported.                                                                                      |
-| Token string values                     | Ad hoc per-helper formats (e.g. `getConnectionToken(name)` returned the raw `name`)                  | One rule for all helpers: `@wenu/nest-mongo/{kind}/{name}[/{collection}]`                                                         | Always resolve tokens via `getConnectionToken`/`getClientWrapperToken`/`getRepositoryToken` or the `@Inject*` decorators — never a literal string or a cached token value. |
-| `MongoModule` scope                     | `MongoModule` itself was `@Global()`                                                                 | `MongoModule` is a plain (non-global) facade; each registration imports its own `@Global()` core module internally                | No action if you only use decorators/`forFeature`. Code that referenced `MongoModule`'s own providers directly must resolve the exported per-connection tokens instead.    |
-| Shutdown scope                          | One shared shutdown path; a second registration could silently take over the first one's bookkeeping | Every registered connection closes independently on `app.close()`                                                                 | If a `mongoClient` you pass in must stay open after shutdown, set `autoCloseConnection: false` on that registration.                                                       |
-| `forRootAsync` factory invocation count | `useFactory` / `createMongoOptions` could run twice for one registration                             | Runs exactly once per registration                                                                                                | No action — side-effecting factories now behave correctly.                                                                                                                 |
-| `forRootAsync` options mechanism        | Only `useFactory` was supported                                                                      | Exactly one of `useFactory`, `useClass`, or `useExisting` is required; the resolved options object never carries `connectionName` | Pass `connectionName` on the `forRootAsync(...)` call itself, not inside the factory's/`createMongoOptions`'s return value.                                                |
-| `mongodb` peer dependency               | `>=5.0.0`                                                                                            | `>=6.0.0`                                                                                                                         | Upgrade the `mongodb` driver to `6.x` or later before upgrading `@wenu/nest-mongo`.                                                                                        |
+| Change                                  | Before                                                                                               | After                                                                                                                             | What to do                                                                                                                                                                  |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connectionName` type                   | `string \| symbol`                                                                                   | `string`                                                                                                                          | Replace any symbol connection names with strings.                                                                                                                           |
+| Default connection constant             | `DEFAULT_CONNECTION` (symbol)                                                                        | `DEFAULT_CONNECTION_NAME` (`'default'`, a string)                                                                                 | Import `DEFAULT_CONNECTION_NAME` instead; `DEFAULT_CONNECTION` is no longer exported.                                                                                       |
+| Token string values                     | Ad hoc per-helper formats (e.g. `getConnectionToken(name)` returned the raw `name`)                  | One rule for all helpers: `@wenu/nest-mongo/{kind}/{name}[/{collection}]`                                                         | Always resolve tokens via `getConnectionToken`/`getClientWrapperToken`/`getRepositoryToken` or the `@Inject*` decorators — never a literal string or a cached token value.  |
+| `MongoModule` scope                     | `MongoModule` itself was `@Global()`                                                                 | `MongoModule` is a plain (non-global) facade; each registration imports its own `@Global()` core module internally                | No action if you only use decorators/`forFeature`. Code that referenced `MongoModule`'s own providers directly must resolve the exported per-connection tokens instead.     |
+| Shutdown scope                          | One shared shutdown path; a second registration could silently take over the first one's bookkeeping | Every registered connection closes independently on `app.close()`                                                                 | If a `mongoClient` you pass in must stay open after shutdown, set `autoCloseConnection: false` on that registration.                                                        |
+| `forRootAsync` factory invocation count | `useFactory` / `createMongoOptions` could run twice for one registration                             | Runs exactly once per registration                                                                                                | No action — side-effecting factories now behave correctly.                                                                                                                  |
+| `forRootAsync` options mechanism        | Only `useFactory` was supported                                                                      | Exactly one of `useFactory`, `useClass`, or `useExisting` is required; the resolved options object never carries `connectionName` | Pass `connectionName` on the `forRootAsync(...)` call itself, not inside the factory's/`createMongoOptions`'s return value.                                                 |
+| `mongodb` peer dependency               | `>=5.0.0`                                                                                            | `>=6.0.0`                                                                                                                         | Upgrade the `mongodb` driver to `6.x` or later before upgrading `@wenu/nest-mongo`.                                                                                         |
+| Connection name validation              | Any string (including empty or containing `/`) was accepted                                          | An empty string or a name containing `/` throws `MongoConfigurationError`                                                         | Use a non-empty connection name without `/` everywhere a connection name is passed (`forRoot`, `forRootAsync`, `forFeature`, the `@Inject*` decorators, the token helpers). |
 
 ---
 

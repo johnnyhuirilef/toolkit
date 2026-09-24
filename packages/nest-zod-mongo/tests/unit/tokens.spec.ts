@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
+import { MongoConfigurationError } from '../../src/zod-mongo.errors';
 import {
   getConnectionToken,
   getClientWrapperToken,
@@ -69,4 +70,27 @@ describe('connection token kinds', () => {
 
     expect(new Set([connectionToken, clientWrapperToken, repositoryToken]).size).toBe(3);
   });
+});
+
+describe('connection name validation', () => {
+  it.each(['', 'a/b'])(
+    'getConnectionToken rejects the invalid connection name %j',
+    (invalidName) => {
+      expect(() => getConnectionToken(invalidName)).toThrow(MongoConfigurationError);
+    },
+  );
+
+  it.each(['', 'a/b'])(
+    'getClientWrapperToken rejects the invalid connection name %j',
+    (invalidName) => {
+      expect(() => getClientWrapperToken(invalidName)).toThrow(MongoConfigurationError);
+    },
+  );
+
+  it.each(['', 'a/b'])(
+    'getRepositoryToken rejects the invalid connection name %j',
+    (invalidName) => {
+      expect(() => getRepositoryToken('User', invalidName)).toThrow(MongoConfigurationError);
+    },
+  );
 });

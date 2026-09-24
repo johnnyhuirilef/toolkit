@@ -13,7 +13,7 @@ type MongoConnectionOptionsBase = {
   readonly forceShutdown?: boolean;
 };
 
-type MongoConnectionOptionsWithUri = MongoConnectionOptionsBase & {
+export type MongoConnectionOptionsWithUri = MongoConnectionOptionsBase & {
   readonly uri: string;
   readonly clientOptions?: MongoClientOptions;
   readonly mongoClient?: never;

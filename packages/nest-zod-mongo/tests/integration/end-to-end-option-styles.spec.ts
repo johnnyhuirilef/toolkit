@@ -1,3 +1,4 @@
+import type { Type } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { MongoClient } from 'mongodb';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -15,6 +16,11 @@ import { createOptionsClassAppModule } from './apps/options-class.app-module';
 import { createUriAppModule } from './apps/uri.app-module';
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
 
+const setup = async (appModule: Type) => {
+  const moduleReference = await Test.createTestingModule({ imports: [appModule] }).compile();
+  return { moduleReference };
+};
+
 describe('E2E: one application per configuration style', () => {
   beforeAll(async () => {
     await startContainer();
@@ -25,9 +31,7 @@ describe('E2E: one application per configuration style', () => {
   });
 
   it('uri app module: boots, inserts and reads back a document through the injected repository, then closes cleanly', async () => {
-    const moduleReference = await Test.createTestingModule({
-      imports: [createUriAppModule(getUri(), 'e2e_uri', clientOptions)],
-    }).compile();
+    const { moduleReference } = await setup(createUriAppModule(getUri(), 'e2e_uri', clientOptions));
 
     const service = moduleReference.get(ItemService);
     const insertResult = await service.insert('uri-item');
@@ -43,9 +47,7 @@ describe('E2E: one application per configuration style', () => {
 
   it('mongoClient app module: boots and completes a repository round trip', async () => {
     const client = new MongoClient(getUri(), clientOptions);
-    const moduleReference = await Test.createTestingModule({
-      imports: [createMongoClientAppModule(client, 'e2e_mongo_client')],
-    }).compile();
+    const { moduleReference } = await setup(createMongoClientAppModule(client, 'e2e_mongo_client'));
 
     const service = moduleReference.get(ItemService);
     const insertResult = await service.insert('mongo-client-item');
@@ -60,9 +62,9 @@ describe('E2E: one application per configuration style', () => {
   }, 30_000);
 
   it('factory app module: boots and completes a repository round trip', async () => {
-    const moduleReference = await Test.createTestingModule({
-      imports: [createFactoryAppModule(getUri(), 'e2e_factory', clientOptions)],
-    }).compile();
+    const { moduleReference } = await setup(
+      createFactoryAppModule(getUri(), 'e2e_factory', clientOptions),
+    );
 
     const service = moduleReference.get(ItemService);
     const insertResult = await service.insert('factory-item');
@@ -77,9 +79,9 @@ describe('E2E: one application per configuration style', () => {
   }, 30_000);
 
   it('options-class (useClass) app module: boots and completes a repository round trip', async () => {
-    const moduleReference = await Test.createTestingModule({
-      imports: [createOptionsClassAppModule(getUri(), 'e2e_options_class', clientOptions)],
-    }).compile();
+    const { moduleReference } = await setup(
+      createOptionsClassAppModule(getUri(), 'e2e_options_class', clientOptions),
+    );
 
     const service = moduleReference.get(ItemService);
     const insertResult = await service.insert('options-class-item');
@@ -94,9 +96,9 @@ describe('E2E: one application per configuration style', () => {
   }, 30_000);
 
   it('existing-options (useExisting) app module: boots and completes a repository round trip', async () => {
-    const moduleReference = await Test.createTestingModule({
-      imports: [createExistingOptionsAppModule(getUri(), 'e2e_existing_options', clientOptions)],
-    }).compile();
+    const { moduleReference } = await setup(
+      createExistingOptionsAppModule(getUri(), 'e2e_existing_options', clientOptions),
+    );
 
     const service = moduleReference.get(ItemService);
     const insertResult = await service.insert('existing-options-item');
@@ -111,14 +113,12 @@ describe('E2E: one application per configuration style', () => {
   }, 30_000);
 
   it('multi-connection app module: both connections complete independent repository round trips', async () => {
-    const moduleReference = await Test.createTestingModule({
-      imports: [
-        createMultiConnectionAppModule(
-          { uri: getUri(), databaseName: 'e2e_multi_a', clientOptions },
-          { uri: getUri(), databaseName: 'e2e_multi_b', clientOptions },
-        ),
-      ],
-    }).compile();
+    const { moduleReference } = await setup(
+      createMultiConnectionAppModule(
+        { uri: getUri(), databaseName: 'e2e_multi_a', clientOptions },
+        { uri: getUri(), databaseName: 'e2e_multi_b', clientOptions },
+      ),
+    );
 
     const serviceA = moduleReference.get(ItemServiceA);
     const serviceB = moduleReference.get(ItemServiceB);

@@ -30,16 +30,13 @@ const setup = async (options: MongoOptions) => {
 
 describe('MongoCoreModule.forRoot', () => {
   it('resolves a Db and a MongoClientWrapper for the connection name', async () => {
-    // Arrange
     const mongoClient = makeUnconnectedClient();
     const options: MongoOptions = { mongoClient, databaseName: 'core_test' };
 
-    // Act
     const { moduleReference } = await setup(options);
     const database = moduleReference.get<Db>(getConnectionToken());
     const wrapper = moduleReference.get<MongoClientWrapper>(getClientWrapperToken());
 
-    // Assert
     expect(database).toBeDefined();
     expect(typeof wrapper.close).toBe('function');
 
@@ -47,16 +44,13 @@ describe('MongoCoreModule.forRoot', () => {
   });
 
   it('the static options useFactory closure is invoked, never useValue (no mongoClient reference in module metadata)', () => {
-    // Arrange
     const mongoClient = makeUnconnectedClient();
     const options: MongoOptions = { mongoClient, databaseName: 'core_test_metadata' };
 
-    // Act
     const dynamicModule = MongoCoreModule.forRoot(options);
     const providers = dynamicModule.providers as FactoryProvider[];
     const optionsProvider = providers.find((provider) => provider.provide === MONGO_CORE_OPTIONS);
 
-    // Assert
     expect(optionsProvider).toBeDefined();
     expect(optionsProvider).toHaveProperty('useFactory');
     expect(optionsProvider).not.toHaveProperty('useValue');
@@ -65,7 +59,6 @@ describe('MongoCoreModule.forRoot', () => {
 
 describe('MongoCoreModule#onApplicationShutdown', () => {
   it('autoCloseConnection:false skips closeConnection on shutdown (close spy count 0)', async () => {
-    // Arrange
     const mongoClient = makeUnconnectedClient();
     const options: MongoOptions = {
       mongoClient,
@@ -74,23 +67,18 @@ describe('MongoCoreModule#onApplicationShutdown', () => {
     };
     const { moduleReference } = await setup(options);
 
-    // Act
     await moduleReference.close();
 
-    // Assert
     expect(mongoClient.close).not.toHaveBeenCalled();
   });
 
   it('omitting autoCloseConnection closes the client by default on shutdown (close spy count 1)', async () => {
-    // Arrange
     const mongoClient = makeUnconnectedClient();
     const options: MongoOptions = { mongoClient, databaseName: 'core_test_default_autoclose' };
     const { moduleReference } = await setup(options);
 
-    // Act
     await moduleReference.close();
 
-    // Assert
     expect(mongoClient.close).toHaveBeenCalledTimes(1);
   });
 });

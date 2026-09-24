@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
-import { defineCollection, syncIndexes, index } from '@wenu/mongo';
+import { defineCollection, index } from '@wenu/mongo';
 import type { Db, MongoClient } from 'mongodb';
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as z from 'zod';
 
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
@@ -11,6 +11,13 @@ import { DEFAULT_CONNECTION_NAME, getConnectionToken } from '../../src/zod-mongo
 
 const UserCollection = defineCollection({
   name: 'users_idx',
+  schema: z.object({ email: z.string() }),
+  idStrategy: 'objectid',
+  indexes: [index({ email: 1 }, { unique: true })],
+});
+
+const NoSyncCollection = defineCollection({
+  name: 'users_idx_skip',
   schema: z.object({ email: z.string() }),
   idStrategy: 'objectid',
   indexes: [index({ email: 1 }, { unique: true })],
@@ -49,15 +56,18 @@ describe('Index synchronization (integration)', () => {
   });
 
   it('skips syncIndexes call when syncIndexes is false', async () => {
-    const syncSpy = vi.spyOn({ syncIndexes }, 'syncIndexes');
-
-    const provider = createRepositoryProviders([UserCollection])[0] as {
+    // Insert first so the namespace exists — syncIndexes:false never creates the collection,
+    // and listIndexes on a missing namespace does not reliably report just the default _id index.
+    await database.collection('users_idx_skip').insertOne({ email: 'skip@example.com' });
+    const provider = createRepositoryProviders([NoSyncCollection])[0] as {
       useFactory: (database_: Db, options: unknown) => Promise<unknown>;
     };
+
     await provider.useFactory(database, { syncIndexes: false });
 
-    expect(syncSpy).not.toHaveBeenCalled();
-    syncSpy.mockRestore();
+    const indexes = await database.collection('users_idx_skip').listIndexes().toArray();
+    expect(indexes).toHaveLength(1);
+    expect(indexes.every((index_) => index_.name === '_id_')).toBe(true);
   });
 });
 

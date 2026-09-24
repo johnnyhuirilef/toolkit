@@ -1,9 +1,16 @@
 import { isEmpty, isObject, isNullish } from 'radashi';
 
 import { MongoConfigurationError } from './zod-mongo.errors';
-import type { MongoConnectionOptions } from './zod-mongo.interfaces';
+import type { MongoConnectionOptions, MongoConnectionOptionsWithUri } from './zod-mongo.interfaces';
 
+// `connectionName` is typed as `string`, but plain JS callers (untyped calls, `Reflect.apply`)
+// can still pass a non-string. Checking the runtime type first turns that into the same
+// diagnostic error instead of a TypeError from `.includes` on a non-string value.
 export const ensureConnectionName = (connectionName: string): string => {
+  if (typeof connectionName !== 'string')
+    throw new MongoConfigurationError(
+      `Connection name must be a non-empty string. Received ${typeof connectionName}.`,
+    );
   if (isEmpty(connectionName))
     throw new MongoConfigurationError('Connection name must be a non-empty string.');
   if (connectionName.includes('/'))
@@ -17,12 +24,13 @@ export const ensureConnectionName = (connectionName: string): string => {
 // object (undefined, a Db, a string, ...) fails MongoOptions' own uri/mongoClient checks with a
 // confusing message, so shape comes first.
 export const validateOptionsShape = (value: unknown): value is MongoConnectionOptions =>
-  isObject(value) &&
-  typeof (value as { readonly databaseName?: unknown }).databaseName === 'string';
+  isObject(value) && 'databaseName' in value && typeof value.databaseName === 'string';
 
 const describeInvalidShape = (value: unknown): string => (value === null ? 'null' : typeof value);
 
-const hasUri = (options: MongoConnectionOptions): boolean =>
+// Exported so `resolveClient` (zod-mongo.providers.ts) narrows the same union through the same
+// rule instead of re-implementing the "has a uri" check.
+export const hasUri = (options: MongoConnectionOptions): options is MongoConnectionOptionsWithUri =>
   'uri' in options && typeof options.uri === 'string' && options.uri.length > 0;
 
 const hasMongoClient = (options: MongoConnectionOptions): boolean =>
@@ -56,6 +64,11 @@ type OptionsSources = {
   readonly useExisting?: unknown;
 };
 
+// A mechanism only counts when it is actually usable: `useFactory` must be a function, and
+// `useClass`/`useExisting` must be a class (also a function at runtime). `null` or any other
+// non-callable value is treated as not provided — the same nullish rule applied to all three.
+const isUsableMechanism = (value: unknown): boolean => typeof value === 'function';
+
 // The MongoAsyncOptions union already rejects none/several mechanisms at compile time; this
 // guards plain JS callers, so it accepts the loosest shape a caller could pass.
 export const ensureSingleOptionsSource = <Sources extends OptionsSources>(
@@ -63,9 +76,9 @@ export const ensureSingleOptionsSource = <Sources extends OptionsSources>(
   asyncOptions: Sources,
 ): Sources => {
   const providedCount =
-    Number(asyncOptions.useFactory !== undefined) +
-    Number(asyncOptions.useClass !== undefined) +
-    Number(asyncOptions.useExisting !== undefined);
+    Number(isUsableMechanism(asyncOptions.useFactory)) +
+    Number(isUsableMechanism(asyncOptions.useClass)) +
+    Number(isUsableMechanism(asyncOptions.useExisting));
 
   if (providedCount === 0)
     throw new MongoConfigurationError(

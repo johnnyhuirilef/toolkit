@@ -20,14 +20,14 @@ import {
   getRepositoryToken,
   MONGO_CORE_OPTIONS,
 } from './zod-mongo.tokens';
-import { ensureSingleOptionsSource, ensureValidOptions } from './zod-mongo.validation';
+import { ensureSingleOptionsSource, ensureValidOptions, hasUri } from './zod-mongo.validation';
 
 // --- Connection trio (pure functions, no NestJS, no logging) ---
 
+// `hasUri` is a type predicate, so the `else` branch narrows to the mongoClient member of the
+// union without a cast — reusing the same "has a uri" rule `ensureValidOptions` validates against.
 const resolveClient = (options: MongoConnectionOptions): MongoClient =>
-  'mongoClient' in options && !isNullish(options.mongoClient)
-    ? options.mongoClient
-    : new MongoClient(options.uri, options.clientOptions);
+  hasUri(options) ? new MongoClient(options.uri, options.clientOptions) : options.mongoClient;
 
 const connectAndWrap = async (
   client: MongoClient,
@@ -76,7 +76,9 @@ export const createOptionsProviders = (
 ): readonly Provider[] => {
   ensureSingleOptionsSource(connectionName, asyncOptions);
 
-  if (asyncOptions.useFactory !== undefined)
+  // Branches on the same "is it actually callable" rule `ensureSingleOptionsSource` counted by,
+  // so a mechanism it treated as absent (e.g. `useFactory: null`) never gets selected here either.
+  if (typeof asyncOptions.useFactory === 'function')
     return [
       {
         provide: MONGO_CORE_OPTIONS,
@@ -85,7 +87,7 @@ export const createOptionsProviders = (
       },
     ];
 
-  if (asyncOptions.useClass !== undefined)
+  if (typeof asyncOptions.useClass === 'function')
     return [
       { provide: asyncOptions.useClass, useClass: asyncOptions.useClass },
       {

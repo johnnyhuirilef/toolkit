@@ -3,6 +3,7 @@ import { defineCollection } from '@wenu/mongo';
 import { describe, it, expect, vi } from 'vitest';
 import * as z from 'zod';
 
+import { MongoConfigurationError } from '../../src/zod-mongo.errors';
 import type { MongoOptions } from '../../src/zod-mongo.interfaces';
 import { MongoModule } from '../../src/zod-mongo.module';
 import { createRepositoryProviders } from '../../src/zod-mongo.providers';
@@ -116,5 +117,9 @@ describe('MongoModule.forFeature', () => {
 
     expect(collectionB).toHaveBeenCalledWith('users');
     expect(collectionA).not.toHaveBeenCalled();
+  });
+
+  it('rejects a connection name containing "/"', () => {
+    expect(() => MongoModule.forFeature([UserCollection], 'a/b')).toThrow(MongoConfigurationError);
   });
 });

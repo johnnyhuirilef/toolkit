@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { MongoClient } from 'mongodb';
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
 import { MongoModule } from '../../src/zod-mongo.module';
@@ -15,6 +15,10 @@ describe('Graceful shutdown (integration)', () => {
 
   afterAll(async () => {
     await stopContainer();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('closes MongoClient gracefully via wrapper.close()', async () => {
@@ -77,14 +81,18 @@ describe('Graceful shutdown (integration)', () => {
       ],
     }).compile();
 
-    await moduleReference.close();
+    try {
+      await moduleReference.close();
 
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('"a"'), 'MongoModule');
-    expect(logSpy).toHaveBeenCalledWith(expect.stringMatching(/"b".*closed/), 'MongoModule');
-
-    errorSpy.mockRestore();
-    logSpy.mockRestore();
-    await clientB.close();
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('"a"'), 'MongoModule');
+      expect(logSpy).toHaveBeenCalledWith(expect.stringMatching(/"b".*closed/), 'MongoModule');
+    } finally {
+      // The mocked close() left clientA's real connection open; restore the mock and close it
+      // for real so this test doesn't leak a connection into the rest of the suite.
+      vi.mocked(clientA.close).mockRestore();
+      await clientA.close();
+      await clientB.close();
+    }
   }, 30_000);
 
   it('autoCloseConnection:false leaves the mongoClient usable (able to execute a command) after app.close()', async () => {

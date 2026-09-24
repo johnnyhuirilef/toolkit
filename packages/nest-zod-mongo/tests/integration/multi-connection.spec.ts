@@ -5,6 +5,20 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
 import { MongoModule } from '../../src/zod-mongo.module';
 
+const setup = () => {
+  const clientA = new MongoClient(getUri(), clientOptions);
+  const clientB = new MongoClient(getUri(), clientOptions);
+  let closedCount = 0;
+  clientA.on('topologyClosed', () => {
+    closedCount += 1;
+  });
+  clientB.on('topologyClosed', () => {
+    closedCount += 1;
+  });
+
+  return { clientA, clientB, getClosedCount: () => closedCount };
+};
+
 describe('Multi-connection isolation (integration)', () => {
   beforeAll(async () => {
     await startContainer();
@@ -15,15 +29,7 @@ describe('Multi-connection isolation (integration)', () => {
   });
 
   it("two named forRoot registrations 'a' and 'b' both report their client closed on app.close(), with an observed close count of 2", async () => {
-    const clientA = new MongoClient(getUri(), clientOptions);
-    const clientB = new MongoClient(getUri(), clientOptions);
-    let closedCount = 0;
-    clientA.on('topologyClosed', () => {
-      closedCount += 1;
-    });
-    clientB.on('topologyClosed', () => {
-      closedCount += 1;
-    });
+    const { clientA, clientB, getClosedCount } = setup();
 
     const moduleReference = await Test.createTestingModule({
       imports: [
@@ -42,6 +48,6 @@ describe('Multi-connection isolation (integration)', () => {
 
     await moduleReference.close();
 
-    expect(closedCount).toBe(2);
+    expect(getClosedCount()).toBe(2);
   }, 30_000);
 });
