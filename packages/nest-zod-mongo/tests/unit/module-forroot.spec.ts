@@ -1,8 +1,9 @@
 import type { Db, MongoClient } from 'mongodb';
+import { MongoError } from 'mongodb';
 import { describe, it, expect, vi } from 'vitest';
 
 import { MongoCoreModule } from '../../src/mongo-core.module';
-import { MongoConfigurationError } from '../../src/zod-mongo.errors';
+import { MongoConfigurationError, MongoConnectionError } from '../../src/zod-mongo.errors';
 import type { MongoOptions } from '../../src/zod-mongo.interfaces';
 import { MongoModule } from '../../src/zod-mongo.module';
 import { establishConnection } from '../../src/zod-mongo.providers';
@@ -52,5 +53,29 @@ describe('MongoModule.forRoot', () => {
     expect(dynamicModule.providers).toBeUndefined();
     expect(dynamicModule.imports).toHaveLength(1);
     expect(dynamicModule.imports?.[0]).toMatchObject({ module: MongoCoreModule });
+  });
+});
+
+// Reflect.apply performs an untyped call, as a plain JS caller would: `mongoClient: null`
+// cannot be expressed through the typed options union.
+const setupUntypedCaller = () => ({
+  establishAsUntypedCaller: (options: object): unknown =>
+    Reflect.apply(establishConnection, undefined, ['orders', options]),
+});
+
+describe('establishConnection', () => {
+  it('builds a client from the uri when mongoClient is null instead of using null as the client', async () => {
+    const { establishAsUntypedCaller } = setupUntypedCaller();
+
+    const connecting = establishAsUntypedCaller({
+      uri: 'mongodb://127.0.0.1:1',
+      clientOptions: { serverSelectionTimeoutMS: 50 },
+      mongoClient: null,
+      databaseName: 'test_db',
+    });
+
+    await expect(connecting).rejects.toThrow(MongoConnectionError);
+    // The cause is what tells a driver failure apart from calling connect() on null.
+    await expect(connecting).rejects.toMatchObject({ cause: expect.any(MongoError) });
   });
 });

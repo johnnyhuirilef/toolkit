@@ -25,7 +25,7 @@ import { ensureSingleOptionsSource, ensureValidOptions } from './zod-mongo.valid
 // --- Connection trio (pure functions, no NestJS, no logging) ---
 
 const resolveClient = (options: MongoConnectionOptions): MongoClient =>
-  'mongoClient' in options && options.mongoClient !== undefined
+  'mongoClient' in options && !isNullish(options.mongoClient)
     ? options.mongoClient
     : new MongoClient(options.uri, options.clientOptions);
 
