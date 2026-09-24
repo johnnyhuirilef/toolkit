@@ -7,7 +7,7 @@ import { MongoTransactionService } from './mongo-transaction.service.js';
 
 @Module({})
 export class MongoTransactionModule {
-  static forFeature(options?: { connectionName?: string | symbol }): DynamicModule {
+  static forFeature(options?: { connectionName?: string }): DynamicModule {
     const wrapperToken = getClientWrapperToken(options?.connectionName);
     return {
       module: MongoTransactionModule,

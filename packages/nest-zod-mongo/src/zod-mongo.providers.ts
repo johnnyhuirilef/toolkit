@@ -62,7 +62,7 @@ export const createConnectionProviders = (options: MongoOptions): Provider[] => 
   const wrapperToken = getClientWrapperToken(options.connectionName);
   const databaseToken = getConnectionToken(options.connectionName);
   // Single establish-token guarantees exactly one client.connect() call (ADR-2)
-  const establishToken = Symbol(`establish_${String(options.connectionName ?? 'default')}`);
+  const establishToken = Symbol(`establish_${options.connectionName ?? 'default'}`);
   return [
     {
       provide: establishToken,
@@ -96,7 +96,7 @@ export const createConnectionProviders = (options: MongoOptions): Provider[] => 
 export const createAsyncConnectionProviders = (asyncOptions: MongoAsyncOptions): Provider[] => {
   const wrapperToken = getClientWrapperToken(asyncOptions.connectionName);
   const databaseToken = getConnectionToken(asyncOptions.connectionName);
-  const establishToken = Symbol(`establish_${String(asyncOptions.connectionName ?? 'default')}`);
+  const establishToken = Symbol(`establish_${asyncOptions.connectionName ?? 'default'}`);
   const inject: InjectionToken[] = asyncOptions.inject ? [...asyncOptions.inject] : [];
   return [
     {
@@ -140,7 +140,7 @@ export const createAsyncConnectionProviders = (asyncOptions: MongoAsyncOptions):
 
 export const createRepositoryProviders = (
   collections: readonly CollectionDef<ZodCompat, IdStrategy>[],
-  connectionName?: string | symbol,
+  connectionName?: string,
 ): Provider[] =>
   collections.map((collectionEntry) => ({
     provide: getRepositoryToken(collectionEntry.name, connectionName),

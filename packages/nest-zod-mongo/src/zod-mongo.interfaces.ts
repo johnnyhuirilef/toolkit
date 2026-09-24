@@ -3,7 +3,7 @@ import type { Result } from '@wenu/mongo';
 import type { MongoClient, MongoClientOptions } from 'mongodb';
 
 type MongoOptionsBase = {
-  readonly connectionName?: string | symbol;
+  readonly connectionName?: string;
   readonly databaseName: string;
   readonly syncIndexes?: boolean;
   readonly shutdownTimeoutMs?: number;
@@ -26,7 +26,7 @@ type MongoOptionsWithClient = MongoOptionsBase & {
 export type MongoOptions = MongoOptionsWithUri | MongoOptionsWithClient;
 
 export type MongoAsyncOptions = Pick<ModuleMetadata, 'imports'> & {
-  readonly connectionName?: string | symbol;
+  readonly connectionName?: string;
   readonly useFactory: (...arguments_: readonly unknown[]) => Promise<MongoOptions> | MongoOptions;
   readonly inject?: readonly InjectionToken[];
 };

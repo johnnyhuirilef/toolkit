@@ -39,7 +39,7 @@ export class MongoModule implements OnApplicationShutdown {
 
   static forFeature(
     collections: readonly CollectionDef<ZodCompat, IdStrategy>[],
-    connectionName?: string | symbol,
+    connectionName?: string,
   ): DynamicModule {
     const providers = createRepositoryProviders(collections, connectionName);
     return {
