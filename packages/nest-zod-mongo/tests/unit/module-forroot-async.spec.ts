@@ -5,6 +5,7 @@ import { MongoClient } from 'mongodb';
 import { describe, it, expect, vi } from 'vitest';
 import * as z from 'zod';
 
+import { MongoConfigurationError } from '../../src/zod-mongo.errors';
 import type { MongoAsyncOptions, MongoConnectionOptions } from '../../src/zod-mongo.interfaces';
 import { MongoModule } from '../../src/zod-mongo.module';
 import { createOptionsProviders, establishConnection } from '../../src/zod-mongo.providers';
@@ -45,6 +46,11 @@ class FakeOptionsFactory {
 
 @Module({ providers: [FakeOptionsFactory], exports: [FakeOptionsFactory] })
 class SharedOptionsModule {}
+
+// Reflect.apply performs an untyped call, which is exactly what a plain JS caller does: the
+// discriminated union cannot express these invalid inputs, so no typed call could reach them.
+const callAsUntypedCaller = (asyncOptions: object): unknown =>
+  Reflect.apply(createOptionsProviders, undefined, ['orders', asyncOptions]);
 
 const setup = async (asyncOptions: MongoAsyncOptions) => {
   const moduleReference = await Test.createTestingModule({
@@ -156,5 +162,25 @@ describe('MongoModule.forRootAsync', () => {
 
     const optionsProvider = providers.find((provider) => provider.provide === MONGO_CORE_OPTIONS);
     expect(optionsProvider?.inject).toEqual([TOKEN_A, TOKEN_B]);
+  });
+
+  it('createOptionsProviders throws MongoConfigurationError naming the connection when none of useFactory/useClass/useExisting is provided', () => {
+    expect(() => callAsUntypedCaller({})).toThrow(MongoConfigurationError);
+    expect(() => callAsUntypedCaller({})).toThrow(/"orders"/);
+  });
+
+  it('createOptionsProviders throws MongoConfigurationError before selecting a branch when more than one mechanism is provided', () => {
+    const asyncOptions = {
+      useFactory: vi.fn(
+        (): MongoConnectionOptions => ({
+          mongoClient: makeUnconnectedClient(),
+          databaseName: 'db',
+        }),
+      ),
+      useClass: FakeOptionsFactory,
+    };
+
+    expect(() => callAsUntypedCaller(asyncOptions)).toThrow(MongoConfigurationError);
+    expect(() => callAsUntypedCaller(asyncOptions)).toThrow(/exactly one/);
   });
 });

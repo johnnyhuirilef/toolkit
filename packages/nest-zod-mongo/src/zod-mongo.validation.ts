@@ -49,3 +49,32 @@ export const ensureValidOptions = (
 
   return value;
 };
+
+type OptionsSources = {
+  readonly useFactory?: unknown;
+  readonly useClass?: unknown;
+  readonly useExisting?: unknown;
+};
+
+// The MongoAsyncOptions union already rejects none/several mechanisms at compile time; this
+// guards plain JS callers, so it accepts the loosest shape a caller could pass.
+export const ensureSingleOptionsSource = <Sources extends OptionsSources>(
+  connectionName: string,
+  asyncOptions: Sources,
+): Sources => {
+  const providedCount =
+    Number(asyncOptions.useFactory !== undefined) +
+    Number(asyncOptions.useClass !== undefined) +
+    Number(asyncOptions.useExisting !== undefined);
+
+  if (providedCount === 0)
+    throw new MongoConfigurationError(
+      `MongoModule.forRootAsync() for connection "${connectionName}" requires one of "useFactory", "useClass" or "useExisting".`,
+    );
+  if (providedCount > 1)
+    throw new MongoConfigurationError(
+      `MongoModule.forRootAsync() for connection "${connectionName}" received more than one of "useFactory", "useClass", "useExisting". Pass exactly one.`,
+    );
+
+  return asyncOptions;
+};

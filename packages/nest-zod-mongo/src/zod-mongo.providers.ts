@@ -20,7 +20,7 @@ import {
   getRepositoryToken,
   MONGO_CORE_OPTIONS,
 } from './zod-mongo.tokens';
-import { ensureValidOptions } from './zod-mongo.validation';
+import { ensureSingleOptionsSource, ensureValidOptions } from './zod-mongo.validation';
 
 // --- Connection trio (pure functions, no NestJS, no logging) ---
 
@@ -74,6 +74,8 @@ export const createOptionsProviders = (
   connectionName: string,
   asyncOptions: MongoAsyncOptions,
 ): readonly Provider[] => {
+  ensureSingleOptionsSource(connectionName, asyncOptions);
+
   if (asyncOptions.useFactory !== undefined)
     return [
       {
@@ -83,24 +85,21 @@ export const createOptionsProviders = (
       },
     ];
 
-  if (asyncOptions.useClass !== undefined) {
-    const optionsFactoryClass = asyncOptions.useClass;
+  if (asyncOptions.useClass !== undefined)
     return [
-      { provide: optionsFactoryClass, useClass: optionsFactoryClass },
+      { provide: asyncOptions.useClass, useClass: asyncOptions.useClass },
       {
         provide: MONGO_CORE_OPTIONS,
         useFactory: (factory: MongoOptionsFactory) => factory.createMongoOptions(connectionName),
-        inject: [optionsFactoryClass],
+        inject: [asyncOptions.useClass],
       },
     ];
-  }
 
-  const existingFactoryClass = asyncOptions.useExisting;
   return [
     {
       provide: MONGO_CORE_OPTIONS,
       useFactory: (factory: MongoOptionsFactory) => factory.createMongoOptions(connectionName),
-      inject: [existingFactoryClass],
+      inject: [asyncOptions.useExisting],
     },
   ];
 };

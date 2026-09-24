@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { MongoConfigurationError } from '../../src/zod-mongo.errors';
 import {
   ensureConnectionName,
+  ensureSingleOptionsSource,
   ensureValidOptions,
   validateOptionsShape,
 } from '../../src/zod-mongo.validation';
@@ -55,6 +56,41 @@ describe('ensureValidOptions', () => {
   it('returns the validated options unchanged when the shape and source are valid', () => {
     const options = { databaseName: 'db', uri: 'mongodb://localhost' };
     expect(ensureValidOptions('orders', options)).toBe(options);
+  });
+});
+
+describe('ensureSingleOptionsSource', () => {
+  it('rejects an async registration providing none of useFactory/useClass/useExisting', () => {
+    const asyncOptions = {};
+
+    expect(() => ensureSingleOptionsSource('orders', asyncOptions)).toThrow(
+      MongoConfigurationError,
+    );
+    expect(() => ensureSingleOptionsSource('orders', asyncOptions)).toThrow(/"orders"/);
+    expect(() => ensureSingleOptionsSource('orders', asyncOptions)).toThrow(
+      /"useFactory".*"useClass".*"useExisting"/,
+    );
+  });
+
+  it('rejects an async registration providing more than one of useFactory/useClass/useExisting', () => {
+    const asyncOptions = {
+      useFactory: () => ({ databaseName: 'db', uri: 'mongodb://localhost' }),
+      useClass: class FakeOptionsFactory {},
+    };
+
+    expect(() => ensureSingleOptionsSource('orders', asyncOptions)).toThrow(
+      MongoConfigurationError,
+    );
+    expect(() => ensureSingleOptionsSource('orders', asyncOptions)).toThrow(/"orders"/);
+    expect(() => ensureSingleOptionsSource('orders', asyncOptions)).toThrow(/exactly one/);
+  });
+
+  it('returns the async options unchanged when exactly one mechanism is provided', () => {
+    const asyncOptions = {
+      useFactory: () => ({ databaseName: 'db', uri: 'mongodb://localhost' }),
+    };
+
+    expect(ensureSingleOptionsSource('orders', asyncOptions)).toBe(asyncOptions);
   });
 });
 
