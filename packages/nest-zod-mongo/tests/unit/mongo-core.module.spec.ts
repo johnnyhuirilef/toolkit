@@ -12,8 +12,8 @@ import {
   MONGO_CORE_OPTIONS,
 } from '../../src/zod-mongo.tokens';
 
-// Per design Decision 8: a real but unconnected MongoClient with only `connect` (and here
-// `close`, to keep shutdown deterministic) stubbed — client.db() works fully offline.
+// A real but unconnected MongoClient exercises real Nest DI offline: client.db() needs no server,
+// and stubbing `close` keeps shutdown deterministic.
 const makeUnconnectedClient = (): MongoClient => {
   const client = new MongoClient('mongodb://127.0.0.1:1');
   vi.spyOn(client, 'connect').mockResolvedValue(client);

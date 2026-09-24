@@ -1,7 +1,7 @@
 import { isEmpty, isObject, isNullish } from 'radashi';
 
 import { MongoConfigurationError } from './zod-mongo.errors';
-import type { MongoOptions } from './zod-mongo.interfaces';
+import type { MongoConnectionOptions } from './zod-mongo.interfaces';
 
 export const ensureConnectionName = (connectionName: string): string => {
   if (isEmpty(connectionName))
@@ -16,19 +16,22 @@ export const ensureConnectionName = (connectionName: string): string => {
 // Narrows an options-factory's resolved value without a cast — a value that isn't even an
 // object (undefined, a Db, a string, ...) fails MongoOptions' own uri/mongoClient checks with a
 // confusing message, so shape comes first.
-export const validateOptionsShape = (value: unknown): value is MongoOptions =>
+export const validateOptionsShape = (value: unknown): value is MongoConnectionOptions =>
   isObject(value) &&
   typeof (value as { readonly databaseName?: unknown }).databaseName === 'string';
 
 const describeInvalidShape = (value: unknown): string => (value === null ? 'null' : typeof value);
 
-const hasUri = (options: MongoOptions): boolean =>
+const hasUri = (options: MongoConnectionOptions): boolean =>
   'uri' in options && typeof options.uri === 'string' && options.uri.length > 0;
 
-const hasMongoClient = (options: MongoOptions): boolean =>
+const hasMongoClient = (options: MongoConnectionOptions): boolean =>
   'mongoClient' in options && !isNullish(options.mongoClient);
 
-export const ensureValidOptions = (connectionName: string, value: unknown): MongoOptions => {
+export const ensureValidOptions = (
+  connectionName: string,
+  value: unknown,
+): MongoConnectionOptions => {
   if (!validateOptionsShape(value))
     throw new MongoConfigurationError(
       `MongoModule connection "${connectionName}" options factory returned ${describeInvalidShape(value)} instead of an options object. Return { databaseName, uri } or { databaseName, mongoClient }.`,

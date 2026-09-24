@@ -4,6 +4,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
 import { MongoConnectionError } from '../../src/zod-mongo.errors';
 import { establishConnection } from '../../src/zod-mongo.providers';
+import { DEFAULT_CONNECTION_NAME } from '../../src/zod-mongo.tokens';
 
 let database: Db;
 let client: MongoClient;
@@ -11,7 +12,7 @@ let client: MongoClient;
 describe('establishConnection (forRoot integration)', () => {
   beforeAll(async () => {
     await startContainer();
-    const result = await establishConnection({
+    const result = await establishConnection(DEFAULT_CONNECTION_NAME, {
       uri: getUri(),
       databaseName: 'test_db',
       clientOptions,
@@ -32,7 +33,7 @@ describe('establishConnection (forRoot integration)', () => {
 
   it('throws MongoConnectionError on bad URI', async () => {
     await expect(
-      establishConnection({
+      establishConnection(DEFAULT_CONNECTION_NAME, {
         uri: 'mongodb://localhost:1',
         databaseName: 'test_db',
         clientOptions: { connectTimeoutMS: 1000, serverSelectionTimeoutMS: 1000 },

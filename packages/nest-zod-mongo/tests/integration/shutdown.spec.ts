@@ -6,6 +6,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
 import { MongoModule } from '../../src/zod-mongo.module';
 import { establishConnection } from '../../src/zod-mongo.providers';
+import { DEFAULT_CONNECTION_NAME } from '../../src/zod-mongo.tokens';
 
 describe('Graceful shutdown (integration)', () => {
   beforeAll(async () => {
@@ -17,7 +18,7 @@ describe('Graceful shutdown (integration)', () => {
   });
 
   it('closes MongoClient gracefully via wrapper.close()', async () => {
-    const { wrapper } = await establishConnection({
+    const { wrapper } = await establishConnection(DEFAULT_CONNECTION_NAME, {
       uri: getUri(),
       databaseName: 'test_shutdown',
       clientOptions,
@@ -27,7 +28,7 @@ describe('Graceful shutdown (integration)', () => {
   });
 
   it('wrapper.close() resolves ok and client is no longer usable after close', async () => {
-    const { wrapper, db: database_ } = await establishConnection({
+    const { wrapper, db: database_ } = await establishConnection(DEFAULT_CONNECTION_NAME, {
       uri: getUri(),
       databaseName: 'test_close_check',
       clientOptions,
@@ -42,7 +43,7 @@ describe('Graceful shutdown (integration)', () => {
   });
 
   it('MongoClientWrapper.client exposes the underlying MongoClient', async () => {
-    const { wrapper } = await establishConnection({
+    const { wrapper } = await establishConnection(DEFAULT_CONNECTION_NAME, {
       uri: getUri(),
       databaseName: 'test_client_ref',
       clientOptions,

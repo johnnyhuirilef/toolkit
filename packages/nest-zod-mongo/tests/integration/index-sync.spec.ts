@@ -7,7 +7,7 @@ import * as z from 'zod';
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
 import { MongoModule } from '../../src/zod-mongo.module';
 import { establishConnection, createRepositoryProviders } from '../../src/zod-mongo.providers';
-import { getConnectionToken } from '../../src/zod-mongo.tokens';
+import { DEFAULT_CONNECTION_NAME, getConnectionToken } from '../../src/zod-mongo.tokens';
 
 const UserCollection = defineCollection({
   name: 'users_idx',
@@ -22,7 +22,7 @@ let client: MongoClient;
 describe('Index synchronization (integration)', () => {
   beforeAll(async () => {
     await startContainer();
-    const result = await establishConnection({
+    const result = await establishConnection(DEFAULT_CONNECTION_NAME, {
       uri: getUri(),
       databaseName: 'test_idx',
       clientOptions,

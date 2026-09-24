@@ -4,7 +4,7 @@ import type { CollectionDef, ZodCompat, IdStrategy } from '@wenu/mongo';
 
 import { MongoCoreModule } from './mongo-core.module';
 import type { MongoOptions, MongoAsyncOptions } from './zod-mongo.interfaces';
-import { createAsyncConnectionProviders, createRepositoryProviders } from './zod-mongo.providers';
+import { createRepositoryProviders } from './zod-mongo.providers';
 
 @Module({})
 export class MongoModule {
@@ -16,12 +16,9 @@ export class MongoModule {
   }
 
   static forRootAsync(asyncOptions: MongoAsyncOptions): DynamicModule {
-    const providers = createAsyncConnectionProviders(asyncOptions);
     return {
       module: MongoModule,
-      imports: asyncOptions.imports ?? [],
-      providers,
-      exports: providers,
+      imports: [MongoCoreModule.forRootAsync(asyncOptions)],
     };
   }
 

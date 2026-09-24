@@ -5,9 +5,15 @@ import { Global, Inject, Logger, Module } from '@nestjs/common';
 import { isErr } from '@wenu/mongo';
 
 import { closeConnection, resolveShutdownConfig } from './shutdown';
-import type { MongoConnection, MongoOptions } from './zod-mongo.interfaces';
-import { establishConnection } from './zod-mongo.providers';
+import type {
+  MongoAsyncOptions,
+  MongoConnection,
+  MongoConnectionOptions,
+  MongoOptions,
+} from './zod-mongo.interfaces';
+import { createOptionsProviders, establishConnection } from './zod-mongo.providers';
 import {
+  DEFAULT_CONNECTION_NAME,
   getConnectionToken,
   getClientWrapperToken,
   getOptionsToken,
@@ -30,35 +36,50 @@ export class MongoCoreModule implements OnApplicationShutdown {
     return this.createDynamicModule(options.connectionName, [optionsProvider]);
   }
 
+  static forRootAsync(asyncOptions: MongoAsyncOptions): DynamicModule {
+    const connectionName = asyncOptions.connectionName ?? DEFAULT_CONNECTION_NAME;
+    return this.createDynamicModule(
+      connectionName,
+      createOptionsProviders(connectionName, asyncOptions),
+      asyncOptions.imports,
+    );
+  }
+
   private static createDynamicModule(
     connectionName: string | undefined,
     optionsProviders: readonly Provider[],
+    imports: DynamicModule['imports'] = [],
   ): DynamicModule {
+    // The registration's own name — never a name read off the resolved options — is what every
+    // exported token and the established connection are keyed on.
+    const resolvedConnectionName = connectionName ?? DEFAULT_CONNECTION_NAME;
     const connectionProvider: Provider = {
       provide: MONGO_CORE_CONNECTION,
-      useFactory: (options: MongoOptions) => establishConnection(options),
+      useFactory: (options: MongoConnectionOptions) =>
+        establishConnection(resolvedConnectionName, options),
       inject: [MONGO_CORE_OPTIONS],
     };
     const databaseProvider: Provider = {
-      provide: getConnectionToken(connectionName),
+      provide: getConnectionToken(resolvedConnectionName),
       useFactory: (connection: MongoConnection) => connection.db,
       inject: [MONGO_CORE_CONNECTION],
     };
     const wrapperProvider: Provider = {
-      provide: getClientWrapperToken(connectionName),
+      provide: getClientWrapperToken(resolvedConnectionName),
       useFactory: (connection: MongoConnection) => connection.wrapper,
       inject: [MONGO_CORE_CONNECTION],
     };
     // Exported so forFeature's repository providers can resolve their own connection's
     // syncIndexes option; a single shared token would let the last registration win.
     const optionsProvider: Provider = {
-      provide: getOptionsToken(connectionName),
+      provide: getOptionsToken(resolvedConnectionName),
       useFactory: (connection: MongoConnection) => connection.options,
       inject: [MONGO_CORE_CONNECTION],
     };
 
     return {
       module: MongoCoreModule,
+      imports,
       providers: [
         ...optionsProviders,
         connectionProvider,

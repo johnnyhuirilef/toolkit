@@ -28,8 +28,8 @@ export const getRepositoryToken = (
 export const getOptionsToken = (connectionName: string = DEFAULT_CONNECTION_NAME): string =>
   createConnectionScopedToken('options', connectionName);
 
-// Internal — core-module-local tokens (never connection-scoped, safe because each
-// MongoCoreModule resolves its own providers before looking at imports, see design F7).
+// Internal — core-module-local tokens. They need no connection scope: Nest resolves a module's
+// own providers before its imports, so each MongoCoreModule registration sees only its own.
 export const MONGO_CORE_OPTIONS = '@wenu/nest-mongo/core/options';
 export const MONGO_CORE_CONNECTION = '@wenu/nest-mongo/core/connection';
 export const MONGO_CORE_ID = '@wenu/nest-mongo/core/id';
