@@ -1,6 +1,6 @@
 import type { ModuleMetadata, InjectionToken } from '@nestjs/common';
 import type { Result } from '@wenu/mongo';
-import type { MongoClient, MongoClientOptions } from 'mongodb';
+import type { Db, MongoClient, MongoClientOptions } from 'mongodb';
 
 type MongoOptionsBase = {
   readonly connectionName?: string;
@@ -34,4 +34,13 @@ export type MongoAsyncOptions = Pick<ModuleMetadata, 'imports'> & {
 export type MongoClientWrapper = {
   readonly client: MongoClient;
   readonly close: (force?: boolean) => Promise<Result<null>>;
+};
+
+// Internal — one established connection's identity and handles, injected as a single record
+// so a core module needs exactly one constructor parameter (never exported from index.ts).
+export type MongoConnection = {
+  readonly connectionName: string;
+  readonly options: MongoOptions;
+  readonly db: Db;
+  readonly wrapper: MongoClientWrapper;
 };

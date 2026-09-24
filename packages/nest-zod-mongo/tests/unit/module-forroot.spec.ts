@@ -1,12 +1,11 @@
-import type { FactoryProvider } from '@nestjs/common';
 import type { Db, MongoClient } from 'mongodb';
 import { describe, it, expect, vi } from 'vitest';
 
+import { MongoCoreModule } from '../../src/mongo-core.module';
 import { MongoConfigurationError } from '../../src/zod-mongo.errors';
 import type { MongoOptions } from '../../src/zod-mongo.interfaces';
 import { MongoModule } from '../../src/zod-mongo.module';
-import { createConnectionProviders, establishConnection } from '../../src/zod-mongo.providers';
-import { getConnectionToken, getClientWrapperToken } from '../../src/zod-mongo.tokens';
+import { establishConnection } from '../../src/zod-mongo.providers';
 
 const makeFakeClient = (overrides?: Partial<MongoClient>): MongoClient => {
   const fakeDatabase = { collection: vi.fn() } as unknown as Db;
@@ -44,18 +43,11 @@ describe('MongoModule.forRoot', () => {
     expect(typeof wrapper.close).toBe('function');
   });
 
-  it('forRoot returns providers with correct tokens', () => {
+  it('forRoot delegates to a MongoCoreModule registration instead of providing tokens itself', () => {
     const { options } = setup();
     const dynamicModule = MongoModule.forRoot(options);
-    const providers = dynamicModule.providers as FactoryProvider[];
-    const tokens = providers.map((p) => p.provide);
-    expect(tokens).toContain(getConnectionToken());
-    expect(tokens).toContain(getClientWrapperToken());
-  });
-
-  it('createConnectionProviders registers 5 providers', () => {
-    const { options } = setup();
-    const providers = createConnectionProviders(options);
-    expect(providers).toHaveLength(5);
+    expect(dynamicModule.providers).toBeUndefined();
+    expect(dynamicModule.imports).toHaveLength(1);
+    expect(dynamicModule.imports?.[0]).toMatchObject({ module: MongoCoreModule });
   });
 });

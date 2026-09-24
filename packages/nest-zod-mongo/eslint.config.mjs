@@ -42,7 +42,18 @@ export default [
             '{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}',
             '{projectRoot}/vitest.config.{js,ts,mjs,mts}',
           ],
-          ignoredDependencies: ['vitest', '@nx/vite', '@nx/rollup', '@testcontainers/mongodb', '@nestjs/testing', 'tsdown'],
+          ignoredDependencies: [
+            'vitest',
+            '@nx/vite',
+            '@nx/rollup',
+            '@testcontainers/mongodb',
+            '@nestjs/testing',
+            'tsdown',
+            // Never imported directly (no ModuleRef usage since the per-core shutdown hook
+            // replaced facade-level resolution), but every NestJS app needs it to bootstrap,
+            // so it stays a real peer dependency.
+            '@nestjs/core',
+          ],
         },
       ],
     },

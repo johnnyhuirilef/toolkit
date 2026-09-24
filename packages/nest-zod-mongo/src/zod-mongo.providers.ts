@@ -6,23 +6,24 @@ import { MongoClient } from 'mongodb';
 import type { Db } from 'mongodb';
 import { isNullish, tryit } from 'radashi';
 
-import { MongoConfigurationError, MongoConnectionError } from './zod-mongo.errors';
-import type { MongoOptions, MongoAsyncOptions, MongoClientWrapper } from './zod-mongo.interfaces';
+import { MongoConnectionError } from './zod-mongo.errors';
+import type {
+  MongoOptions,
+  MongoAsyncOptions,
+  MongoClientWrapper,
+  MongoConnection,
+} from './zod-mongo.interfaces';
 import {
   getConnectionToken,
   getClientWrapperToken,
   getRepositoryToken,
+  DEFAULT_CONNECTION_NAME,
   ZOD_MONGO_CONNECTION_TOKENS,
   ZOD_MONGO_MODULE_OPTIONS,
 } from './zod-mongo.tokens';
+import { ensureValidOptions } from './zod-mongo.validation';
 
 // --- Connection trio (pure functions, no NestJS, no logging) ---
-
-const ensureValidOptions = (options: MongoOptions): MongoOptions => {
-  if (!('uri' in options && options.uri) && !('mongoClient' in options && options.mongoClient))
-    throw new MongoConfigurationError('Provide either "uri" or "mongoClient".');
-  return options;
-};
 
 const resolveClient = (options: MongoOptions): MongoClient =>
   'mongoClient' in options && options.mongoClient !== undefined
@@ -51,47 +52,19 @@ const connectAndWrap = async (
   return { db: database, wrapper };
 };
 
-export const establishConnection = (
-  options: MongoOptions,
-): Promise<{ readonly db: Db; readonly wrapper: MongoClientWrapper }> =>
-  Promise.resolve().then(() => connectAndWrap(resolveClient(ensureValidOptions(options)), options));
+export const establishConnection = (options: MongoOptions): Promise<MongoConnection> =>
+  Promise.resolve().then(() => {
+    const connectionName = options.connectionName ?? DEFAULT_CONNECTION_NAME;
+    const validated = ensureValidOptions(connectionName, options);
+    return connectAndWrap(resolveClient(validated), validated).then(({ db, wrapper }) => ({
+      connectionName,
+      options: validated,
+      db,
+      wrapper,
+    }));
+  });
 
 // --- NestJS provider factories ---
-
-export const createConnectionProviders = (options: MongoOptions): Provider[] => {
-  const wrapperToken = getClientWrapperToken(options.connectionName);
-  const databaseToken = getConnectionToken(options.connectionName);
-  // Single establish-token guarantees exactly one client.connect() call (ADR-2)
-  const establishToken = Symbol(`establish_${options.connectionName ?? 'default'}`);
-  return [
-    {
-      provide: establishToken,
-      useFactory: () => establishConnection(options),
-    },
-    {
-      provide: wrapperToken,
-      useFactory: (established: { readonly db: Db; readonly wrapper: MongoClientWrapper }) =>
-        established.wrapper,
-      inject: [establishToken],
-    },
-    {
-      provide: databaseToken,
-      useFactory: (established: { readonly db: Db; readonly wrapper: MongoClientWrapper }) =>
-        established.db,
-      inject: [establishToken],
-    },
-    {
-      provide: ZOD_MONGO_MODULE_OPTIONS,
-      useValue: options,
-    },
-    {
-      // ponytail: known limitation — multiple forRoot() calls overwrite this token (NestJS v11 types
-      // do not expose multi on Provider). Tracked in docs/ia/issues/nest-zod-mongo-multi-connection-shutdown.md
-      provide: ZOD_MONGO_CONNECTION_TOKENS,
-      useValue: [wrapperToken],
-    },
-  ];
-};
 
 export const createAsyncConnectionProviders = (asyncOptions: MongoAsyncOptions): Provider[] => {
   const wrapperToken = getClientWrapperToken(asyncOptions.connectionName);
