@@ -5,6 +5,9 @@ import type { Db, MongoClient, MongoClientOptions } from 'mongodb';
 type MongoConnectionOptionsBase = {
   readonly databaseName: string;
   readonly syncIndexes?: boolean;
+  // Omitted or `true` closes the underlying client on shutdown; `false` leaves a caller-owned
+  // client usable after `app.close()`.
+  readonly autoCloseConnection?: boolean;
   readonly shutdownTimeoutMs?: number;
   readonly shutdownRetryAttempts?: number;
   readonly forceShutdown?: boolean;

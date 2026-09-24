@@ -96,6 +96,7 @@ export class MongoCoreModule implements OnApplicationShutdown {
 
   async onApplicationShutdown(): Promise<void> {
     const { connectionName, options, wrapper } = this.connection;
+    if (options.autoCloseConnection === false) return;
     const start = Date.now();
     const result = await closeConnection(
       wrapper,

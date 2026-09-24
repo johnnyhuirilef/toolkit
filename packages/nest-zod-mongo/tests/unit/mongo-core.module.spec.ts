@@ -62,3 +62,35 @@ describe('MongoCoreModule.forRoot', () => {
     expect(optionsProvider).not.toHaveProperty('useValue');
   });
 });
+
+describe('MongoCoreModule#onApplicationShutdown', () => {
+  it('autoCloseConnection:false skips closeConnection on shutdown (close spy count 0)', async () => {
+    // Arrange
+    const mongoClient = makeUnconnectedClient();
+    const options: MongoOptions = {
+      mongoClient,
+      databaseName: 'core_test_no_autoclose',
+      autoCloseConnection: false,
+    };
+    const { moduleReference } = await setup(options);
+
+    // Act
+    await moduleReference.close();
+
+    // Assert
+    expect(mongoClient.close).not.toHaveBeenCalled();
+  });
+
+  it('omitting autoCloseConnection closes the client by default on shutdown (close spy count 1)', async () => {
+    // Arrange
+    const mongoClient = makeUnconnectedClient();
+    const options: MongoOptions = { mongoClient, databaseName: 'core_test_default_autoclose' };
+    const { moduleReference } = await setup(options);
+
+    // Act
+    await moduleReference.close();
+
+    // Assert
+    expect(mongoClient.close).toHaveBeenCalledTimes(1);
+  });
+});
