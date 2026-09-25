@@ -1,7 +1,12 @@
+import type { MongoClient } from 'mongodb';
 import { isEmpty, isObject, isNullish } from 'radashi';
 
 import { MongoConfigurationError } from './zod-mongo.errors';
-import type { MongoConnectionOptions, MongoConnectionOptionsWithUri } from './zod-mongo.interfaces';
+import type {
+  MongoConnectionOptions,
+  MongoConnectionOptionsWithClient,
+  MongoConnectionOptionsWithUri,
+} from './zod-mongo.interfaces';
 
 // `connectionName` is typed as `string`, but plain JS callers (untyped calls, `Reflect.apply`)
 // can still pass a non-string. Checking the runtime type first turns that into the same
@@ -22,8 +27,13 @@ export const ensureConnectionName = (connectionName: string): string => {
 
 // Narrows an options-factory's resolved value without a cast — a value that isn't even an
 // object (undefined, a Db, a string, ...) fails MongoOptions' own uri/mongoClient checks with a
-// confusing message, so shape comes first.
-export const validateOptionsShape = (value: unknown): value is MongoConnectionOptions =>
+// confusing message, so shape comes first. This predicate only ever checks `databaseName`, so it
+// must only ever claim what it checked — never the full `MongoConnectionOptions` union (uri XOR
+// mongoClient). `ensureValidOptions` establishes the uri/mongoClient discriminant separately, one
+// field at a time, so each malformed source gets its own diagnostic instead of a silent pass-through.
+type DatabaseNameShape = { readonly databaseName: string };
+
+export const validateOptionsShape = (value: unknown): value is DatabaseNameShape =>
   isObject(value) && 'databaseName' in value && typeof value.databaseName === 'string';
 
 const describeInvalidShape = (value: unknown): string => (value === null ? 'null' : typeof value);
@@ -37,8 +47,39 @@ const describeInvalidShape = (value: unknown): string => (value === null ? 'null
 export const hasUri = (options: MongoConnectionOptions): options is MongoConnectionOptionsWithUri =>
   'uri' in options && typeof options.uri === 'string';
 
-const hasMongoClient = (options: MongoConnectionOptions): boolean =>
-  'mongoClient' in options && !isNullish(options.mongoClient);
+// STRUCTURAL check, not `instanceof MongoClient` — a client built from a second, hoisted copy of
+// the `mongodb` driver is a real, usable client but fails `instanceof` against this package's own
+// import of the class. It requires every member this package calls on a client: `connect` and
+// `db` (connection), `close` (shutdown) and `withSession` (transactions).
+const isMongoClientLike = (value: unknown): value is MongoClient =>
+  isObject(value) &&
+  'connect' in value &&
+  typeof value.connect === 'function' &&
+  'db' in value &&
+  typeof value.db === 'function' &&
+  'close' in value &&
+  typeof value.close === 'function' &&
+  'withSession' in value &&
+  typeof value.withSession === 'function';
+
+// Each predicate below genuinely verifies its member's full shape (including the other field's
+// absence), so declaring the narrower `MongoConnectionOptionsWith*` return type is truthful, not a
+// disguised cast — same idiom as `hasUri` above. `ensureValidOptions` tries both positively first;
+// only when neither passes does it re-walk the same fields to name which one is malformed.
+const isValidUriOptions = (
+  value: DatabaseNameShape,
+): value is DatabaseNameShape & MongoConnectionOptionsWithUri =>
+  'uri' in value &&
+  typeof value.uri === 'string' &&
+  !isEmpty(value.uri) &&
+  !('mongoClient' in value && !isNullish(value.mongoClient));
+
+const isValidMongoClientOptions = (
+  value: DatabaseNameShape,
+): value is DatabaseNameShape & MongoConnectionOptionsWithClient =>
+  'mongoClient' in value &&
+  isMongoClientLike(value.mongoClient) &&
+  !('uri' in value && !isNullish(value.uri));
 
 export const ensureValidOptions = (
   connectionName: string,
@@ -52,24 +93,45 @@ export const ensureValidOptions = (
     throw new MongoConfigurationError(
       `MongoModule connection "${connectionName}" requires a non-empty "databaseName" string.`,
     );
+  // mongodb 6.21: `new MongoClient(uri).db('').databaseName` falls back to the URI's own database
+  // instead of failing, so an empty `databaseName` must be rejected here, before a connection is
+  // ever attempted — otherwise data silently lands in the wrong database.
+  if (isEmpty(value.databaseName))
+    throw new MongoConfigurationError(
+      `MongoModule connection "${connectionName}" requires a non-empty "databaseName" string.`,
+    );
 
-  const sourceCount = Number(hasUri(value)) + Number(hasMongoClient(value));
-  if (sourceCount === 0)
-    throw new MongoConfigurationError(
-      `MongoModule connection "${connectionName}" needs a "uri" or a "mongoClient" option. Pass one of them.`,
-    );
-  if (sourceCount === 2)
-    throw new MongoConfigurationError(
-      `MongoModule connection "${connectionName}" received both "uri" and "mongoClient". Pass only one of them.`,
-    );
-  // `hasUri` accepts an empty string (it only checks the shape), so a caller who did pass a
-  // "uri" gets this specific message instead of the generic "needs a uri or mongoClient" one.
-  if (hasUri(value) && isEmpty(value.uri))
+  if (isValidUriOptions(value)) return value;
+  if (isValidMongoClientOptions(value)) return value;
+
+  // Neither predicate passed — diagnose exactly why. "Provided" is judged by presence (key
+  // present with a non-nullish value) first, matching `ensureSingleOptionsSource` below — a
+  // malformed `uri` alongside a valid `mongoClient` must still count as "both provided", even
+  // though the `uri` value cannot be used, so a single malformed source gets its own diagnostic
+  // naming that field instead of silently falling through as "not provided".
+  if ('uri' in value && !isNullish(value.uri)) {
+    if ('mongoClient' in value && !isNullish(value.mongoClient))
+      throw new MongoConfigurationError(
+        `MongoModule connection "${connectionName}" received both "uri" and "mongoClient". Pass only one of them.`,
+      );
+    if (typeof value.uri !== 'string')
+      throw new MongoConfigurationError(
+        `MongoModule connection "${connectionName}" received a "uri" option that is not a string. Pass a connection string.`,
+      );
+    // The only remaining reason `isValidUriOptions` rejected a string, mongoClient-free uri.
     throw new MongoConfigurationError(
       `MongoModule connection "${connectionName}" received an empty "uri" option. Pass a non-empty connection string.`,
     );
+  }
 
-  return value;
+  if ('mongoClient' in value && !isNullish(value.mongoClient))
+    throw new MongoConfigurationError(
+      `MongoModule connection "${connectionName}" received a "mongoClient" option that is not a MongoClient (it has no callable "connect"/"db"). Pass a real MongoClient instance.`,
+    );
+
+  throw new MongoConfigurationError(
+    `MongoModule connection "${connectionName}" needs a "uri" or a "mongoClient" option. Pass one of them.`,
+  );
 };
 
 type OptionsSources = {

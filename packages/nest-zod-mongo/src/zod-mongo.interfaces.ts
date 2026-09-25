@@ -19,7 +19,7 @@ export type MongoConnectionOptionsWithUri = MongoConnectionOptionsBase & {
   readonly mongoClient?: never;
 };
 
-type MongoConnectionOptionsWithClient = MongoConnectionOptionsBase & {
+export type MongoConnectionOptionsWithClient = MongoConnectionOptionsBase & {
   readonly mongoClient: MongoClient;
   readonly uri?: never;
   readonly clientOptions?: never;

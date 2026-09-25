@@ -2,12 +2,26 @@ import { MongoClient } from 'mongodb';
 import { describe, it, expect } from 'vitest';
 
 import { MongoConfigurationError } from '../../src/zod-mongo.errors';
+import type { MongoConnectionOptions } from '../../src/zod-mongo.interfaces';
 import {
   ensureConnectionName,
   ensureSingleOptionsSource,
   ensureValidOptions,
   validateOptionsShape,
 } from '../../src/zod-mongo.validation';
+
+// Compile-time proof that `validateOptionsShape` narrows to a shape strictly smaller than
+// `MongoConnectionOptions` — it only ever checked `databaseName`, so it must never claim the full
+// uri-XOR-mongoClient union. If `validateOptionsShape` regresses to `value is MongoConnectionOptions`,
+// this assignment stops needing the `@ts-expect-error` and `typecheck` fails on the unused directive.
+function assertValidateOptionsShapeDoesNotNarrowToMongoConnectionOptions(value: unknown): void {
+  if (validateOptionsShape(value)) {
+    // @ts-expect-error a databaseName-only shape lacks the required uri/mongoClient discriminant
+    const asConnectionOptions: MongoConnectionOptions = value;
+    void asConnectionOptions;
+  }
+}
+void assertValidateOptionsShapeDoesNotNarrowToMongoConnectionOptions;
 
 const setup = () => ({
   ensureConnectionName,
@@ -99,6 +113,79 @@ describe('ensureValidOptions', () => {
     expect(() => sut('orders', emptyUri)).toThrow(MongoConfigurationError);
     expect(() => sut('orders', emptyUri)).toThrow(/"orders"/);
     expect(() => sut('orders', emptyUri)).toThrow(/empty "uri"/);
+  });
+
+  it('rejects an empty databaseName even when a valid uri is present, naming the connection and the remedy', () => {
+    // mongodb 6.21: `new MongoClient('mongodb://localhost/from_uri').db('').databaseName` is
+    // `'from_uri'` — an empty databaseName silently falls back to the URI's database instead of
+    // failing loudly, so it must be rejected before a connection is ever established.
+    const { ensureValidOptions: sut } = setup();
+    const emptyDatabaseName = { databaseName: '', uri: 'mongodb://localhost/from_uri' };
+
+    expect(() => sut('orders', emptyDatabaseName)).toThrow(MongoConfigurationError);
+    expect(() => sut('orders', emptyDatabaseName)).toThrow(/"orders"/);
+    expect(() => sut('orders', emptyDatabaseName)).toThrow(/non-empty "databaseName"/);
+  });
+
+  it('rejects a uri option that is not a string, naming the connection and the field', () => {
+    const { ensureValidOptions: sut } = setup();
+    const nonStringUri = { databaseName: 'db', uri: 42 };
+
+    expect(() => sut('orders', nonStringUri)).toThrow(MongoConfigurationError);
+    expect(() => sut('orders', nonStringUri)).toThrow(/"orders"/);
+    expect(() => sut('orders', nonStringUri)).toThrow(/"uri".*not a string/);
+  });
+
+  it('rejects a mongoClient option that is not structurally a MongoClient, naming the connection and the field', () => {
+    const { ensureValidOptions: sut } = setup();
+    const nonClientMongoClient = { databaseName: 'db', mongoClient: 42 };
+
+    expect(() => sut('orders', nonClientMongoClient)).toThrow(MongoConfigurationError);
+    expect(() => sut('orders', nonClientMongoClient)).toThrow(/"orders"/);
+    expect(() => sut('orders', nonClientMongoClient)).toThrow(/"mongoClient"/);
+  });
+
+  it('rejects a mongoClient option that is an object but has no callable connect/db, naming the field', () => {
+    const { ensureValidOptions: sut } = setup();
+    const objectWithoutClientMethods = { databaseName: 'db', mongoClient: {} };
+
+    expect(() => sut('orders', objectWithoutClientMethods)).toThrow(MongoConfigurationError);
+    expect(() => sut('orders', objectWithoutClientMethods)).toThrow(/"mongoClient"/);
+  });
+
+  it('rejects a structural mongoClient missing close or withSession, which shutdown and transactions call', () => {
+    const { ensureValidOptions: sut } = setup();
+    const partialClient = { connect: () => undefined, db: () => undefined };
+
+    expect(() => sut('orders', { databaseName: 'db', mongoClient: partialClient })).toThrow(
+      /"mongoClient"/,
+    );
+  });
+
+  it('accepts a structural mongoClient (callable connect, db, close and withSession) without instanceof', () => {
+    const { ensureValidOptions: sut } = setup();
+    const structuralClient = {
+      connect: () => undefined,
+      db: () => undefined,
+      close: () => undefined,
+      withSession: () => undefined,
+    };
+    const options = { databaseName: 'db', mongoClient: structuralClient };
+
+    expect(sut('orders', options)).toBe(options);
+  });
+
+  it('counts a malformed uri alongside a valid mongoClient as both sources provided (presence-first, before shape checks)', () => {
+    const { ensureValidOptions: sut } = setup();
+    const bothProvidedOneMalformed = {
+      databaseName: 'db',
+      uri: 42,
+      mongoClient: new MongoClient('mongodb://127.0.0.1:1'),
+    };
+
+    expect(() => sut('orders', bothProvidedOneMalformed)).toThrow(MongoConfigurationError);
+    expect(() => sut('orders', bothProvidedOneMalformed)).toThrow(/"orders"/);
+    expect(() => sut('orders', bothProvidedOneMalformed)).toThrow(/only one/);
   });
 
   it('returns the validated options unchanged when the shape and source are valid', () => {

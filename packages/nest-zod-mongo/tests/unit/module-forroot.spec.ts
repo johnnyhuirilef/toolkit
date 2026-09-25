@@ -14,6 +14,7 @@ const makeFakeClient = (overrides?: Partial<MongoClient>): MongoClient => {
   return {
     connect: vi.fn().mockResolvedValue(undefined),
     close: vi.fn().mockResolvedValue(undefined),
+    withSession: vi.fn(),
     db: vi.fn().mockReturnValue(fakeDatabase),
     ...overrides,
   } as unknown as MongoClient;
