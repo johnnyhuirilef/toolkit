@@ -134,7 +134,7 @@ If removing it would not confuse anyone, do not write it. Never comment what the
 | Check if value is an Error         | `isError(x)`         |
 | Extract message from any throwable | `getErrorMessage(x)` |
 | Check if collection is empty       | `isEmpty(x)`         |
-| Remove nullish keys from object    | `shake(obj)`         |
+| Remove undefined keys from object  | `shake(obj)`         |
 | Wrap a throwing async call         | `tryit(fn)`          |
 
 > **Note:** radashi's `Result` type is a tuple `[error, value]` — incompatible with our

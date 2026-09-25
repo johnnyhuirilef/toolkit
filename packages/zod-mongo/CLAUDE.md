@@ -155,7 +155,7 @@ Do not mix.
 | Error check           | `isError(x)`         |
 | Extract error message | `getErrorMessage(x)` |
 | Empty collection      | `isEmpty(x)`         |
-| Strip nullish keys    | `shake(obj)`         |
+| Strip undefined keys  | `shake(obj)`         |
 | Wrap throwing async   | `tryit(fn)`          |
 
 Do NOT use `toResult`, `isResult`, `isResultOk`, or `isResultErr` from radashi — radashi's `Result`
@@ -237,8 +237,8 @@ Releases update the package root's own `package.json` (`manifestRootsToUpdate: [
   `validation`-kind `DbError` (`MissingIdError`) instead of silently writing without one — a schema
   that names its identity field something other than `_id` (e.g. `id`) is caught this way rather
   than letting MongoDB auto-generate a disconnected `ObjectId`.
-- `shake()` from radashi strips nullish keys from the patch before `$set`. Explicit `null` values in
-  an update patch are therefore silently dropped.
+- `shake()` from radashi strips only `undefined` keys from the patch before `$set`. An explicit
+  `null` reaches `$set` and clears the stored field (pinned by the "explicit null field" tests).
 - `aggregate()` takes an `outputSchema: Out` parameter and parses every output document through it.
   The schema does not have to match the collection's own schema.
 - `syncIndexes` is a no-op when `collection.indexes` is empty (guarded by `isEmpty` from radashi).

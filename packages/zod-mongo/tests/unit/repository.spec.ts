@@ -1373,3 +1373,57 @@ describe('upsertOne — driver failure on the pre-write lookup', () => {
     expect(result.error.message).toContain('connection dropped');
   });
 });
+
+// radashi's shake() drops only undefined keys, so an explicit null in a patch reaches $set and
+// clears the stored field. These tests pin that contract for every method that builds a $set.
+const NullableCollection = defineCollection({
+  name: 'nullable',
+  schema: z.object({ name: z.string(), deletedAt: z.string().nullable() }),
+  idStrategy: 'uuid' as const,
+});
+
+type NullableDoc = { _id: string; name: string; deletedAt: string | null };
+
+const setupNullable = () => {
+  const coll = makeCollection<NullableDoc>();
+  const repo = createRepository(NullableCollection, makeDb(coll));
+  return { coll, repo };
+};
+
+describe('update patches with an explicit null field', () => {
+  it('updateById sends the null field to $set', async () => {
+    const { coll, repo } = setupNullable();
+
+    await repo.updateById('uuid-5', { deletedAt: null });
+
+    expect(coll.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'uuid-5' },
+      { $set: { deletedAt: null } },
+      expect.anything(),
+    );
+  });
+
+  it('updateOne sends the null field to $set', async () => {
+    const { coll, repo } = setupNullable();
+
+    await repo.updateOne({ name: 'Ann' }, { deletedAt: null });
+
+    expect(coll.findOneAndUpdate).toHaveBeenCalledWith(
+      { name: 'Ann' },
+      { $set: { deletedAt: null } },
+      expect.anything(),
+    );
+  });
+
+  it('updateMany sends the null field to $set', async () => {
+    const { coll, repo } = setupNullable();
+
+    await repo.updateMany({ name: 'Ann' }, { deletedAt: null });
+
+    expect(coll.updateMany).toHaveBeenCalledWith(
+      { name: 'Ann' },
+      { $set: { deletedAt: null } },
+      expect.anything(),
+    );
+  });
+});
