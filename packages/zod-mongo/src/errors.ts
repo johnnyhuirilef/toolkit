@@ -18,6 +18,13 @@ export class MissingIdError extends Error {
   override readonly name = 'MissingIdError';
 }
 
+// Thrown synchronously by defineCollection() and createRepository() for a malformed argument —
+// a programmer/configuration mistake caught at setup time, not a runtime data error, so it never
+// flows through toDbError() or Result.
+export class ConfigurationError extends Error {
+  override readonly name = 'ConfigurationError';
+}
+
 const MONGO_DUPLICATE_KEY_CODE = 11_000;
 
 export const toDbError = (error: unknown): DbError => {

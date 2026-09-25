@@ -20,6 +20,7 @@ import type { Repository } from './repository.js';
 import { err, ok } from './result.js';
 import type { Result } from './result.js';
 import { runSafe } from './run-safe.js';
+import { ensureCollectionDefinition, ensureDatabaseLike } from './validation.js';
 
 type RepositoryInternal = { session?: ClientSession };
 
@@ -28,6 +29,8 @@ export const createRepository = <Schema extends ZodCompat, Id extends IdStrategy
   database: DatabaseLike,
   internal: RepositoryInternal = {},
 ): Repository<Schema, Id> => {
+  ensureCollectionDefinition(collection);
+  ensureDatabaseLike(database);
   type TDoc = Doc<Schema, Id>;
   const coll = database.collection<TDoc>(collection.name);
   const schema = collection.schema;
