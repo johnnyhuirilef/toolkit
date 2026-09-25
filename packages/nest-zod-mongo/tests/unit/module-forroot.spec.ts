@@ -1,5 +1,4 @@
-import type { Db, MongoClient } from 'mongodb';
-import { MongoError } from 'mongodb';
+import { MongoClient, MongoError } from 'mongodb';
 import { describe, it, expect, vi } from 'vitest';
 
 import { MongoCoreModule } from '../../src/mongo-core.module';
@@ -9,21 +8,21 @@ import { MongoModule } from '../../src/zod-mongo.module';
 import { establishConnection } from '../../src/zod-mongo.providers';
 import { DEFAULT_CONNECTION_NAME } from '../../src/zod-mongo.tokens';
 
-const makeFakeClient = (overrides?: Partial<MongoClient>): MongoClient => {
-  const fakeDatabase = { collection: vi.fn() } as unknown as Db;
-  return {
-    connect: vi.fn().mockResolvedValue(undefined),
-    close: vi.fn().mockResolvedValue(undefined),
-    withSession: vi.fn(),
-    db: vi.fn().mockReturnValue(fakeDatabase),
-    ...overrides,
-  } as unknown as MongoClient;
+// A real but unconnected MongoClient exercises real Nest DI offline: `client.db()` needs no live
+// server, and stubbing `connect`/`close` keeps shutdown deterministic — same pattern as
+// mongo-core.module.spec.ts. It is also the only shape `ensureValidOptions` now accepts for
+// `mongoClient` (`instanceof MongoClient`, not a structural fake).
+const makeUnconnectedClient = (): MongoClient => {
+  const client = new MongoClient('mongodb://127.0.0.1:1');
+  vi.spyOn(client, 'connect').mockResolvedValue(client);
+  vi.spyOn(client, 'close').mockResolvedValue(undefined);
+  return client;
 };
 
 const setup = () => {
-  const fakeClient = makeFakeClient();
-  const options: MongoOptions = { mongoClient: fakeClient, databaseName: 'test_db' };
-  return { fakeClient, options };
+  const mongoClient = makeUnconnectedClient();
+  const options: MongoOptions = { mongoClient, databaseName: 'test_db' };
+  return { mongoClient, options };
 };
 
 describe('MongoModule.forRoot', () => {

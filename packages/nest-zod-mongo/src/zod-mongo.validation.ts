@@ -1,4 +1,4 @@
-import type { MongoClient } from 'mongodb';
+import { MongoClient } from 'mongodb';
 import { isEmpty, isObject, isNullish } from 'radashi';
 
 import { MongoConfigurationError } from './zod-mongo.errors';
@@ -47,21 +47,6 @@ const describeInvalidShape = (value: unknown): string => (value === null ? 'null
 export const hasUri = (options: MongoConnectionOptions): options is MongoConnectionOptionsWithUri =>
   'uri' in options && typeof options.uri === 'string';
 
-// STRUCTURAL check, not `instanceof MongoClient` — a client built from a second, hoisted copy of
-// the `mongodb` driver is a real, usable client but fails `instanceof` against this package's own
-// import of the class. It requires every member this package calls on a client: `connect` and
-// `db` (connection), `close` (shutdown) and `withSession` (transactions).
-const isMongoClientLike = (value: unknown): value is MongoClient =>
-  isObject(value) &&
-  'connect' in value &&
-  typeof value.connect === 'function' &&
-  'db' in value &&
-  typeof value.db === 'function' &&
-  'close' in value &&
-  typeof value.close === 'function' &&
-  'withSession' in value &&
-  typeof value.withSession === 'function';
-
 // Each predicate below genuinely verifies its member's full shape (including the other field's
 // absence), so declaring the narrower `MongoConnectionOptionsWith*` return type is truthful, not a
 // disguised cast — same idiom as `hasUri` above. `ensureValidOptions` tries both positively first;
@@ -78,7 +63,9 @@ const isValidMongoClientOptions = (
   value: DatabaseNameShape,
 ): value is DatabaseNameShape & MongoConnectionOptionsWithClient =>
   'mongoClient' in value &&
-  isMongoClientLike(value.mongoClient) &&
+  // `instanceof`, not a method-name check: a structural check cannot justify the full MongoClient
+  // type exposed to consumers. `mongodb` is a peer dependency, so the app supplies this same copy.
+  value.mongoClient instanceof MongoClient &&
   !('uri' in value && !isNullish(value.uri));
 
 export const ensureValidOptions = (
@@ -126,7 +113,7 @@ export const ensureValidOptions = (
 
   if ('mongoClient' in value && !isNullish(value.mongoClient))
     throw new MongoConfigurationError(
-      `MongoModule connection "${connectionName}" received a "mongoClient" option that is not a MongoClient (it has no callable "connect"/"db"). Pass a real MongoClient instance.`,
+      `MongoModule connection "${connectionName}" received a "mongoClient" option that is not an instance of MongoClient. Pass a MongoClient built from the same "mongodb" package your app depends on.`,
     );
 
   throw new MongoConfigurationError(

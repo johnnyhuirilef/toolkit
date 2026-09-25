@@ -136,7 +136,7 @@ describe('ensureValidOptions', () => {
     expect(() => sut('orders', nonStringUri)).toThrow(/"uri".*not a string/);
   });
 
-  it('rejects a mongoClient option that is not structurally a MongoClient, naming the connection and the field', () => {
+  it('rejects a mongoClient option that is not an instance of MongoClient, naming the connection and the field', () => {
     const { ensureValidOptions: sut } = setup();
     const nonClientMongoClient = { databaseName: 'db', mongoClient: 42 };
 
@@ -145,32 +145,28 @@ describe('ensureValidOptions', () => {
     expect(() => sut('orders', nonClientMongoClient)).toThrow(/"mongoClient"/);
   });
 
-  it('rejects a mongoClient option that is an object but has no callable connect/db, naming the field', () => {
+  // mongodb is a peerDependency: a plain object exposing the same four method names a MongoClient
+  // has (connect/db/close/withSession) is NOT a real client — it would be exposed as one and
+  // `db()` returning `undefined` would leak `undefined` as a Db. Only `instanceof MongoClient`,
+  // checked against this package's own `mongodb` import, is accepted.
+  it('rejects a mongoClient impostor exposing connect, db, close and withSession but not an instance of MongoClient', () => {
     const { ensureValidOptions: sut } = setup();
-    const objectWithoutClientMethods = { databaseName: 'db', mongoClient: {} };
-
-    expect(() => sut('orders', objectWithoutClientMethods)).toThrow(MongoConfigurationError);
-    expect(() => sut('orders', objectWithoutClientMethods)).toThrow(/"mongoClient"/);
-  });
-
-  it('rejects a structural mongoClient missing close or withSession, which shutdown and transactions call', () => {
-    const { ensureValidOptions: sut } = setup();
-    const partialClient = { connect: () => undefined, db: () => undefined };
-
-    expect(() => sut('orders', { databaseName: 'db', mongoClient: partialClient })).toThrow(
-      /"mongoClient"/,
-    );
-  });
-
-  it('accepts a structural mongoClient (callable connect, db, close and withSession) without instanceof', () => {
-    const { ensureValidOptions: sut } = setup();
-    const structuralClient = {
+    const impostor = {
       connect: () => undefined,
       db: () => undefined,
       close: () => undefined,
       withSession: () => undefined,
     };
-    const options = { databaseName: 'db', mongoClient: structuralClient };
+    const options = { databaseName: 'db', mongoClient: impostor };
+
+    expect(() => sut('orders', options)).toThrow(MongoConfigurationError);
+    expect(() => sut('orders', options)).toThrow(/"orders"/);
+    expect(() => sut('orders', options)).toThrow(/"mongoClient"/);
+  });
+
+  it('accepts a real MongoClient instance from the mongodb package without connecting', () => {
+    const { ensureValidOptions: sut } = setup();
+    const options = { databaseName: 'db', mongoClient: new MongoClient('mongodb://127.0.0.1:1') };
 
     expect(sut('orders', options)).toBe(options);
   });
