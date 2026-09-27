@@ -1,0 +1,90 @@
+import type { FactoryProvider } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { MongoClient } from 'mongodb';
+import type { Db } from 'mongodb';
+import { describe, it, expect, vi } from 'vitest';
+
+import { MongoCoreModule } from '../../src/mongo-core.module';
+import type { MongoClientWrapper, MongoOptions } from '../../src/zod-mongo.interfaces';
+import {
+  getConnectionToken,
+  getClientWrapperToken,
+  MONGO_CORE_OPTIONS,
+} from '../../src/zod-mongo.tokens';
+
+// A real but unconnected MongoClient exercises real Nest DI offline: client.db() needs no server,
+// and stubbing `close` keeps shutdown deterministic.
+const makeUnconnectedClient = (): MongoClient => {
+  const client = new MongoClient('mongodb://127.0.0.1:1');
+  vi.spyOn(client, 'connect').mockResolvedValue(client);
+  vi.spyOn(client, 'close').mockResolvedValue(undefined);
+  return client;
+};
+
+const setup = async (options: MongoOptions) => {
+  const moduleReference = await Test.createTestingModule({
+    imports: [MongoCoreModule.forRoot(options)],
+  }).compile();
+  return { moduleReference };
+};
+
+describe('MongoCoreModule.forRoot', () => {
+  it('resolves a Db and a MongoClientWrapper for the connection name', async () => {
+    const mongoClient = makeUnconnectedClient();
+    const options: MongoOptions = { mongoClient, databaseName: 'core_test' };
+
+    const { moduleReference } = await setup(options);
+    const database = moduleReference.get<Db>(getConnectionToken());
+    const wrapper = moduleReference.get<MongoClientWrapper>(getClientWrapperToken());
+
+    expect(database).toBeDefined();
+    expect(typeof wrapper.close).toBe('function');
+
+    await moduleReference.close();
+  });
+
+  it('the static options useFactory closure is invoked, never useValue (no mongoClient reference in module metadata)', () => {
+    const mongoClient = makeUnconnectedClient();
+    const options: MongoOptions = { mongoClient, databaseName: 'core_test_metadata' };
+
+    const dynamicModule = MongoCoreModule.forRoot(options);
+    const providers = dynamicModule.providers ?? [];
+    const optionsProvider = providers.find(
+      (provider): provider is FactoryProvider =>
+        typeof provider === 'object' &&
+        'provide' in provider &&
+        'useFactory' in provider &&
+        provider.provide === MONGO_CORE_OPTIONS,
+    );
+
+    expect(optionsProvider).toBeDefined();
+    expect(optionsProvider).toHaveProperty('useFactory');
+    expect(optionsProvider).not.toHaveProperty('useValue');
+  });
+});
+
+describe('MongoCoreModule#onApplicationShutdown', () => {
+  it('autoCloseConnection:false skips closeConnection on shutdown (close spy count 0)', async () => {
+    const mongoClient = makeUnconnectedClient();
+    const options: MongoOptions = {
+      mongoClient,
+      databaseName: 'core_test_no_autoclose',
+      autoCloseConnection: false,
+    };
+    const { moduleReference } = await setup(options);
+
+    await moduleReference.close();
+
+    expect(mongoClient.close).not.toHaveBeenCalled();
+  });
+
+  it('omitting autoCloseConnection closes the client by default on shutdown (close spy count 1)', async () => {
+    const mongoClient = makeUnconnectedClient();
+    const options: MongoOptions = { mongoClient, databaseName: 'core_test_default_autoclose' };
+    const { moduleReference } = await setup(options);
+
+    await moduleReference.close();
+
+    expect(mongoClient.close).toHaveBeenCalledTimes(1);
+  });
+});

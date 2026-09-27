@@ -9,7 +9,11 @@ import {
   InjectConnection,
   InjectClientWrapper,
 } from '../../src/zod-mongo.decorators';
-import { DEFAULT_CONNECTION, getClientWrapperToken } from '../../src/zod-mongo.tokens';
+import {
+  getConnectionToken,
+  getClientWrapperToken,
+  getRepositoryToken,
+} from '../../src/zod-mongo.tokens';
 
 const UserCollection = defineCollection({
   name: 'users',
@@ -38,29 +42,29 @@ const expectSameInjectMetadata = (decorator: ParameterDecorator, expectedToken: 
 };
 
 describe('InjectRepository', () => {
-  it('returns Inject("usersRepository") for default connection with CollectionDef', () => {
-    expectSameInjectMetadata(InjectRepository(UserCollection), 'usersRepository');
+  it('returns Inject(getRepositoryToken(...)) for default connection with CollectionDef', () => {
+    expectSameInjectMetadata(InjectRepository(UserCollection), getRepositoryToken('users'));
   });
 
-  it('returns Inject("analytics_ordersRepository") for named connection with CollectionDef', () => {
+  it('returns Inject(getRepositoryToken(..., "analytics")) for named connection with CollectionDef', () => {
     expectSameInjectMetadata(
       InjectRepository(OrderCollection, 'analytics'),
-      'analytics_ordersRepository',
+      getRepositoryToken('orders', 'analytics'),
     );
   });
 
   it('accepts a plain string name', () => {
-    expectSameInjectMetadata(InjectRepository('products'), 'productsRepository');
+    expectSameInjectMetadata(InjectRepository('products'), getRepositoryToken('products'));
   });
 });
 
 describe('InjectConnection', () => {
-  it('returns Inject(DEFAULT_CONNECTION) when no connectionName', () => {
-    expectSameInjectMetadata(InjectConnection(), DEFAULT_CONNECTION);
+  it('returns Inject(getConnectionToken()) when no connectionName', () => {
+    expectSameInjectMetadata(InjectConnection(), getConnectionToken());
   });
 
-  it('returns Inject("primary") for named connection', () => {
-    expectSameInjectMetadata(InjectConnection('primary'), 'primary');
+  it('returns Inject(getConnectionToken("primary")) for named connection', () => {
+    expectSameInjectMetadata(InjectConnection('primary'), getConnectionToken('primary'));
   });
 });
 

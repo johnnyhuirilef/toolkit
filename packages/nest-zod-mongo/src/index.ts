@@ -9,14 +9,20 @@ export {
   getRepositoryToken,
   getConnectionToken,
   getClientWrapperToken,
-  DEFAULT_CONNECTION,
+  DEFAULT_CONNECTION_NAME,
 } from './zod-mongo.tokens';
 
 // Error types
 export { MongoConnectionError, MongoConfigurationError } from './zod-mongo.errors';
 
 // Option types
-export type { MongoOptions, MongoAsyncOptions, MongoClientWrapper } from './zod-mongo.interfaces';
+export type {
+  MongoOptions,
+  MongoConnectionOptions,
+  MongoAsyncOptions,
+  MongoOptionsFactory,
+  MongoClientWrapper,
+} from './zod-mongo.interfaces';
 
 // Health check (opt-in — requires @nestjs/terminus peer dep)
 export { MongoHealthIndicator } from './health/mongo-health.indicator.js';

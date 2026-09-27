@@ -1,12 +1,15 @@
-import type { FactoryProvider } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 import { defineCollection } from '@wenu/mongo';
+import type { Repository } from '@wenu/mongo';
+import { MongoClient } from 'mongodb';
+import type { Db } from 'mongodb';
 import { describe, it, expect, vi } from 'vitest';
 import * as z from 'zod';
 
-import type { MongoOptions } from '../../src/zod-mongo.interfaces';
+import { MongoConfigurationError } from '../../src/zod-mongo.errors';
 import { MongoModule } from '../../src/zod-mongo.module';
 import { createRepositoryProviders } from '../../src/zod-mongo.providers';
-import { getRepositoryToken, ZOD_MONGO_MODULE_OPTIONS } from '../../src/zod-mongo.tokens';
+import { getConnectionToken, getRepositoryToken } from '../../src/zod-mongo.tokens';
 
 const UserCollection = defineCollection({
   name: 'users',
@@ -20,65 +23,108 @@ const OrderCollection = defineCollection({
   idStrategy: 'objectid',
 });
 
-const setup = () => {
-  const fakeCollection = {
-    findOne: vi.fn(),
-    insertOne: vi.fn(),
-    createIndexes: vi.fn().mockResolvedValue([]),
-    listIndexes: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue([]) }),
-  };
-  // ponytail: useFactory is (...args: any[]) per FactoryProvider, so structural
-  // literals flow in without pretending to be the nominal Db / full MongoOptions
-  const fakeDatabase = {
-    collection: vi.fn().mockReturnValue(fakeCollection),
-  };
-  const fakeOptions = {
-    databaseName: 'test',
-    syncIndexes: false,
-  } satisfies Partial<MongoOptions>;
-  const providers = createRepositoryProviders([UserCollection]) as FactoryProvider[];
-  const repositoryProvider = providers.find((p) => p.provide === getRepositoryToken('users'));
+type UserRepo = Repository<typeof UserCollection.schema, 'objectid'>;
+type OrderRepo = Repository<typeof OrderCollection.schema, 'objectid'>;
 
-  return { fakeDatabase, fakeOptions, providers, repositoryProvider };
+// A real but unconnected MongoClient exercises real Nest DI offline (`client.db()` needs no live
+// server), mirroring tests/unit/mongo-core.module.spec.ts — proving the wiring through the actual
+// DI container instead of calling a provider's `useFactory` by hand with fabricated arguments.
+const makeUnconnectedClient = (): MongoClient => {
+  const client = new MongoClient('mongodb://127.0.0.1:1');
+  vi.spyOn(client, 'connect').mockResolvedValue(client);
+  vi.spyOn(client, 'close').mockResolvedValue(undefined);
+  return client;
+};
+
+const setup = async () => {
+  const moduleReference = await Test.createTestingModule({
+    imports: [
+      MongoModule.forRoot({
+        mongoClient: makeUnconnectedClient(),
+        databaseName: 'forfeature_test',
+      }),
+      MongoModule.forFeature([UserCollection]),
+    ],
+  }).compile();
+  return { moduleReference };
+};
+
+const setupNamedConnection = async () => {
+  const moduleReference = await Test.createTestingModule({
+    imports: [
+      MongoModule.forRoot({
+        mongoClient: makeUnconnectedClient(),
+        databaseName: 'analytics_db',
+        connectionName: 'analytics',
+      }),
+      MongoModule.forFeature([OrderCollection], 'analytics'),
+    ],
+  }).compile();
+  return { moduleReference };
+};
+
+const setupTwoConnections = async () => {
+  const moduleReference = await Test.createTestingModule({
+    imports: [
+      MongoModule.forRoot({
+        mongoClient: makeUnconnectedClient(),
+        databaseName: 'db_a',
+        connectionName: 'a',
+      }),
+      MongoModule.forRoot({
+        mongoClient: makeUnconnectedClient(),
+        databaseName: 'db_b',
+        connectionName: 'b',
+      }),
+      MongoModule.forFeature([UserCollection], 'a'),
+      MongoModule.forFeature([UserCollection], 'b'),
+    ],
+  }).compile();
+  return { moduleReference };
 };
 
 describe('MongoModule.forFeature', () => {
-  it('forFeature returns providers with correct repository token', () => {
-    const dynamicModule = MongoModule.forFeature([UserCollection]);
-    const providers = dynamicModule.providers as FactoryProvider[];
-    const tokens = providers.map((p) => p.provide);
-    expect(tokens).toContain(getRepositoryToken('users'));
-  });
-
-  it('assigns the named-connection repository token when a connection name is given', () => {
-    const providers = createRepositoryProviders(
-      [OrderCollection],
-      'analytics',
-    ) as FactoryProvider[];
-    expect(providers[0]?.provide).toBe(getRepositoryToken('orders', 'analytics'));
-  });
-
   it('creates exactly one provider per collection', () => {
-    // Arrange / Act
     const providers = createRepositoryProviders([UserCollection, OrderCollection]);
 
-    // Assert
     expect(providers).toHaveLength(2);
   });
 
-  it('resolves a repository under @InjectRepository(UserCollection)', async () => {
-    const { fakeDatabase, fakeOptions, repositoryProvider } = setup();
-    expect(repositoryProvider).toBeDefined();
+  it('resolves an injectable repository for the default connection through real Nest DI', async () => {
+    const { moduleReference } = await setup();
 
-    if (repositoryProvider === undefined) throw new Error('Repository provider not found');
-    const repo = await repositoryProvider.useFactory(fakeDatabase, fakeOptions);
-    expect(repo).toBeDefined();
-    expect(typeof repo.findById).toBe('function');
-    expect(typeof repo.insert).toBe('function');
+    const repository = moduleReference.get<UserRepo>(getRepositoryToken('users'));
+    expect(typeof repository.findById).toBe('function');
+    expect(typeof repository.insert).toBe('function');
+
+    await moduleReference.close();
   });
 
-  it('inject array includes getConnectionToken and ZOD_MONGO_MODULE_OPTIONS', () => {
-    const { repositoryProvider } = setup();
-    expect(repositoryProvider?.inject).toContain(ZOD_MONGO_MODULE_OPTIONS);
+  it('resolves an injectable repository under the named-connection repository token', async () => {
+    const { moduleReference } = await setupNamedConnection();
+
+    const repository = moduleReference.get<OrderRepo>(getRepositoryToken('orders', 'analytics'));
+    expect(typeof repository.findById).toBe('function');
+
+    await moduleReference.close();
+  });
+
+  it("wires connection b's repository to connection b's Db, not connection a's", async () => {
+    const { moduleReference } = await setupTwoConnections();
+
+    const databaseA = moduleReference.get<Db>(getConnectionToken('a'));
+    const databaseB = moduleReference.get<Db>(getConnectionToken('b'));
+    const repositoryB = moduleReference.get<UserRepo>(getRepositoryToken('users', 'b'));
+
+    expect(databaseA.databaseName).toBe('db_a');
+    expect(databaseB.databaseName).toBe('db_b');
+    expect(databaseA).not.toBe(databaseB);
+    expect(typeof repositoryB.findById).toBe('function');
+
+    await moduleReference.close();
+  });
+
+  it('rejects a connection name containing "/"', () => {
+    expect(() => MongoModule.forFeature([UserCollection], 'a/b')).toThrow(MongoConfigurationError);
   });
 });

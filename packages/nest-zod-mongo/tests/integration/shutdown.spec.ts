@@ -1,16 +1,12 @@
+import { Logger } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 import { MongoClient } from 'mongodb';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
-import { shutdownAll } from '../../src/shutdown';
-import type { ClientResolver } from '../../src/shutdown';
-import type { MongoClientWrapper } from '../../src/zod-mongo.interfaces';
+import { MongoModule } from '../../src/zod-mongo.module';
 import { establishConnection } from '../../src/zod-mongo.providers';
-import { getClientWrapperToken } from '../../src/zod-mongo.tokens';
-
-const buildModuleReference = (wrappers: Record<string, MongoClientWrapper>): ClientResolver => ({
-  get: (token: string) => wrappers[token],
-});
+import { DEFAULT_CONNECTION_NAME } from '../../src/zod-mongo.tokens';
 
 describe('Graceful shutdown (integration)', () => {
   beforeAll(async () => {
@@ -21,8 +17,12 @@ describe('Graceful shutdown (integration)', () => {
     await stopContainer();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('closes MongoClient gracefully via wrapper.close()', async () => {
-    const { wrapper } = await establishConnection({
+    const { wrapper } = await establishConnection(DEFAULT_CONNECTION_NAME, {
       uri: getUri(),
       databaseName: 'test_shutdown',
       clientOptions,
@@ -31,40 +31,8 @@ describe('Graceful shutdown (integration)', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('shutdownAll closes all connections and returns summary', async () => {
-    const resultA = await establishConnection({
-      uri: getUri(),
-      databaseName: 'shutdown_a',
-      connectionName: 'a',
-      clientOptions,
-    });
-    const resultB = await establishConnection({
-      uri: getUri(),
-      databaseName: 'shutdown_b',
-      connectionName: 'b',
-      clientOptions,
-    });
-
-    const tokenA = getClientWrapperToken('a');
-    const tokenB = getClientWrapperToken('b');
-    const moduleReference = buildModuleReference({
-      [tokenA]: resultA.wrapper,
-      [tokenB]: resultB.wrapper,
-    });
-
-    const summary = await shutdownAll([tokenA, tokenB], moduleReference, {
-      timeoutMs: 5000,
-      retryAttempts: 1,
-      forceClose: false,
-    });
-
-    expect(summary.total).toBe(2);
-    expect(summary.closed).toBe(2);
-    expect(summary.failed).toBe(0);
-  });
-
   it('wrapper.close() resolves ok and client is no longer usable after close', async () => {
-    const { wrapper, db: database_ } = await establishConnection({
+    const { wrapper, db: database_ } = await establishConnection(DEFAULT_CONNECTION_NAME, {
       uri: getUri(),
       databaseName: 'test_close_check',
       clientOptions,
@@ -79,7 +47,7 @@ describe('Graceful shutdown (integration)', () => {
   });
 
   it('MongoClientWrapper.client exposes the underlying MongoClient', async () => {
-    const { wrapper } = await establishConnection({
+    const { wrapper } = await establishConnection(DEFAULT_CONNECTION_NAME, {
       uri: getUri(),
       databaseName: 'test_client_ref',
       clientOptions,
@@ -87,4 +55,64 @@ describe('Graceful shutdown (integration)', () => {
     expect(wrapper.client).toBeInstanceOf(MongoClient);
     await wrapper.close();
   });
+
+  it("connection a's shutdown failure does not block connection b's shutdown; the outcome reports a as failed and b as closed", async () => {
+    const clientA = new MongoClient(getUri(), clientOptions);
+    await clientA.connect();
+    vi.spyOn(clientA, 'close').mockRejectedValue(new Error('boom'));
+    const clientB = new MongoClient(getUri(), clientOptions);
+
+    const errorSpy = vi.spyOn(Logger, 'error').mockImplementation(vi.fn());
+    const logSpy = vi.spyOn(Logger, 'log').mockImplementation(vi.fn());
+
+    const moduleReference = await Test.createTestingModule({
+      imports: [
+        MongoModule.forRoot({
+          mongoClient: clientA,
+          databaseName: 'test_shutdown_a',
+          connectionName: 'a',
+          shutdownRetryAttempts: 1,
+        }),
+        MongoModule.forRoot({
+          mongoClient: clientB,
+          databaseName: 'test_shutdown_b',
+          connectionName: 'b',
+        }),
+      ],
+    }).compile();
+
+    try {
+      await moduleReference.close();
+
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('"a"'), 'MongoModule');
+      expect(logSpy).toHaveBeenCalledWith(expect.stringMatching(/"b".*closed/), 'MongoModule');
+    } finally {
+      // The mocked close() left clientA's real connection open; restore the mock and close it
+      // for real so this test doesn't leak a connection into the rest of the suite.
+      vi.mocked(clientA.close).mockRestore();
+      await clientA.close();
+      await clientB.close();
+    }
+  }, 30_000);
+
+  it('autoCloseConnection:false leaves the mongoClient usable (able to execute a command) after app.close()', async () => {
+    const mongoClient = new MongoClient(getUri(), clientOptions);
+
+    const moduleReference = await Test.createTestingModule({
+      imports: [
+        MongoModule.forRoot({
+          mongoClient,
+          databaseName: 'test_autoclose_false',
+          autoCloseConnection: false,
+        }),
+      ],
+    }).compile();
+
+    await moduleReference.close();
+
+    const ping = await mongoClient.db('test_autoclose_false').command({ ping: 1 });
+    expect(ping['ok']).toBe(1);
+
+    await mongoClient.close();
+  }, 30_000);
 });

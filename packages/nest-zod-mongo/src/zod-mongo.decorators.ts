@@ -6,12 +6,12 @@ import { getRepositoryToken, getConnectionToken, getClientWrapperToken } from '.
 
 export const InjectRepository = (
   collection: string | CollectionDef<ZodCompat, IdStrategy>,
-  connectionName?: string | symbol,
+  connectionName?: string,
 ): ParameterDecorator =>
   Inject(getRepositoryToken(isString(collection) ? collection : collection.name, connectionName));
 
-export const InjectConnection = (connectionName?: string | symbol): ParameterDecorator =>
+export const InjectConnection = (connectionName?: string): ParameterDecorator =>
   Inject(getConnectionToken(connectionName));
 
-export const InjectClientWrapper = (connectionName?: string | symbol): ParameterDecorator =>
+export const InjectClientWrapper = (connectionName?: string): ParameterDecorator =>
   Inject(getClientWrapperToken(connectionName));

@@ -1,9 +1,13 @@
-import type { Db, MongoClient } from 'mongodb';
+import { Test } from '@nestjs/testing';
+import type { Db } from 'mongodb';
+import { MongoClient } from 'mongodb';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
-import type { MongoAsyncOptions } from '../../src/zod-mongo.interfaces';
-import { establishConnection, createAsyncConnectionProviders } from '../../src/zod-mongo.providers';
+import type { MongoConnectionOptions } from '../../src/zod-mongo.interfaces';
+import { MongoModule } from '../../src/zod-mongo.module';
+import { establishConnection, createOptionsProviders } from '../../src/zod-mongo.providers';
+import { DEFAULT_CONNECTION_NAME, MONGO_CORE_OPTIONS } from '../../src/zod-mongo.tokens';
 
 let database: Db;
 let client: MongoClient;
@@ -11,9 +15,11 @@ let client: MongoClient;
 describe('establishConnection via useFactory (forRootAsync integration)', () => {
   beforeAll(async () => {
     await startContainer();
-    const useFactory = vi.fn(() => ({ uri: getUri(), databaseName: 'test_async', clientOptions }));
+    const useFactory = vi.fn(
+      (): MongoConnectionOptions => ({ uri: getUri(), databaseName: 'test_async', clientOptions }),
+    );
     const options = useFactory();
-    const result = await establishConnection(options);
+    const result = await establishConnection(DEFAULT_CONNECTION_NAME, options);
     database = result.db;
     client = result.wrapper.client;
   }, 90_000);
@@ -29,9 +35,15 @@ describe('establishConnection via useFactory (forRootAsync integration)', () => 
   });
 
   it('factory runs once and its output is passed to establishConnection', async () => {
-    const factory = vi.fn(() => ({ uri: getUri(), databaseName: 'test_async_2', clientOptions }));
+    const factory = vi.fn(
+      (): MongoConnectionOptions => ({
+        uri: getUri(),
+        databaseName: 'test_async_2',
+        clientOptions,
+      }),
+    );
     const options = factory();
-    const { wrapper } = await establishConnection(options);
+    const { wrapper } = await establishConnection(DEFAULT_CONNECTION_NAME, options);
     const result = await wrapper.client.db('test_async_2').command({ ping: 1 });
     expect(result['ok']).toBe(1);
     expect(factory).toHaveBeenCalledTimes(1);
@@ -39,52 +51,57 @@ describe('establishConnection via useFactory (forRootAsync integration)', () => 
   });
 });
 
-describe('createAsyncConnectionProviders with cross-provider inject', () => {
+describe('createOptionsProviders with cross-provider inject (forRootAsync integration)', () => {
   beforeAll(startContainer, 90_000);
   afterAll(stopContainer);
 
-  it('useFactory receives injected dependencies and resolves options', async () => {
-    // Simulate a ConfigService-like provider injected via `inject`
-    const CONFIG_SERVICE = 'CONFIG_SERVICE';
+  it('useFactory receives injected dependencies and resolves usable options', async () => {
+    // Simulate a ConfigService-like provider injected via `inject`.
     const configService = { get: (key: string) => (key === 'MONGO_URI' ? getUri() : 'test_cross') };
 
-    const asyncOptions: MongoAsyncOptions = {
-      inject: [CONFIG_SERVICE],
-      useFactory: (...arguments_: readonly unknown[]) => {
-        const config = arguments_[0] as typeof configService;
-        return {
-          uri: config.get('MONGO_URI'),
-          databaseName: config.get('MONGO_DB'),
-          clientOptions,
-        };
-      },
-    };
+    const providers = createOptionsProviders('default', {
+      inject: ['CONFIG_SERVICE'],
+      useFactory: (config: typeof configService): MongoConnectionOptions => ({
+        uri: config.get('MONGO_URI'),
+        databaseName: config.get('MONGO_DB'),
+        clientOptions,
+      }),
+    }) as readonly {
+      readonly provide: unknown;
+      readonly useFactory: (...arguments_: unknown[]) => unknown;
+    }[];
 
-    const providers = createAsyncConnectionProviders(asyncOptions);
-    // The establish provider is always the first one
-    const establishProvider = providers[0] as {
-      useFactory: (
-        ...arguments_: unknown[]
-      ) => Promise<{ db: Db; wrapper: { client: MongoClient } }>;
-    };
+    const optionsProvider = providers.find((provider) => provider.provide === MONGO_CORE_OPTIONS);
+    if (optionsProvider === undefined) throw new Error('Options provider not found');
+    const resolvedOptions = optionsProvider.useFactory(configService) as MongoConnectionOptions;
 
-    const { db, wrapper } = await establishProvider.useFactory(configService);
+    const { db, wrapper } = await establishConnection(DEFAULT_CONNECTION_NAME, resolvedOptions);
     const result = await db.command({ ping: 1 });
     expect(result['ok']).toBe(1);
     await wrapper.client.close();
   });
 
-  it('useFactory inject array is forwarded to the establish provider', () => {
-    const TOKEN_A = 'TOKEN_A';
-    const TOKEN_B = Symbol('TOKEN_B');
+  it('a forRootAsync connection is closed on app.close()', async () => {
+    const sharedClient = new MongoClient(getUri(), clientOptions);
+    let topologyClosed = false;
+    sharedClient.on('topologyClosed', () => {
+      topologyClosed = true;
+    });
 
-    const asyncOptions: MongoAsyncOptions = {
-      inject: [TOKEN_A, TOKEN_B],
-      useFactory: () => ({ uri: 'mongodb://localhost', databaseName: 'x' }),
-    };
+    const moduleReference = await Test.createTestingModule({
+      imports: [
+        MongoModule.forRootAsync({
+          connectionName: 'async_close',
+          useFactory: (): MongoConnectionOptions => ({
+            mongoClient: sharedClient,
+            databaseName: 'test_async_close',
+          }),
+        }),
+      ],
+    }).compile();
 
-    const providers = createAsyncConnectionProviders(asyncOptions);
-    const establishProvider = providers[0] as { inject: unknown[] };
-    expect(establishProvider.inject).toEqual([TOKEN_A, TOKEN_B]);
-  });
+    await moduleReference.close();
+
+    expect(topologyClosed).toBe(true);
+  }, 30_000);
 });

@@ -6,6 +6,7 @@ import * as z from 'zod';
 
 import { startContainer, stopContainer, getUri, clientOptions } from './setup';
 import { establishConnection, createRepositoryProviders } from '../../src/zod-mongo.providers';
+import { DEFAULT_CONNECTION_NAME } from '../../src/zod-mongo.tokens';
 
 const UserCollection = defineCollection({
   name: 'users',
@@ -22,7 +23,7 @@ let client: MongoClient;
 describe('createRepositoryProviders (forFeature integration)', () => {
   beforeAll(async () => {
     await startContainer();
-    const result = await establishConnection({
+    const result = await establishConnection(DEFAULT_CONNECTION_NAME, {
       uri: getUri(),
       databaseName: 'test_forfeature',
       clientOptions,
@@ -52,10 +53,9 @@ describe('createRepositoryProviders (forFeature integration)', () => {
   });
 
   it('isolates repositories per named connection — tokens differ', async () => {
-    const analyticsResult = await establishConnection({
+    const analyticsResult = await establishConnection('analytics', {
       uri: getUri(),
       databaseName: 'analytics_db',
-      connectionName: 'analytics',
       clientOptions,
     });
     const analyticsRepo = createRepository(

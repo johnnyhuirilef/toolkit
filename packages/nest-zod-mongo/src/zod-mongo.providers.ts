@@ -1,37 +1,37 @@
 import { Logger } from '@nestjs/common';
-import type { Provider, InjectionToken } from '@nestjs/common';
+import type { Provider } from '@nestjs/common';
 import { ok, err, toDbError, createRepository, syncIndexes } from '@wenu/mongo';
 import type { CollectionDef, ZodCompat, IdStrategy } from '@wenu/mongo';
 import { MongoClient } from 'mongodb';
 import type { Db } from 'mongodb';
 import { isNullish, tryit } from 'radashi';
 
-import { MongoConfigurationError, MongoConnectionError } from './zod-mongo.errors';
-import type { MongoOptions, MongoAsyncOptions, MongoClientWrapper } from './zod-mongo.interfaces';
+import { MongoConnectionError } from './zod-mongo.errors';
+import type {
+  MongoConnectionOptions,
+  MongoAsyncOptions,
+  MongoClientWrapper,
+  MongoConnection,
+  MongoOptionsFactory,
+} from './zod-mongo.interfaces';
 import {
   getConnectionToken,
-  getClientWrapperToken,
+  getOptionsToken,
   getRepositoryToken,
-  ZOD_MONGO_CONNECTION_TOKENS,
-  ZOD_MONGO_MODULE_OPTIONS,
+  MONGO_CORE_OPTIONS,
 } from './zod-mongo.tokens';
+import { ensureSingleOptionsSource, ensureValidOptions, hasUri } from './zod-mongo.validation';
 
 // --- Connection trio (pure functions, no NestJS, no logging) ---
 
-const ensureValidOptions = (options: MongoOptions): MongoOptions => {
-  if (!('uri' in options && options.uri) && !('mongoClient' in options && options.mongoClient))
-    throw new MongoConfigurationError('Provide either "uri" or "mongoClient".');
-  return options;
-};
-
-const resolveClient = (options: MongoOptions): MongoClient =>
-  'mongoClient' in options && options.mongoClient !== undefined
-    ? options.mongoClient
-    : new MongoClient(options.uri, options.clientOptions);
+// `hasUri` is a type predicate, so the `else` branch narrows to the mongoClient member of the
+// union without a cast — reusing the same "has a uri" rule `ensureValidOptions` validates against.
+const resolveClient = (options: MongoConnectionOptions): MongoClient =>
+  hasUri(options) ? new MongoClient(options.uri, options.clientOptions) : options.mongoClient;
 
 const connectAndWrap = async (
   client: MongoClient,
-  options: MongoOptions,
+  options: MongoConnectionOptions,
 ): Promise<{ readonly db: Db; readonly wrapper: MongoClientWrapper }> => {
   const [error] = await tryit(() => client.connect())();
   if (error !== undefined)
@@ -51,87 +51,57 @@ const connectAndWrap = async (
   return { db: database, wrapper };
 };
 
+// The registration's own connection name is authoritative — it is never read from the resolved
+// options object, so a factory/`createMongoOptions` result can never redirect a registration to a
+// different connection name than the one it was configured under.
 export const establishConnection = (
-  options: MongoOptions,
-): Promise<{ readonly db: Db; readonly wrapper: MongoClientWrapper }> =>
-  Promise.resolve().then(() => connectAndWrap(resolveClient(ensureValidOptions(options)), options));
+  connectionName: string,
+  options: MongoConnectionOptions,
+): Promise<MongoConnection> =>
+  Promise.resolve().then(() => {
+    const validated = ensureValidOptions(connectionName, options);
+    return connectAndWrap(resolveClient(validated), validated).then(({ db, wrapper }) => ({
+      connectionName,
+      options: validated,
+      db,
+      wrapper,
+    }));
+  });
 
 // --- NestJS provider factories ---
 
-export const createConnectionProviders = (options: MongoOptions): Provider[] => {
-  const wrapperToken = getClientWrapperToken(options.connectionName);
-  const databaseToken = getConnectionToken(options.connectionName);
-  // Single establish-token guarantees exactly one client.connect() call (ADR-2)
-  const establishToken = Symbol(`establish_${String(options.connectionName ?? 'default')}`);
-  return [
-    {
-      provide: establishToken,
-      useFactory: () => establishConnection(options),
-    },
-    {
-      provide: wrapperToken,
-      useFactory: (established: { readonly db: Db; readonly wrapper: MongoClientWrapper }) =>
-        established.wrapper,
-      inject: [establishToken],
-    },
-    {
-      provide: databaseToken,
-      useFactory: (established: { readonly db: Db; readonly wrapper: MongoClientWrapper }) =>
-        established.db,
-      inject: [establishToken],
-    },
-    {
-      provide: ZOD_MONGO_MODULE_OPTIONS,
-      useValue: options,
-    },
-    {
-      // ponytail: known limitation — multiple forRoot() calls overwrite this token (NestJS v11 types
-      // do not expose multi on Provider). Tracked in docs/ia/issues/nest-zod-mongo-multi-connection-shutdown.md
-      provide: ZOD_MONGO_CONNECTION_TOKENS,
-      useValue: [wrapperToken],
-    },
-  ];
-};
+export const createOptionsProviders = (
+  connectionName: string,
+  asyncOptions: MongoAsyncOptions,
+): readonly Provider[] => {
+  ensureSingleOptionsSource(connectionName, asyncOptions);
 
-export const createAsyncConnectionProviders = (asyncOptions: MongoAsyncOptions): Provider[] => {
-  const wrapperToken = getClientWrapperToken(asyncOptions.connectionName);
-  const databaseToken = getConnectionToken(asyncOptions.connectionName);
-  const establishToken = Symbol(`establish_${String(asyncOptions.connectionName ?? 'default')}`);
-  const inject: InjectionToken[] = asyncOptions.inject ? [...asyncOptions.inject] : [];
+  // Branches on the same "is it actually callable" rule `ensureSingleOptionsSource` counted by,
+  // so a mechanism it treated as absent (e.g. `useFactory: null`) never gets selected here either.
+  if (typeof asyncOptions.useFactory === 'function')
+    return [
+      {
+        provide: MONGO_CORE_OPTIONS,
+        useFactory: asyncOptions.useFactory,
+        inject: asyncOptions.inject ?? [],
+      },
+    ];
+
+  if (typeof asyncOptions.useClass === 'function')
+    return [
+      { provide: asyncOptions.useClass, useClass: asyncOptions.useClass },
+      {
+        provide: MONGO_CORE_OPTIONS,
+        useFactory: (factory: MongoOptionsFactory) => factory.createMongoOptions(connectionName),
+        inject: [asyncOptions.useClass],
+      },
+    ];
+
   return [
     {
-      provide: establishToken,
-      useFactory: async (...arguments_: unknown[]) => {
-        const options = await asyncOptions.useFactory(...arguments_);
-        return establishConnection(options);
-      },
-      inject,
-    },
-    {
-      provide: wrapperToken,
-      useFactory: (established: { readonly db: Db; readonly wrapper: MongoClientWrapper }) =>
-        established.wrapper,
-      inject: [establishToken],
-    },
-    {
-      provide: databaseToken,
-      useFactory: (established: { readonly db: Db; readonly wrapper: MongoClientWrapper }) =>
-        established.db,
-      inject: [establishToken],
-    },
-    {
-      // Calling useFactory again is acceptable for a pure config factory (ADR mirrors forRoot behavior).
-      // The establish provider already called it once above, but for options we need a separate provider
-      // so ZOD_MONGO_MODULE_OPTIONS is available to forFeature repo factories.
-      provide: ZOD_MONGO_MODULE_OPTIONS,
-      useFactory: async (...arguments_: unknown[]) => asyncOptions.useFactory(...arguments_),
-      inject,
-    },
-    {
-      // ponytail: known limitation — multiple forRootAsync() calls overwrite this token
-      // (NestJS v11 types do not expose multi on Provider). Tracked in docs/ia/issues/nest-zod-mongo-multi-connection-shutdown.md
-      provide: ZOD_MONGO_CONNECTION_TOKENS,
-      useValue: [wrapperToken],
+      provide: MONGO_CORE_OPTIONS,
+      useFactory: (factory: MongoOptionsFactory) => factory.createMongoOptions(connectionName),
+      inject: [asyncOptions.useExisting],
     },
   ];
 };
@@ -140,13 +110,13 @@ export const createAsyncConnectionProviders = (asyncOptions: MongoAsyncOptions):
 
 export const createRepositoryProviders = (
   collections: readonly CollectionDef<ZodCompat, IdStrategy>[],
-  connectionName?: string | symbol,
+  connectionName?: string,
 ): Provider[] =>
   collections.map((collectionEntry) => ({
     provide: getRepositoryToken(collectionEntry.name, connectionName),
     useFactory: async (
       database: Parameters<typeof createRepository>[1],
-      moduleOptions: MongoOptions,
+      moduleOptions: MongoConnectionOptions,
     ) => {
       if (moduleOptions.syncIndexes !== false) {
         const result = await syncIndexes(collectionEntry, database);
@@ -158,5 +128,5 @@ export const createRepositoryProviders = (
       }
       return createRepository(collectionEntry, database);
     },
-    inject: [getConnectionToken(connectionName), ZOD_MONGO_MODULE_OPTIONS],
+    inject: [getConnectionToken(connectionName), getOptionsToken(connectionName)],
   }));
