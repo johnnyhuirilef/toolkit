@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.0](https://github.com/johnnyhuirilef/toolkit/compare/nest-mongo-v0.5.2...nest-mongo-v0.6.0) (2026-09-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **nest-mongo:** connectionName accepts only strings; DEFAULT_CONNECTION symbol is replaced by DEFAULT_CONNECTION_NAME = 'default'; token string values changed.
+
+### Features
+
+* **nest-mongo:** per-connection core modules, useClass/useExisting and isolated shutdown ([#108](https://github.com/johnnyhuirilef/toolkit/issues/108)) ([71b20d1](https://github.com/johnnyhuirilef/toolkit/commit/71b20d18d6edb0266877f385e7da180dc2d92474))
+
 ## [0.5.2](https://github.com/johnnyhuirilef/toolkit/compare/nest-mongo-v0.5.1...nest-mongo-v0.5.2) (2026-07-10)
 
 
