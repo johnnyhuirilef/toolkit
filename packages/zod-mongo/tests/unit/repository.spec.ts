@@ -14,6 +14,7 @@ import { findAndModifyResult } from './driver-shape.js';
 import type { CollectionLike, DatabaseLike } from '../../src/collection-like.js';
 import { defineCollection } from '../../src/collection.js';
 import type { ZodCompat } from '../../src/compat/zod.js';
+import { ConfigurationError } from '../../src/errors.js';
 import { createRepository } from '../../src/mongo-repository.js';
 
 const schema = z.object({ name: z.string() });
@@ -136,6 +137,43 @@ const setup = (overrides: Partial<CollectionLike<TestDoc>> = {}) => {
   const repo = createRepository(TestCollection, makeDb(coll));
   return { coll, repo };
 };
+
+// Reflect.apply performs an untyped call, exactly like a plain JS caller: createRepository's
+// declared parameter types cannot express these malformed arguments.
+const callCreateRepositoryAsUntypedCaller = (
+  collectionArgument: unknown,
+  databaseArgument: unknown,
+): unknown => Reflect.apply(createRepository, undefined, [collectionArgument, databaseArgument]);
+
+describe('createRepository() boundary validation (untyped callers)', () => {
+  it('rejects a non-collection-definition first argument with ConfigurationError, not a deep TypeError', () => {
+    const database = makeDb(makeCollection());
+
+    expect(() => callCreateRepositoryAsUntypedCaller({}, database)).toThrow(ConfigurationError);
+    expect(() => callCreateRepositoryAsUntypedCaller({}, database)).toThrow(/"collection\.name"/);
+    expect(() => callCreateRepositoryAsUntypedCaller({}, database)).not.toThrow(TypeError);
+  });
+
+  it('rejects a non-database second argument with ConfigurationError, not a deep TypeError', () => {
+    expect(() => callCreateRepositoryAsUntypedCaller(TestCollection, {})).toThrow(
+      ConfigurationError,
+    );
+    expect(() => callCreateRepositoryAsUntypedCaller(TestCollection, {})).toThrow(/"database"/);
+    expect(() => callCreateRepositoryAsUntypedCaller(TestCollection, {})).not.toThrow(TypeError);
+  });
+
+  it('rejects a collection whose "id" is not a valid id strategy with ConfigurationError', () => {
+    const malformedCollection = { ...TestCollection, id: 42 };
+    const database = makeDb(makeCollection());
+
+    expect(() => callCreateRepositoryAsUntypedCaller(malformedCollection, database)).toThrow(
+      ConfigurationError,
+    );
+    expect(() => callCreateRepositoryAsUntypedCaller(malformedCollection, database)).toThrow(
+      /"collection\.id"/,
+    );
+  });
+});
 
 describe('findById', () => {
   it('should pass options to the driver when provided', async () => {
@@ -1371,5 +1409,59 @@ describe('upsertOne — driver failure on the pre-write lookup', () => {
     if (result.ok) return;
     expect(result.error.kind).toBe('unknown');
     expect(result.error.message).toContain('connection dropped');
+  });
+});
+
+// radashi's shake() drops only undefined keys, so an explicit null in a patch reaches $set and
+// clears the stored field. These tests pin that contract for every method that builds a $set.
+const NullableCollection = defineCollection({
+  name: 'nullable',
+  schema: z.object({ name: z.string(), deletedAt: z.string().nullable() }),
+  idStrategy: 'uuid' as const,
+});
+
+type NullableDoc = { _id: string; name: string; deletedAt: string | null };
+
+const setupNullable = () => {
+  const coll = makeCollection<NullableDoc>();
+  const repo = createRepository(NullableCollection, makeDb(coll));
+  return { coll, repo };
+};
+
+describe('update patches with an explicit null field', () => {
+  it('updateById sends the null field to $set', async () => {
+    const { coll, repo } = setupNullable();
+
+    await repo.updateById('uuid-5', { deletedAt: null });
+
+    expect(coll.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'uuid-5' },
+      { $set: { deletedAt: null } },
+      expect.anything(),
+    );
+  });
+
+  it('updateOne sends the null field to $set', async () => {
+    const { coll, repo } = setupNullable();
+
+    await repo.updateOne({ name: 'Ann' }, { deletedAt: null });
+
+    expect(coll.findOneAndUpdate).toHaveBeenCalledWith(
+      { name: 'Ann' },
+      { $set: { deletedAt: null } },
+      expect.anything(),
+    );
+  });
+
+  it('updateMany sends the null field to $set', async () => {
+    const { coll, repo } = setupNullable();
+
+    await repo.updateMany({ name: 'Ann' }, { deletedAt: null });
+
+    expect(coll.updateMany).toHaveBeenCalledWith(
+      { name: 'Ann' },
+      { $set: { deletedAt: null } },
+      expect.anything(),
+    );
   });
 });

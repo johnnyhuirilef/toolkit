@@ -479,6 +479,12 @@ if (!result.ok) {
 }
 ```
 
+`defineCollection()` and `createRepository()` validate their arguments at call time and throw a
+`ConfigurationError` — synchronously, not as a `Result` — when an argument doesn't match what the
+function needs (a malformed schema, a non-string name, an invalid `indexes` entry, a collection
+definition that didn't come from `defineCollection()`, or a database missing `.collection()`). This
+is a setup/programmer mistake, not a runtime data error, so it never appears in `DbError`.
+
 You can also convert any caught value into a `DbError` using `toDbError`, or catch a specific domain
 error class directly:
 

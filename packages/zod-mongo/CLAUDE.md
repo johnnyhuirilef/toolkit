@@ -21,9 +21,10 @@ src/
   collection.ts     — defineCollection(), CollectionDef<Schema, Id>, Doc<Schema, Id>
   repository.ts     — createRepository(), Repository<Schema, Id> interface
   result.ts         — Result<T, E>, Ok, Err, ok(), err(), isOk(), isErr()
-  errors.ts         — DbError, DbErrorKind, toDbError()
+  errors.ts         — DbError, DbErrorKind, toDbError(), ConfigurationError
   id.ts             — IdStrategy, InferIdType<T>, generateId()
   indexes.ts        — IndexDef, index(), syncIndexes(), generateIndexMigration()
+  validation.ts     — ensure*/validate* boundary guards for defineCollection() and createRepository()
   run-safe.ts       — runSafe() internal utility; wraps driver promises as Result<T>; moved out of mongo-repository.ts
   query-builder.ts  — QueryBuilder<Schema, Id> type + createQueryBuilder() factory; internal factory not re-exported
   compat/
@@ -58,6 +59,14 @@ cd packages/zod-mongo && pnpm vitest run tests/unit/collection.spec.ts
 `defineCollection()` returns an `Object.freeze()`-d `CollectionDef`. Both the object and the
 `indexes` array are frozen. Do not mutate. The `__doc` phantom field on `CollectionDef` carries the
 `Doc<Schema, Id>` type for inference — it is never set at runtime.
+
+### Boundary validation
+
+`defineCollection()` and `createRepository()` run `ensure*` guards from `validation.ts` first,
+before using any argument. They throw `ConfigurationError` (a synchronous throw, not a `Result`) for
+a malformed `name`, `schema`, `indexes` entry, collection definition, or database — naming the
+argument and the fix, instead of a deep `TypeError` from inside a closure or silent acceptance of a
+wrong shape. `validateZodCompat` checks only `.parse` — never `_output` (see Gotchas).
 
 ### createRepository
 
@@ -155,7 +164,7 @@ Do not mix.
 | Error check           | `isError(x)`         |
 | Extract error message | `getErrorMessage(x)` |
 | Empty collection      | `isEmpty(x)`         |
-| Strip nullish keys    | `shake(obj)`         |
+| Strip undefined keys  | `shake(obj)`         |
 | Wrap throwing async   | `tryit(fn)`          |
 
 Do NOT use `toResult`, `isResult`, `isResultOk`, or `isResultErr` from radashi — radashi's `Result`
@@ -237,10 +246,15 @@ Releases update the package root's own `package.json` (`manifestRootsToUpdate: [
   `validation`-kind `DbError` (`MissingIdError`) instead of silently writing without one — a schema
   that names its identity field something other than `_id` (e.g. `id`) is caught this way rather
   than letting MongoDB auto-generate a disconnected `ObjectId`.
-- `shake()` from radashi strips nullish keys from the patch before `$set`. Explicit `null` values in
-  an update patch are therefore silently dropped.
+- `shake()` from radashi strips only `undefined` keys from the patch before `$set`. An explicit
+  `null` reaches `$set` and clears the stored field (pinned by the "explicit null field" tests).
 - `aggregate()` takes an `outputSchema: Out` parameter and parses every output document through it.
   The schema does not have to match the collection's own schema.
 - `syncIndexes` is a no-op when `collection.indexes` is empty (guarded by `isEmpty` from radashi).
 - `generateIndexMigration` returns a migrate-mongo-compatible JS module string — it does not execute
   anything against a real database.
+- `ZodCompat`'s `_output` field is a TypeScript-only phantom marker (declared for inference, never
+  assigned). A real Zod schema instance does not carry it at runtime — verified with `z.object({})`,
+  which has `.parse` but no own or inherited `_output` property. Any runtime check for schema
+  compatibility (`validateZodCompat` in `validation.ts`) must check `.parse`, never `_output`, or it
+  rejects every real schema.

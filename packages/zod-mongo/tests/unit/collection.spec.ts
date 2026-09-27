@@ -2,9 +2,15 @@ import { describe, it, expect } from 'vitest';
 import * as z from 'zod';
 
 import { defineCollection } from '../../src/collection.js';
+import { ConfigurationError } from '../../src/errors.js';
 import { index } from '../../src/indexes.js';
 
 const schema = z.object({ name: z.string(), email: z.string() });
+
+// Reflect.apply performs an untyped call, exactly like a plain JS caller: defineCollection's
+// declared parameter type cannot express these malformed configs.
+const callDefineCollectionAsUntypedCaller = (config: unknown): unknown =>
+  Reflect.apply(defineCollection, undefined, [config]);
 
 describe('defineCollection()', () => {
   describe('defaults', () => {
@@ -82,6 +88,36 @@ describe('defineCollection()', () => {
     it('indexes array is frozen', () => {
       const col = defineCollection({ name: 'users', schema, indexes: [index({ email: 1 })] });
       expect(Object.isFrozen(col.indexes)).toBe(true);
+    });
+  });
+
+  describe('boundary validation (untyped callers)', () => {
+    it('rejects a non-Zod-compatible schema with ConfigurationError instead of silently accepting it', () => {
+      const config = { name: 'users', schema: {} };
+
+      expect(() => callDefineCollectionAsUntypedCaller(config)).toThrow(ConfigurationError);
+      expect(() => callDefineCollectionAsUntypedCaller(config)).toThrow(/"schema"/);
+    });
+
+    it('rejects a non-string name with ConfigurationError instead of a deep TypeError later', () => {
+      const config = { name: 42, schema };
+
+      expect(() => callDefineCollectionAsUntypedCaller(config)).toThrow(ConfigurationError);
+      expect(() => callDefineCollectionAsUntypedCaller(config)).not.toThrow(TypeError);
+    });
+
+    it('rejects non-array indexes with ConfigurationError naming "indexes"', () => {
+      const config = { name: 'users', schema, indexes: 'not-an-array' };
+
+      expect(() => callDefineCollectionAsUntypedCaller(config)).toThrow(ConfigurationError);
+      expect(() => callDefineCollectionAsUntypedCaller(config)).toThrow(/"indexes"/);
+    });
+
+    it('rejects an index entry missing "spec" with ConfigurationError naming its position', () => {
+      const config = { name: 'users', schema, indexes: [{}] };
+
+      expect(() => callDefineCollectionAsUntypedCaller(config)).toThrow(ConfigurationError);
+      expect(() => callDefineCollectionAsUntypedCaller(config)).toThrow(/position 0/);
     });
   });
 });
