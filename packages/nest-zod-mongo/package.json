@@ -94,7 +94,7 @@
     "reflect-metadata": "^0.2.2",
     "tsdown": "^0.22.3",
     "tsx": "^4.0.0",
-    "vitest": "^3.0.0"
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "radashi": "^12.1.0"
