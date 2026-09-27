@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.4.3...mongo-v0.5.0) (2026-09-27)
+
+
+### Features
+
+* **zod-mongo:** validate defineCollection and createRepository arguments at runtime ([#109](https://github.com/johnnyhuirilef/toolkit/issues/109)) ([67ffc5b](https://github.com/johnnyhuirilef/toolkit/commit/67ffc5b6fac48ff910c7a96279adcba3ef2adbfd))
+
+
+### Documentation
+
+* document the hexagonal/clean-architecture adapter pattern ([#102](https://github.com/johnnyhuirilef/toolkit/issues/102)) ([4903231](https://github.com/johnnyhuirilef/toolkit/commit/49032313a78a98a00f23c93552f44bead5740c78))
+
 ## [0.4.3](https://github.com/johnnyhuirilef/toolkit/compare/mongo-v0.4.2...mongo-v0.4.3) (2026-07-10)
 
 
